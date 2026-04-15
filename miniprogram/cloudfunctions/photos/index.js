@@ -575,10 +575,13 @@ async function getMyWorks(openId, params = {}) {
       .limit(pageSize)
       .get();
 
-    const photos = result.data.map(photo => ({
+    let photos = result.data.map(photo => ({
       ...photo,
       liked: (photo.likedUsers || []).includes(openId)
     }));
+
+    // 转换 cloud:// URL 为临时链接
+    photos = await convertCloudUrlsInArray(photos);
 
     return { success: true, data: { photos, hasMore: page * pageSize < total, total } };
   } catch (e) {
@@ -606,10 +609,44 @@ async function getMyLiked(openId, params = {}) {
       .limit(pageSize)
       .get();
 
-    const photos = result.data.map(photo => ({
+    let photos = result.data.map(photo => ({
       ...photo,
       liked: true
     }));
+
+    // 转换 cloud:// URL 为临时链接
+    photos = await convertCloudUrlsInArray(photos);
+
+    // 批量获取作者头像+昵称（按 authorId 查 users 表）
+    const authorIds = [...new Set(photos.map(p => p.authorId).filter(Boolean))];
+    if (authorIds.length > 0) {
+      const authorAvatarMap = {};
+      const authorNicknameMap = {};
+      try {
+        const userRes = await usersCollection
+          .where({ _openid: _.in(authorIds) })
+          .field({ _openid: true, avatar: true, nickname: true })
+          .limit(100)
+          .get();
+        userRes.data.forEach(u => {
+          if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
+          if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
+        });
+      } catch (e) {
+        console.error('[getMyLiked] batch query users failed:', e);
+      }
+
+      const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
+
+      photos.forEach(photo => {
+        if (resolvedAvatars[photo.authorId]) {
+          photo.authorAvatar = resolvedAvatars[photo.authorId];
+        }
+        if (authorNicknameMap[photo.authorId]) {
+          photo.authorNickname = authorNicknameMap[photo.authorId];
+        }
+      });
+    }
 
     return { success: true, data: { photos, hasMore: page * pageSize < total, total } };
   } catch (e) {

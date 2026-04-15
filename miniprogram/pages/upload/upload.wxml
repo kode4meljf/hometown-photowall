@@ -1,57 +1,106 @@
 <!-- pages/upload/upload.wxml -->
 <view class="upload-page">
-  <view class="form-section">
-    <!-- 图片上传 -->
-    <view class="image-upload" bindtap="chooseImage">
-      <image wx:if="{{imageUrl}}" class="preview-image" src="{{imageUrl}}" mode="aspectFit" />
-      <view wx:else class="upload-placeholder">
-        <text class="upload-icon">📷</text>
-        <text class="upload-text">点击选择图片</text>
+  <!-- 顶部大图预览区 -->
+  <view class="preview-area" bindtap="previewFullScreen">
+    <image
+      wx:if="{{imageList.length > 0}}"
+      class="preview-image"
+      src="{{imageList[currentIndex]}}"
+      mode="aspectFit"
+    />
+    <view wx:else class="preview-placeholder">
+      <text class="placeholder-icon">📷</text>
+      <text class="placeholder-text">点击下方添加图片</text>
+    </view>
+    <view class="image-counter" wx:if="{{imageList.length > 1}}">
+      <text>{{currentIndex + 1}}/{{imageList.length}}</text>
+    </view>
+  </view>
+
+  <!-- 缩略图栏（横向滚动） -->
+  <view class="thumbnail-bar {{isOverflow ? 'overflow' : ''}}">
+    <scroll-view class="thumbnail-scroll" scroll-x enable-flex>
+      <view class="thumbnail-list">
+        <!-- 已选图片 -->
+        <view
+          class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
+          wx:for="{{imageList}}"
+          wx:key="index"
+          bindtap="selectImage"
+          data-index="{{index}}"
+        >
+          <image class="thumbnail-image" src="{{item}}" mode="aspectFill" />
+          <view class="delete-btn" catchtap="deleteImage" data-index="{{index}}">×</view>
+        </view>
+      </view>
+    </scroll-view>
+    <!-- 添加按钮 -->
+    <view class="thumbnail-add {{imageList.length > 0 ? '' : 'no-margin'}}" bindtap="chooseImage">
+      <text class="add-icon">+</text>
+    </view>
+  </view>
+
+  <!-- 表单区域 -->
+  <scroll-view class="form-scroll" scroll-y>
+    <view class="form-section">
+      <!-- 标题/描述 -->
+      <view class="form-item">
+        <input
+          class="title-input {{highlightTitle ? 'highlight' : ''}}"
+          placeholder="添加标题"
+          placeholder-class="placeholder"
+          value="{{form.title}}"
+          bindinput="onTitleInput"
+          focus="{{focusTitle}}"
+        />
+      </view>
+
+      <view class="form-item">
+        <textarea
+          class="desc-input"
+          placeholder="添加作品描述…"
+          placeholder-class="placeholder"
+          value="{{form.description}}"
+          bindinput="onDescInput"
+          maxlength="200"
+        />
+      </view>
+
+      <!-- 地点选择 -->
+      <view class="location-section">
+        <view class="location-header" bindtap="toggleLocationExpand">
+          <text class="location-icon">📍</text>
+          <text class="location-label">{{form.location || '你在哪里'}}</text>
+          <text class="location-arrow {{locationExpanded ? 'expanded' : ''}}">›</text>
+        </view>
+        <view class="location-tags {{locationExpanded ? 'expanded' : ''}}" wx:if="{{locations.length > 0}}">
+          <view
+            class="location-tag {{form.location === item ? 'active' : ''}}"
+            wx:for="{{locations}}"
+            wx:key="index"
+            bindtap="selectLocation"
+            data-location="{{item}}"
+          >
+            <text>{{item}}</text>
+          </view>
+          <!-- 自定义地点输入 -->
+          <input
+            class="custom-location-input"
+            placeholder="自定义"
+            placeholder-class="placeholder"
+            value="{{customLocation}}"
+            bindinput="onCustomLocationInput"
+            bindconfirm="confirmCustomLocation"
+          />
+        </view>
       </view>
     </view>
+  </scroll-view>
 
-    <!-- 表单 -->
-    <view class="form">
-      <view class="form-item">
-        <text class="label">标题 *</text>
-        <input class="input" placeholder="请输入照片标题" value="{{form.title}}" bindinput="onTitleInput" />
-      </view>
-
-      <view class="form-item">
-        <text class="label">描述</text>
-        <textarea class="textarea" placeholder="记录这张照片的故事..." value="{{form.description}}" bindinput="onDescInput" maxlength="200" />
-      </view>
-
-      <view class="form-item">
-        <text class="label">地点</text>
-        <picker mode="selector" range="{{locationOptions}}" bindchange="onLocationSelect">
-          <view class="picker">
-            <text>{{form.location || '点击选择或自定义地点'}}</text>
-            <text class="arrow">▼</text>
-          </view>
-        </picker>
-        <input 
-          class="input custom-input" 
-          placeholder="自定义地点" 
-          value="{{form.location}}" 
-          bindinput="onLocationInput" 
-        />
-        <text class="hint" wx:if="{{locations.length > 0}}">已有地点：{{locations.join('、')}}</text>
-      </view>
-
-      <view class="form-item">
-        <text class="label">分类</text>
-        <picker mode="selector" range="{{categories}}" range-key="name" bindchange="onCategoryChange">
-          <view class="picker">
-            <text>{{form.category || '请选择分类'}}</text>
-            <text class="arrow">▼</text>
-          </view>
-        </picker>
-      </view>
-
-      <button class="submit-btn" bindtap="handleSubmit" loading="{{submitting}}">
-        发布照片
-      </button>
+  <!-- 底部发布按钮 -->
+  <view class="submit-bar">
+    <view class="submit-btn {{submitting ? 'submitting' : ''}}" bindtap="{{submitting ? '' : 'handleSubmit'}}">
+      <text>{{submitting ? '发布中…' : '发布照片'}}</text>
     </view>
   </view>
 </view>

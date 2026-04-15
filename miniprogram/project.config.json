@@ -1,6 +1,6 @@
 {
   "miniprogramRoot": "./",
-  "cloudfunctionRoot": "./cloudfunctions/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "projectname": "hometown-photowall",
   "description": "家乡照片墙小程序 - 云开发版",
   "appid": "wx19817e9ffb75ffaf",
@@ -30,11 +30,29 @@
     "useCompilerModule": true,
     "packNpmManually": false,
     "packNpmRelationList": [],
-    "minifyWXSS": true
+    "minifyWXSS": true,
+    "compileWorklet": false,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
   "compileType": "miniprogram",
-  "libVersion": "2.30.0",
+  "libVersion": "3.15.1",
   "condition": {},
   "cloudfunctionTemplateRoot": "cloudfunctionTemplate/",
-  "simulatorPluginLibVersion": {}
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }
