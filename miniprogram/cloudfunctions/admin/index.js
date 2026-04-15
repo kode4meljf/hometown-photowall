@@ -1,4 +1,4 @@
-// cloudfunctions/admin/index.js - 管理员云函数
+// cloudfunctions/admin/index.js - 管理员云函数（posts 集合版）
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -51,11 +51,11 @@ exports.main = async (event, context) => {
   }
 };
 
-// 获取所有照片
+// 获取所有照片（读 posts 集合）
 async function getAllPhotos(params = {}) {
   try {
     const { page = 1, pageSize = 100 } = params;
-    const result = await db.collection('photos')
+    const result = await db.collection('posts')
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
@@ -79,10 +79,10 @@ async function getAllPhotos(params = {}) {
   }
 }
 
-// 删除照片
+// 删除照片（从 posts 集合删除）
 async function deletePhoto(id) {
   try {
-    await db.collection('photos').doc(id).remove();
+    await db.collection('posts').doc(id).remove();
     await db.collection('comments').where({ photoId: id }).remove();
     return { success: true };
   } catch (e) {
@@ -100,10 +100,10 @@ async function getUsers() {
       .get();
 
     const users = await Promise.all(usersResult.data.map(async user => {
-      const photoCount = await db.collection('photos')
+      const photoCount = await db.collection('posts')
         .where({ authorId: user._openid })
         .count();
-      
+
       const commentCount = await db.collection('comments')
         .where({ authorId: user._openid })
         .count();
@@ -127,16 +127,16 @@ async function getUsers() {
   }
 }
 
-// 获取管理员统计数据
+// 获取管理员统计数据（posts 集合）
 async function getAdminStats() {
   try {
-    const [photoCount, userCount, commentCount] = await Promise.all([
-      db.collection('photos').count(),
+    const [postCount, userCount, commentCount] = await Promise.all([
+      db.collection('posts').count(),
       db.collection('users').count(),
       db.collection('comments').count()
     ]);
 
-    const likesResult = await db.collection('photos')
+    const likesResult = await db.collection('posts')
       .field({ likes: true })
       .get();
     const totalLikes = likesResult.data.reduce((sum, p) => sum + (p.likes || 0), 0);
@@ -144,7 +144,7 @@ async function getAdminStats() {
     return {
       success: true,
       data: {
-        totalPhotos: photoCount.total,
+        totalPhotos: postCount.total,
         totalUsers: userCount.total,
         totalComments: commentCount.total,
         totalLikes

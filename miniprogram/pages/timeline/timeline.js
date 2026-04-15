@@ -31,10 +31,8 @@ Page({
           year: item.year,
           photos: item.photos.map(p => ({
             ...p,
-            id: p._id,
-            imageUrl: p.imageUrl.startsWith('http') || p.imageUrl.startsWith('cloud://')
-              ? p.imageUrl
-              : `http://localhost:3000${p.imageUrl}`,
+            id: p.id || p._id,
+            // imageUrl 已是转换后的 URL，无需额外处理
             date: formatDate(p.createdAt)
           }))
         }));

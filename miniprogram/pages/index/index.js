@@ -94,7 +94,7 @@ Page({
       });
 
       if (res.success) {
-        const newPhotos = (res.data.photos || []).map(p => ({
+        const newPhotos = (res.data.posts || []).map(p => ({
           ...p,
           id: p._id,
           liked: !!p.liked,

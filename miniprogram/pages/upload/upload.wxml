@@ -17,11 +17,14 @@
     </view>
   </view>
 
-  <!-- 缩略图栏（横向滚动） -->
-  <view class="thumbnail-bar {{isOverflow ? 'overflow' : ''}}">
-    <scroll-view class="thumbnail-scroll" scroll-x enable-flex>
-      <view class="thumbnail-list">
-        <!-- 已选图片 -->
+  <!-- 缩略图栏 -->
+  <view class="thumbnail-bar {{imageList.length > 0 ? 'has-images' : ''}}">
+    <!-- 缩略图滚动区 -->
+    <scroll-view
+      class="thumbnail-scroll {{imageList.length > 0 ? 'expand' : ''}}"
+      scroll-x
+    >
+      <view class="thumbnail-list {{isOverflow ? 'overflow' : ''}}">
         <view
           class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
           wx:for="{{imageList}}"
@@ -34,10 +37,18 @@
         </view>
       </view>
     </scroll-view>
-    <!-- 添加按钮 -->
-    <view class="thumbnail-add {{imageList.length > 0 ? '' : 'no-margin'}}" bindtap="chooseImage">
+
+    <!-- 添加按钮：作为 bar 的独立子元素，不参与图片滚动 -->
+    <view
+      class="thumbnail-add {{imageList.length >= 9 ? 'disabled' : ''}}"
+      bindtap="chooseImage"
+      wx:if="{{imageList.length < 9}}"
+    >
       <text class="add-icon">+</text>
     </view>
+
+    <!-- 右侧羽化遮罩 -->
+    <view class="scroll-fade-right" wx:if="{{isOverflow}}"></view>
   </view>
 
   <!-- 表单区域 -->

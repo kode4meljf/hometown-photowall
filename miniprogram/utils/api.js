@@ -152,6 +152,19 @@ const userApi = {
   }
 };
 
+// 帖子 API（posts 云函数）
+const postApi = {
+  // 获取所有帖子（用于加载地点列表等）
+  getPosts(params = {}) {
+    return callFunction('posts', 'list', params);
+  },
+
+  // 创建帖子
+  createPost(data) {
+    return callFunction('posts', 'create', data);
+  }
+};
+
 module.exports = {
   callFunction,
   uploadImage,

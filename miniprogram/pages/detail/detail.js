@@ -92,7 +92,7 @@ Page({
     try {
       const res = await photoApi.getPhotos({ page: 1, pageSize: 100 });
       if (res.success) {
-        this._photoList = res.data.photos || [];
+        this._photoList = res.data.posts || [];
         this._currentIndex = this._photoList.findIndex(p => p._id === this.photoId);
         this._updateNavState();
       }

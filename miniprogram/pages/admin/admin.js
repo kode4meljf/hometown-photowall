@@ -68,9 +68,7 @@ Page({
         const photos = res.data.photos.map(p => ({
           ...p,
           id: p._id || p.id,
-          imageUrl: p.imageUrl.startsWith('http') || p.imageUrl.startsWith('cloud://')
-            ? p.imageUrl
-            : `http://localhost:3000${p.imageUrl}`,
+          imageUrl: p.imageUrl,
           date: formatDate(p.createdAt)
         }));
         this.setData({ photos });

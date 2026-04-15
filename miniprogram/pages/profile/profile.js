@@ -131,7 +131,7 @@ Page({
     try {
       const res = await photoApi.getMyWorks({ page, pageSize: this.data._pageSize });
       if (res.success) {
-        const photos = (res.data.photos || []).map(p => ({
+        const photos = (res.data.posts || []).map(p => ({
           ...p,
           id: p._id,
           imageUrl: p.imageUrl
@@ -159,7 +159,7 @@ Page({
     try {
       const res = await photoApi.getLikedPhotos({ page, pageSize: this.data._pageSize });
       if (res.success) {
-        const photos = (res.data.photos || []).map(p => ({
+        const photos = (res.data.posts || []).map(p => ({
           ...p,
           id: p._id,
           imageUrl: p.imageUrl

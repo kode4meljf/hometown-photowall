@@ -52,57 +52,49 @@
 /* 缩略图栏 */
 .thumbnail-bar {
   background: #fff;
-  padding: 16rpx 24rpx;
   margin-top: 20rpx;
   margin-bottom: 10rpx;
   display: flex;
   align-items: center;
-  justify-content: center;  /* 未撑满时整体居中 */
+  /* 无图时：scroll(收缩到内容宽) + button 整体居中 */
+  justify-content: center;
   position: relative;
 }
 
+/* 有图时：scroll 占满左侧，按钮固定右侧 */
+.thumbnail-bar.has-images {
+  justify-content: space-between;
+}
+
+/* scroll-view */
 .thumbnail-scroll {
   white-space: nowrap;
-  position: relative;
+  min-height: 112rpx;
+  padding: 16rpx 0;
 }
 
-/* 撑满时：滚动区占满，按钮被挤到右边 */
-.thumbnail-bar.overflow .thumbnail-scroll {
+/* 有图时：scroll 填满左侧剩余空间 */
+.thumbnail-scroll.expand {
   flex: 1;
-  width: 0;  /* 让 flex:1 生效 */
+  min-width: 0;
 }
 
-/* 超出时的羽化遮罩 */
-.thumbnail-bar.overflow .thumbnail-scroll::before,
-.thumbnail-bar.overflow .thumbnail-scroll::after {
-  content: '';
-  position: absolute;
-  top: -16rpx;
-  bottom: -16rpx;
-  width: 50rpx;
-  pointer-events: none;
-  z-index: 10;
-}
-
-.thumbnail-bar.overflow .thumbnail-scroll::before {
-  left: 0;
-  background: linear-gradient(to right, #fff 0%, #fff 30%, transparent 100%);
-}
-
-.thumbnail-bar.overflow .thumbnail-scroll::after {
-  right: 0;
-  background: linear-gradient(to left, #fff 0%, #fff 30%, transparent 100%);
-}
-
+/* 缩略图列表 */
 .thumbnail-list {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 16rpx;
-  min-width: 1rpx;  /* 确保空列表也有宽度 */
+  /* 关键：inline-flex + min-width:0 让列表收缩到内容宽度，不被 scroll-view 撑开 */
+  min-width: 0;
 }
 
-/* 超出时靠左 */
-.thumbnail-bar.overflow .thumbnail-list {
+/* 未溢出：列表内缩略图居中（按钮在列表最后一项，也居中） */
+.thumbnail-list:not(.overflow) {
+  justify-content: center;
+}
+
+/* 溢出：缩略图靠左，允许横向滚动 */
+.thumbnail-list.overflow {
   justify-content: flex-start;
 }
 
@@ -150,17 +142,26 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-left: 16rpx;
 }
 
-/* 无图时：按钮无左边距，居中显示 */
-.thumbnail-add.no-margin {
-  margin-left: 0;
+.thumbnail-add.disabled {
+  opacity: 0.4;
 }
 
 .add-icon {
   font-size: 44rpx;
   color: #999;
+}
+
+/* 右侧羽化遮罩 */
+.scroll-fade-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 60rpx;
+  background: linear-gradient(to left, #fff 40%, transparent 100%);
+  pointer-events: none;
 }
 
 /* 表单区域 */

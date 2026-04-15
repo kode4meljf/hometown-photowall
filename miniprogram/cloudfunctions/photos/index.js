@@ -1,10 +1,10 @@
-// cloudfunctions/photos/index.js - 照片相关云函数
+// cloudfunctions/photos/index.js - 照片相关云函数（posts 集合版）
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const _ = db.command;
-const photosCollection = db.collection('photos');
+const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('comments');
 const usersCollection = db.collection('users');
 
@@ -14,16 +14,13 @@ const _memAvatarTime = {};
 const MEM_CACHE_TTL = 15 * 60 * 1000;
 
 // 解析单条头像 URL：只走 L1 内存缓存，miss 时直接 getTempFileURL
-// ⚠️ 不再存 L2（tempURL 有 ~2h 时效，过期后 403，持久化无意义）
 async function resolveAvatarUrl(cloudUrl) {
   if (!cloudUrl) return '/assets/icons/default-avatar.png';
   if (!cloudUrl.startsWith('cloud://')) return cloudUrl;
   const now = Date.now();
-  // L1：内存缓存
   if (_memAvatarCache[cloudUrl] && (now - _memAvatarTime[cloudUrl]) < MEM_CACHE_TTL) {
     return _memAvatarCache[cloudUrl];
   }
-  // 实时获取（不写库，避免过期 tempURL 被持久化后 403）
   try {
     const urlRes = await cloud.getTempFileURL({ fileList: [cloudUrl] });
     const tempUrl = urlRes.fileList?.[0]?.tempFileURL || cloudUrl;
@@ -35,13 +32,12 @@ async function resolveAvatarUrl(cloudUrl) {
   }
 }
 
-// 批量解析头像 URL（所有评论列表用）：L1 内存缓存 → 实时 getTempFileURL（不再写库，tempURL ~2h 时效）
+// 批量解析头像 URL
 async function resolveAvatarUrls(cloudUrlMap) {
   const result = {};
   const now = Date.now();
   const toFetch = [];
 
-  // L1：内存缓存命中
   for (const [openid, cloudUrl] of Object.entries(cloudUrlMap)) {
     if (!cloudUrl) { result[openid] = '/assets/icons/default-avatar.png'; continue; }
     if (_memAvatarCache[cloudUrl] && (now - _memAvatarTime[cloudUrl]) < MEM_CACHE_TTL) {
@@ -53,7 +49,6 @@ async function resolveAvatarUrls(cloudUrlMap) {
 
   if (toFetch.length === 0) return result;
 
-  // L3：批量 getTempFileURL
   const cloudToFetch = [...new Set(toFetch.map(x => x.cloudUrl))];
   try {
     const urlRes = await cloud.getTempFileURL({ fileList: cloudToFetch });
@@ -61,7 +56,6 @@ async function resolveAvatarUrls(cloudUrlMap) {
     (urlRes.fileList || []).forEach(item => {
       if (item.tempFileURL) urlMap[item.fileID] = item.tempFileURL;
     });
-    // 写入内存缓存 + 填结果
     for (const { openid, cloudUrl } of toFetch) {
       const tempUrl = urlMap[cloudUrl] || cloudUrl;
       result[openid] = tempUrl;
@@ -92,12 +86,10 @@ async function getTempUrl(fileID) {
   }
 }
 
-// 批量转换对象中的云存储 URL（通用方法）
-// 支持转换：imageUrl, avatar, authorAvatar, coverUrl, thumbnail 及 comments 数组
+// 转换单个对象的云存储 URL（imageUrl、avatar 等字段）
 async function convertCloudUrls(obj) {
   if (!obj) return obj;
 
-  // 单个对象上需要检查的字段
   const cloudFields = ['imageUrl', 'avatar', 'authorAvatar', 'coverUrl', 'thumbnail'];
   for (const field of cloudFields) {
     if (obj[field] && typeof obj[field] === 'string' && obj[field].startsWith('cloud://')) {
@@ -117,29 +109,44 @@ async function convertCloudUrls(obj) {
   return obj;
 }
 
-// 批量转换数组中所有对象的云存储 URL（通用方法）
+// 批量转换数组中所有对象的云存储 URL
 async function convertCloudUrlsInArray(arr) {
   if (!Array.isArray(arr)) return arr;
   return Promise.all(arr.map(item => convertCloudUrls(item)));
 }
 
-// 批量转换图片 URL（已废弃，使用 convertCloudUrlsInArray 替代）
-async function processPhotos(photos) {
-  return convertCloudUrlsInArray(photos);
+// 统一 posts 集合字段 → 前端兼容字段（适配 photos 的字段名）
+function normalizePost(post) {
+  // posts 集合：photos = [{imageUrl, width, height, order}]
+  // 取第一张图作为列表展示图
+  const firstPhoto = (post.photos && post.photos.length > 0) ? post.photos[0] : null;
+  return {
+    ...post,
+    id: post._id,
+    imageUrl: firstPhoto ? firstPhoto.imageUrl : '',
+    // aspectRatio = height / width（供瀑布流用）
+    aspectRatio: firstPhoto
+      ? (firstPhoto.height / firstPhoto.width)
+      : 1,
+    // posts 集合无 category 字段，兼容
+    category: post.category || '风景',
+    // posts 集合无 author 字段，通过 authorId 在外层 resolve 后注入
+    // posts 集合无 authorAvatar 字段，通过 authorId 在外层 resolve 后注入
+    // posts 集合的 photos 数组透传给前端（detail 页多图展示用）
+  };
 }
 
 exports.main = async (event, context) => {
   const { action, data } = event;
-  
-  // 获取用户 openid（新版云函数必须用这种方式）
+
   const wxContext = cloud.getWXContext();
   const openId = wxContext.OPENID;
 
   switch (action) {
     case 'list':
-      return await getPhotos(data, openId);
+      return await getPosts(data, openId);
     case 'detail':
-      return await getPhotoDetail(data.id, openId);
+      return await getPostDetail(data.id, openId);
     case 'upload':
       return await uploadPhoto(data, openId);
     case 'delete':
@@ -169,14 +176,14 @@ exports.main = async (event, context) => {
   }
 };
 
-// 获取照片列表
-async function getPhotos(params, openId) {
+// 获取照片列表（读 posts 集合）
+async function getPosts(params, openId) {
   const { location, category, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
-  
+
   try {
     const conditions = {};
     if (location) conditions.location = location;
-    if (category) conditions.category = category;
+    // posts 集合无 category 字段，跳过分类筛选以避免返回空
     if (keyword) {
       conditions.title = db.RegExp({ regexp: keyword, options: 'i' });
     }
@@ -184,28 +191,58 @@ async function getPhotos(params, openId) {
     const orderBy = sort === 'likes' ? 'likes' : sort === 'views' ? 'views' : 'createdAt';
 
     // 查询总数
-    const totalResult = await photosCollection.where(conditions).count();
+    const totalResult = await postsCollection.where(conditions).count();
     const total = totalResult.total;
 
     // 分页数据
-    const result = await photosCollection
+    const result = await postsCollection
       .where(conditions)
       .orderBy(orderBy, 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .get();
 
-    let photos = result.data.map(photo => ({
-      ...photo,
-      liked: openId && (photo.likedUsers || []).includes(openId)
+    // 统一字段
+    let posts = result.data.map(post => ({
+      ...normalizePost(post),
+      liked: openId && (post.likedUsers || []).includes(openId)
     }));
 
-    photos = await processPhotos(photos);
+    // 批量获取作者头像+昵称
+    const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
+    if (authorIds.length > 0) {
+      const authorAvatarMap = {};
+      const authorNicknameMap = {};
+      try {
+        const userRes = await usersCollection
+          .where({ _openid: _.in(authorIds) })
+          .field({ _openid: true, avatar: true, nickname: true })
+          .get();
+        userRes.data.forEach(u => {
+          if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
+          if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
+        });
+      } catch (e) {}
+
+      const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
+
+      posts.forEach(post => {
+        if (resolvedAvatars[post.authorId]) {
+          post.authorAvatar = resolvedAvatars[post.authorId];
+        }
+        if (authorNicknameMap[post.authorId]) {
+          post.author = authorNicknameMap[post.authorId];
+        }
+      });
+    }
+
+    // 转换云存储 URL
+    posts = await convertCloudUrlsInArray(posts);
 
     return {
       success: true,
       data: {
-        photos,
+        posts,
         hasMore: page * pageSize < total,
         total
       }
@@ -216,47 +253,63 @@ async function getPhotos(params, openId) {
   }
 }
 
-// 获取照片详情
-async function getPhotoDetail(id, openId) {
+// 获取照片详情（读 posts 集合）
+async function getPostDetail(id, openId) {
   try {
-    await photosCollection.doc(id).update({
+    // 浏览量 +1
+    await postsCollection.doc(id).update({
       data: { views: _.inc(1) }
     }).catch(() => {});
 
-    const photoResult = await photosCollection.doc(id).get();
-    const photo = photoResult.data;
+    const postResult = await postsCollection.doc(id).get();
+    const post = postResult.data;
 
     // 检查点赞状态
-    photo.liked = openId && (photo.likedUsers || []).includes(openId);
+    post.liked = openId && (post.likedUsers || []).includes(openId);
 
-    // 转换照片自身的云存储 URL（imageUrl, thumbnail 等）
-    await convertCloudUrls(photo);
+    // 统一字段
+    Object.assign(post, normalizePost(post));
 
-    // 批量获取作者头像（三层缓存，按 authorId 查 users 表）
+    // 转换照片云存储 URL
+    await convertCloudUrls(post);
+
+    // posts.photos 是多图数组，逐个转换
+    if (Array.isArray(post.photos)) {
+      for (const photo of post.photos) {
+        if (photo.imageUrl && photo.imageUrl.startsWith('cloud://')) {
+          try {
+            photo.imageUrl = await getTempUrl(photo.imageUrl);
+          } catch (e) {}
+        }
+      }
+    }
+
+    // 批量获取作者头像+昵称
     const authorAvatarMap = {};
-    if (photo.authorId) {
+    const authorNicknameMap = {};
+    if (post.authorId) {
       try {
         const userRes = await usersCollection
-          .where({ _openid: photo.authorId })
-          .field({ _openid: true, avatar: true })
-          .limit(1).get();
-        if (userRes.data[0]?.avatar) {
-          authorAvatarMap[photo.authorId] = userRes.data[0].avatar;
+          .where({ _openid: post.authorId })
+          .field({ _openid: true, avatar: true, nickname: true })
+          .get();
+        if (userRes.data[0]) {
+          if (userRes.data[0].avatar) authorAvatarMap[post.authorId] = userRes.data[0].avatar;
+          if (userRes.data[0].nickname) authorNicknameMap[post.authorId] = userRes.data[0].nickname;
         }
       } catch (e) {}
     }
     const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
-    if (resolvedAvatars[photo.authorId]) {
-      photo.authorAvatar = resolvedAvatars[photo.authorId];
-    }
+    if (resolvedAvatars[post.authorId]) post.authorAvatar = resolvedAvatars[post.authorId];
+    if (authorNicknameMap[post.authorId]) post.author = authorNicknameMap[post.authorId];
 
-    // 评论列表（三层缓存解析每条评论的头像）
+    // 评论列表
     const commentsData = await getCommentsWithAuthors(id, 0, 20);
 
     return {
       success: true,
       data: {
-        ...photo,
+        ...post,
         comments: commentsData.comments,
         commentsCount: commentsData.total,
         hasMore: commentsData.hasMore
@@ -268,7 +321,7 @@ async function getPhotoDetail(id, openId) {
   }
 }
 
-// 查询评论并实时解析作者头像（三层缓存 + 按 authorId 批量查询 users 表）
+// 查询评论并实时解析作者头像
 async function getCommentsWithAuthors(photoId, offset = 0, limit = 10) {
   try {
     const countResult = await commentsCollection.where({ photoId }).count();
@@ -286,7 +339,6 @@ async function getCommentsWithAuthors(photoId, offset = 0, limit = 10) {
       return c;
     });
 
-    // 收集去重 authorId，批量查 users 表
     const authorIds = [...new Set(comments.map(c => c.authorId).filter(Boolean))];
 
     let authorAvatarMap = {};
@@ -297,20 +349,16 @@ async function getCommentsWithAuthors(photoId, offset = 0, limit = 10) {
           .field({ _openid: true, avatar: true })
           .get();
         usersRes.data.forEach(u => {
-          // avatar 为空（空字符串或 null/undefined）不写进 map，避免 resolveAvatarUrls 对空值走兜底
           if (!u.avatar) return;
           authorAvatarMap[u._openid] = u.avatar;
         });
       } catch (e) {
         console.error('[getCommentsWithAuthors] users query error:', e);
       }
-    } else {
     }
 
-    // 批量解析头像 URL
     const resolved = await resolveAvatarUrls(authorAvatarMap);
 
-    // 注入解析后的头像到每条评论
     comments.forEach(c => {
       const resolvedAvatar = resolved[c.authorId];
       c.authorAvatar = resolvedAvatar || '/assets/icons/default-avatar.png';
@@ -327,10 +375,8 @@ async function getCommentsWithAuthors(photoId, offset = 0, limit = 10) {
 async function getMoreComments(data, openId) {
   try {
     const { photoId, offset = 0, limit = 10 } = data;
-    
-    // 使用优化的评论查询方法
     const result = await getCommentsWithAuthors(photoId, offset, limit);
-    
+
     return {
       success: true,
       data: {
@@ -344,32 +390,40 @@ async function getMoreComments(data, openId) {
   }
 }
 
-// 上传照片
+// 上传照片（写入 posts 集合）
 async function uploadPhoto(data, openId) {
   try {
     // 获取作者信息
+    let authorNickname = '匿名用户';
     let authorAvatar = '';
     try {
       const userResult = await usersCollection.where({ _openid: openId }).get();
       if (userResult.data.length > 0) {
+        authorNickname = userResult.data[0].nickname || '匿名用户';
         authorAvatar = userResult.data[0].avatar || '';
       }
     } catch (e) {
-      console.error('获取作者头像失败:', e);
+      console.error('获取作者信息失败:', e);
     }
 
-    // 保存到数据库（存储 fileID，读取时通过 convertCloudUrls 转换）
-    const result = await photosCollection.add({
+    // posts 集合直接存 imageUrl（云存储 fileID，读取时转换）
+    // photos = [{imageUrl, width, height, order}] 来自上传页
+    const photos = (data.photos || []).map((p, idx) => ({
+      imageUrl: p.imageUrl || '',
+      width: parseInt(p.width) || 1,
+      height: parseInt(p.height) || 1,
+      order: p.order !== undefined ? p.order : idx
+    }));
+
+    const result = await postsCollection.add({
       data: {
         title: data.title,
         description: data.description || '',
-        imageUrl: data.imageUrl,
         location: data.location || '',
-        category: data.category || '风景',
-        author: data.author || '匿名用户',
+        photos,
+        author: authorNickname,
         authorId: openId,
-        authorAvatar: authorAvatar,
-        aspectRatio: parseFloat(data.aspectRatio) || 1,  // 高宽比（height/width）瀑布流用，默认 1
+        authorAvatar,
         likes: 0,
         views: 0,
         likedUsers: [],
@@ -384,15 +438,15 @@ async function uploadPhoto(data, openId) {
   }
 }
 
-// 删除照片
+// 删除照片（从 posts 集合删除）
 async function deletePhoto(id, openId) {
   try {
-    const photo = await photosCollection.doc(id).get();
-    if (photo.data.authorId !== openId) {
+    const post = await postsCollection.doc(id).get();
+    if (post.data.authorId !== openId) {
       return { success: false, message: '无权删除' };
     }
 
-    await photosCollection.doc(id).remove();
+    await postsCollection.doc(id).remove();
     await commentsCollection.where({ photoId: id }).remove();
 
     return { success: true };
@@ -402,17 +456,16 @@ async function deletePhoto(id, openId) {
   }
 }
 
-// 点赞
+// 点赞（posts 集合）
 async function likePhoto(id, openId) {
   try {
-    const photo = await photosCollection.doc(id).get();
-    const likedUsers = photo.data.likedUsers || [];
+    const post = await postsCollection.doc(id).get();
+    const likedUsers = post.data.likedUsers || [];
     const hasLiked = likedUsers.includes(openId);
 
     if (hasLiked) {
-      // 只有 likes > 0 才减，防止负数
-      const newLikes = Math.max(0, photo.data.likes - 1);
-      await photosCollection.doc(id).update({
+      const newLikes = Math.max(0, post.data.likes - 1);
+      await postsCollection.doc(id).update({
         data: {
           likes: newLikes,
           likedUsers: _.pull(openId)
@@ -420,13 +473,13 @@ async function likePhoto(id, openId) {
       });
       return { success: true, liked: false, likes: newLikes };
     } else {
-      await photosCollection.doc(id).update({
+      await postsCollection.doc(id).update({
         data: {
           likes: _.inc(1),
           likedUsers: _.push(openId)
         }
       });
-      return { success: true, liked: true, likes: photo.data.likes + 1 };
+      return { success: true, liked: true, likes: post.data.likes + 1 };
     }
   } catch (e) {
     console.error('点赞失败:', e);
@@ -434,10 +487,9 @@ async function likePhoto(id, openId) {
   }
 }
 
-// 添加评论
+// 添加评论（photoId 对应 posts._id）
 async function addComment(data, openId) {
   try {
-    // 只查 users 表拿 nickname（头像通过 authorId 在 getCommentsWithAuthors 里统一解析）
     let authorNickname = '匿名用户';
     try {
       const userResult = await usersCollection.where({ _openid: openId }).get();
@@ -452,7 +504,6 @@ async function addComment(data, openId) {
         content: data.content,
         author: authorNickname,
         authorId: openId,
-        // 不存 authorAvatar，查询时通过 authorId → users → 三层缓存实时解析
         createdAt: db.serverDate()
       }
     });
@@ -472,26 +523,57 @@ async function addComment(data, openId) {
   }
 }
 
-// 获取时间线
+// 获取时间线（读 posts 集合）
 async function getTimeline(openId) {
   try {
-    const result = await photosCollection
+    const result = await postsCollection
       .orderBy('createdAt', 'desc')
       .limit(100)
       .get();
 
-    const photos = result.data.map(photo => ({
-      ...photo,
-      liked: openId && (photo.likedUsers || []).includes(openId)
+    let posts = result.data.map(post => ({
+      ...normalizePost(post),
+      liked: openId && (post.likedUsers || []).includes(openId)
     }));
 
+    // 批量获取作者头像+昵称
+    const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
+    if (authorIds.length > 0) {
+      const authorAvatarMap = {};
+      const authorNicknameMap = {};
+      try {
+        const userRes = await usersCollection
+          .where({ _openid: _.in(authorIds) })
+          .field({ _openid: true, avatar: true, nickname: true })
+          .get();
+        userRes.data.forEach(u => {
+          if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
+          if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
+        });
+      } catch (e) {}
+
+      const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
+
+      posts.forEach(post => {
+        if (resolvedAvatars[post.authorId]) {
+          post.authorAvatar = resolvedAvatars[post.authorId];
+        }
+        if (authorNicknameMap[post.authorId]) {
+          post.author = authorNicknameMap[post.authorId];
+        }
+      });
+    }
+
+    // 转换云存储 URL
+    posts = await convertCloudUrlsInArray(posts);
+
     const timeline = {};
-    photos.forEach(photo => {
-      const year = new Date(photo.createdAt).getFullYear();
+    posts.forEach(post => {
+      const year = new Date(post.createdAt).getFullYear();
       if (!timeline[year]) {
         timeline[year] = { year, photos: [] };
       }
-      timeline[year].photos.push(photo);
+      timeline[year].photos.push(post);
     });
 
     return {
@@ -504,14 +586,14 @@ async function getTimeline(openId) {
   }
 }
 
-// 获取地点列表
+// 获取地点列表（从 posts 集合）
 async function getLocations() {
   try {
-    const result = await photosCollection
+    const result = await postsCollection
       .where({ location: _.neq('') })
       .field({ location: true })
       .get();
-    
+
     const locations = [...new Set(result.data.map(p => p.location).filter(l => l))];
     return { success: true, data: locations };
   } catch (e) {
@@ -519,7 +601,7 @@ async function getLocations() {
   }
 }
 
-// 获取分类列表
+// 获取分类列表（静态）
 async function getCategories() {
   const categories = [
     { id: 1, name: '风景', icon: '🏞️', color: '#4CAF50' },
@@ -532,15 +614,15 @@ async function getCategories() {
   return { success: true, data: categories };
 }
 
-// 获取统计数据
+// 获取统计数据（posts 集合）
 async function getStats() {
   try {
-    const [photoCount, userCount] = await Promise.all([
-      photosCollection.count(),
+    const [postCount, userCount] = await Promise.all([
+      postsCollection.count(),
       db.collection('users').count()
     ]);
 
-    const likesResult = await photosCollection.field({ likes: true }).get();
+    const likesResult = await postsCollection.field({ likes: true }).get();
     const totalLikes = likesResult.data.reduce((sum, p) => sum + (p.likes || 0), 0);
 
     const commentsCount = await commentsCollection.count();
@@ -548,7 +630,7 @@ async function getStats() {
     return {
       success: true,
       data: {
-        totalPhotos: photoCount.total,
+        totalPhotos: postCount.total,
         totalUsers: userCount.total,
         totalLikes,
         totalComments: commentsCount.total
@@ -560,65 +642,59 @@ async function getStats() {
   }
 }
 
-// 获取我的作品
+// 获取我的作品（读 posts 集合）
 async function getMyWorks(openId, params = {}) {
   const { page = 1, pageSize = 20 } = params;
   try {
-    // 查询总数
-    const countResult = await photosCollection.where({ authorId: openId }).count();
+    const countResult = await postsCollection.where({ authorId: openId }).count();
     const total = countResult.total;
 
-    const result = await photosCollection
+    const result = await postsCollection
       .where({ authorId: openId })
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .get();
 
-    let photos = result.data.map(photo => ({
-      ...photo,
-      liked: (photo.likedUsers || []).includes(openId)
+    let posts = result.data.map(post => ({
+      ...normalizePost(post),
+      liked: (post.likedUsers || []).includes(openId)
     }));
 
-    // 转换 cloud:// URL 为临时链接
-    photos = await convertCloudUrlsInArray(photos);
+    posts = await convertCloudUrlsInArray(posts);
 
-    return { success: true, data: { photos, hasMore: page * pageSize < total, total } };
+    return { success: true, data: { posts, hasMore: page * pageSize < total, total } };
   } catch (e) {
     console.error('获取我的作品失败:', e);
-    return { success: false, data: { photos: [], hasMore: false, total: 0 } };
+    return { success: false, data: { posts: [], hasMore: false, total: 0 } };
   }
 }
 
-// 获取我赞过的照片
+// 获取我赞过的照片（读 posts 集合）
 async function getMyLiked(openId, params = {}) {
   const { page = 1, pageSize = 20 } = params;
   try {
-    // 查询总数
-    const countResult = await photosCollection
+    const countResult = await postsCollection
       .where({ likedUsers: _.elemMatch(_.eq(openId)) })
       .count();
     const total = countResult.total;
 
-    const result = await photosCollection
-      .where({
-        likedUsers: _.elemMatch(_.eq(openId))
-      })
+    const result = await postsCollection
+      .where({ likedUsers: _.elemMatch(_.eq(openId)) })
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
       .get();
 
-    let photos = result.data.map(photo => ({
-      ...photo,
+    let posts = result.data.map(post => ({
+      ...normalizePost(post),
       liked: true
     }));
 
-    // 转换 cloud:// URL 为临时链接
-    photos = await convertCloudUrlsInArray(photos);
+    posts = await convertCloudUrlsInArray(posts);
 
-    // 批量获取作者头像+昵称（按 authorId 查 users 表）
-    const authorIds = [...new Set(photos.map(p => p.authorId).filter(Boolean))];
+    // 批量获取作者头像+昵称
+    const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
     if (authorIds.length > 0) {
       const authorAvatarMap = {};
       const authorNicknameMap = {};
@@ -626,51 +702,46 @@ async function getMyLiked(openId, params = {}) {
         const userRes = await usersCollection
           .where({ _openid: _.in(authorIds) })
           .field({ _openid: true, avatar: true, nickname: true })
-          .limit(100)
           .get();
         userRes.data.forEach(u => {
           if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
           if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
         });
-      } catch (e) {
-        console.error('[getMyLiked] batch query users failed:', e);
-      }
+      } catch (e) {}
 
       const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
 
-      photos.forEach(photo => {
-        if (resolvedAvatars[photo.authorId]) {
-          photo.authorAvatar = resolvedAvatars[photo.authorId];
+      posts.forEach(post => {
+        if (resolvedAvatars[post.authorId]) {
+          post.authorAvatar = resolvedAvatars[post.authorId];
         }
-        if (authorNicknameMap[photo.authorId]) {
-          photo.authorNickname = authorNicknameMap[photo.authorId];
+        if (authorNicknameMap[post.authorId]) {
+          post.authorNickname = authorNicknameMap[post.authorId];
         }
       });
     }
 
-    return { success: true, data: { photos, hasMore: page * pageSize < total, total } };
+    return { success: true, data: { posts, hasMore: page * pageSize < total, total } };
   } catch (e) {
     console.error('获取赞过的照片失败:', e);
-    return { success: false, data: { photos: [], hasMore: false, total: 0 } };
+    return { success: false, data: { posts: [], hasMore: false, total: 0 } };
   }
 }
 
-// 一次性迁移：修复旧评论缺失的 authorAvatar（从 users 表补全）
+// 一次性迁移：修复旧评论缺失的 authorAvatar
 async function fixCommentAvatars() {
   let fixed = 0;
   let batch = 0;
   try {
-    // 分批处理，每次最多 20 条（云函数限制）
     while (true) {
       const allComments = await commentsCollection
-        .where({ authorAvatar: '' })   // avatar 为空（无此字段或空字符串）
+        .where({ authorAvatar: '' })
         .limit(20)
         .field({ _id: true, authorId: true })
         .get();
 
       if (allComments.data.length === 0) break;
 
-      // 收集涉及的 authorId，批量查 users 表
       const openids = [...new Set(allComments.data.map(c => c.authorId).filter(Boolean))];
       let userMap = {};
       if (openids.length > 0) {
@@ -681,11 +752,9 @@ async function fixCommentAvatars() {
         users.data.forEach(u => { userMap[u._openid] = u.avatar || ''; });
       }
 
-      // 逐条更新
       await Promise.all(allComments.data.map(async (c) => {
         const avatar = userMap[c.authorId] || '';
         if (avatar) {
-          // cloud:// 转临时链接
           if (avatar.startsWith('cloud://')) {
             try {
               const urlRes = await cloud.getTempFileURL({ fileList: [avatar] });
@@ -703,7 +772,7 @@ async function fixCommentAvatars() {
       }));
 
       batch++;
-      if (batch >= 50) break;   // 安全上限，防止死循环
+      if (batch >= 50) break;
     }
     return { success: true, fixed };
   } catch (e) {
