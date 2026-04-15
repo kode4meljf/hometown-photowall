@@ -1,0 +1,246 @@
+/* pages/index/index.wxss */
+.page-container {
+  min-height: 100vh;
+  background: #f8f8f8;
+  padding-bottom: 120rpx;
+}
+
+.toolbar {
+  padding: 20rpx;
+  background: #ffffff;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #f8f8f8;
+  border-radius: 40rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 16rpx;
+}
+
+.search-icon {
+  font-size: 32rpx;
+  margin-right: 12rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+}
+
+.filter-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.filter-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16rpx 20rpx;
+  background: #f8f8f8;
+  border-radius: 24rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.arrow {
+  font-size: 20rpx;
+  margin-left: 8rpx;
+  color: #999;
+}
+
+.photo-list {
+  padding: 10rpx;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+}
+
+.waterfall-column {
+  width: calc(50% - 6rpx);
+  display: flex;
+  flex-direction: column;
+}
+
+.photo-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 20rpx;
+}
+
+.photo-image-wrap {
+  width: 100%;
+  overflow: hidden;
+}
+.photo-image {
+  width: 100%;
+  height: 100%;
+}
+
+.photo-info {
+  padding: 16rpx;
+}
+
+.photo-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+
+.location {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.category {
+  font-size: 22rpx;
+  color: #00cc77;
+  background: #e0fff0;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+}
+
+.photo-stats {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 12rpx;
+}
+
+.stat {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.stat-liked {
+  color: #ff4444;
+}
+
+.empty {
+  text-align: center;
+  padding: 120rpx 40rpx;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.empty-icon-image {
+  width: 120rpx;
+  height: 180rpx;
+  margin: 0 auto 20rpx;
+  display: block;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.loading {
+  text-align: center;
+  padding: 40rpx;
+  color: #666;
+}
+
+.upload-btn {
+  position: fixed;
+  right: 40rpx;
+  bottom: 160rpx;
+  width: 100rpx;
+  height: 100rpx;
+  background: #00ff99;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 24rpx rgba(0, 255, 153, 0.3);
+  color: #ffffff;
+  font-size: 56rpx;
+  font-weight: 300;
+  z-index: 100;
+}
+
+.upload-btn:active {
+  transform: scale(0.95);
+}
+/* DEBUG 调试按钮 */
+.debug-bar {
+  background: #ff6b35;
+  color: #fff;
+  text-align: center;
+  padding: 16rpx;
+  font-size: 26rpx;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+.debug-bar:active {
+  background: #e55a2b;
+}
+
+/* 加载更多动画 */
+.load-more-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
+}
+
+.loading-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+}
+
+.dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #00ff99;
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+
+.dot2 { animation-delay: 0.2s; }
+.dot3 { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1.2); opacity: 1; }
+}
+
+/* 初始加载 */
+.init-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+/* 没有更多 */
+.no-more {
+  text-align: center;
+  padding: 32rpx 0;
+  font-size: 26rpx;
+  color: #ccc;
+}

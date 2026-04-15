@@ -1,0 +1,97 @@
+<!-- pages/index/index.wxml -->
+<view class="page-container">
+  <!-- 搜索筛选栏 -->
+  <view class="toolbar">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索照片..." value="{{keyword}}" bindconfirm="handleSearch" bindinput="onKeywordInput" />
+    </view>
+    <view class="filter-row">
+      <picker mode="selector" range="{{categories}}" range-key="name" bindchange="onCategoryChange">
+        <view class="filter-item"><text>{{categoryText}}</text><text class="arrow">▼</text></view>
+      </picker>
+      <picker mode="selector" range="{{locations}}" bindchange="onLocationChange">
+        <view class="filter-item"><text>{{locationText}}</text><text class="arrow">▼</text></view>
+      </picker>
+      <picker mode="selector" range="{{sortOptions}}" range-key="label" bindchange="onSortChange">
+        <view class="filter-item"><text>{{sortText}}</text><text class="arrow">▼</text></view>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 照片列表（瀑布流） -->
+  <view class="photo-list" wx:if="{{leftList.length > 0 || rightList.length > 0}}">
+    <!-- 左列 -->
+    <view class="waterfall-column">
+      <view class="photo-card" wx:for="{{leftList}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+        <view class="photo-image-wrap" style="height: {{item._renderHeightRpx}}rpx">
+          <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+        </view>
+        <view class="photo-info">
+          <text class="photo-title">{{item.title}}</text>
+          <view class="photo-meta">
+            <text class="location" wx:if="{{item.location}}">📍 {{item.location}}</text>
+            <text class="category">{{item.category}}</text>
+          </view>
+          <view class="photo-stats">
+            <text class="stat {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{item.likes || 0}}</text>
+            <text class="stat">👁️ {{item.views || 0}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <!-- 右列 -->
+    <view class="waterfall-column">
+      <view class="photo-card" wx:for="{{rightList}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+        <view class="photo-image-wrap" style="height: {{item._renderHeightRpx}}rpx">
+          <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+        </view>
+        <view class="photo-info">
+          <text class="photo-title">{{item.title}}</text>
+          <view class="photo-meta">
+            <text class="location" wx:if="{{item.location}}">📍 {{item.location}}</text>
+            <text class="category">{{item.category}}</text>
+          </view>
+          <view class="photo-stats">
+            <text class="stat {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{item.likes || 0}}</text>
+            <text class="stat">👁️ {{item.views || 0}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载更多动画 -->
+  <view class="load-more-wrap" wx:if="{{loadingMore}}">
+    <view class="loading-dots">
+      <view class="dot dot1"></view>
+      <view class="dot dot2"></view>
+      <view class="dot dot3"></view>
+    </view>
+  </view>
+
+  <!-- 没有更多了 -->
+  <view class="no-more" wx:if="{{!loadingMore && !hasMore && photos.length > 0}}">
+    <text>没有更多了</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty" wx:if="{{!loading && photos.length === 0}}">
+    <image class="empty-icon-image" src="/assets/icons/upload-empty.png" mode="aspectFit" />
+    <text class="empty-text">还没有照片，快来上传第一张吧！</text>
+  </view>
+
+  <!-- 初始加载 -->
+  <view class="init-loading" wx:if="{{loading && photos.length === 0}}">
+    <view class="loading-dots">
+      <view class="dot dot1"></view>
+      <view class="dot dot2"></view>
+      <view class="dot dot3"></view>
+    </view>
+  </view>
+
+  <!-- 上传按钮 -->
+  <view class="upload-btn" bindtap="goToUpload">
+    <text>+</text>
+  </view>
+</view>

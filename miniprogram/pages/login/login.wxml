@@ -1,0 +1,47 @@
+<!-- pages/login/login.wxml -->
+<view class="login-page">
+  <view class="login-header">
+    <text class="logo">🏠</text>
+    <text class="title">家乡照片墙</text>
+    <text class="subtitle">记录家乡的变迁，留住美好的回忆</text>
+  </view>
+
+  <view class="login-form">
+    <view class="tab-row">
+      <view class="tab {{activeTab === 'login' ? 'active' : ''}}" bindtap="switchTab" data-tab="login">登录</view>
+      <view class="tab {{activeTab === 'register' ? 'active' : ''}}" bindtap="switchTab" data-tab="register">注册</view>
+    </view>
+
+    <!-- 登录表单 -->
+    <view class="form" wx:if="{{activeTab === 'login'}}">
+      <view class="form-item">
+        <input class="input" placeholder="用户名" value="{{loginForm.username}}" bindinput="onLoginUsername" />
+      </view>
+      <view class="form-item">
+        <input class="input" placeholder="密码" password value="{{loginForm.password}}" bindinput="onLoginPassword" />
+      </view>
+      <button class="submit-btn" bindtap="handleLogin" loading="{{loading}}">登录</button>
+    </view>
+
+    <!-- 注册表单 -->
+    <view class="form" wx:else>
+      <view class="form-item">
+        <input class="input" placeholder="用户名" value="{{registerForm.username}}" bindinput="onRegUsername" />
+      </view>
+      <view class="form-item">
+        <input class="input" placeholder="昵称" value="{{registerForm.nickname}}" bindinput="onRegNickname" />
+      </view>
+      <view class="form-item">
+        <input class="input" placeholder="密码" password value="{{registerForm.password}}" bindinput="onRegPassword" />
+      </view>
+      <view class="form-item">
+        <input class="input" placeholder="确认密码" password value="{{registerForm.confirmPassword}}" bindinput="onRegConfirm" />
+      </view>
+      <button class="submit-btn" bindtap="handleRegister" loading="{{loading}}">注册</button>
+    </view>
+
+    <view class="tip">
+      <text>💡 第一个注册的用户将自动成为管理员</text>
+    </view>
+  </view>
+</view>

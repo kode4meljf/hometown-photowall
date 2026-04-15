@@ -1,0 +1,136 @@
+<!-- pages/profile/profile.wxml -->
+<view class="profile-page">
+  <!-- 顶部用户信息 - 白色卡片 -->
+  <view class="user-header">
+    <view class="header-top">
+      <view class="user-info">
+        <view class="avatar" bindtap="changeAvatar">
+          <image class="avatar-img" src="{{userInfo.avatar || '/assets/icons/default-avatar.png'}}{{userInfo.avatarUpdateTime ? '?v=' + userInfo.avatarUpdateTime : ''}}" mode="aspectFill" />
+        </view>
+        <view class="user-text">
+          <text class="nickname">{{userInfo.nickname || '未登录'}}</text>
+          <view class="points-entry" wx:if="{{isLoggedIn}}" bindtap="freePoints">
+            <image class="entry-icon" src="/assets/icons/gift.png" mode="aspectFit" />
+            <text class="entry-text">免费领积分</text>
+          </view>
+        </view>
+      </view>
+      <view class="points-badge" wx:if="{{isLoggedIn}}">
+        <image class="badge-icon" src="/assets/icons/points.png" mode="aspectFit" />
+        <text class="points-num">{{userInfo.points || 0}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 标签切换区域 -->
+  <view class="tabs-container">
+    <view class="tabs">
+      <view class="tab {{activeTab === 'works' ? 'active' : ''}}" bindtap="switchTab" data-tab="works">
+        作品
+        <text class="count" wx:if="{{worksCount > 0}}">{{worksCount}}</text>
+      </view>
+      <view class="tab {{activeTab === 'liked' ? 'active' : ''}}" bindtap="switchTab" data-tab="liked">
+        赞过
+        <text class="count" wx:if="{{likedCount > 0}}">{{likedCount}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 内容区域 - Swiper 实现左右滑动切换 -->
+  <swiper
+    class="content-swiper"
+    current="{{currentTabIndex}}"
+    bindchange="onSwiperChange"
+    duration="300"
+    acceleration
+  >
+    <!-- 作品页 -->
+    <swiper-item class="swiper-item">
+      <scroll-view scroll-y class="photo-scroll" bindscrolltolower="loadMoreWorks" enhanced enable-flex>
+        <view class="photo-list" wx:if="{{works.length > 0}}">
+          <view 
+            class="photo-card" 
+            wx:for="{{works}}" 
+            wx:key="id"
+            bindtap="goToDetail"
+            data-id="{{item.id}}"
+          >
+            <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+            <view class="photo-overlay">
+              <text class="photo-title">{{item.title}}</text>
+              <view class="photo-stats">
+                <text class="{{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{item.likes || 0}}</text>
+                <text>👁️ {{item.views || 0}}</text>
+              </view>
+            </view>
+            <!-- 右上角操作按钮（仅作品 tab 显示） -->
+            <view 
+              class="photo-more-btn" 
+              catchtap="openPhotoAction" 
+              data-id="{{item.id}}"
+              data-title="{{item.title}}"
+            >⋮</view>
+          </view>
+        </view>
+        <view class="empty-state" wx:if="{{works.length === 0 && !loading}}">
+          <image class="empty-icon-image" src="/assets/icons/camera-empty.png" mode="aspectFit" />
+          <text class="empty-text" wx:if="{{isLoggedIn}}">暂无作品</text>
+          <text class="empty-text" wx:if="{{!isLoggedIn}}">登录后查看更多内容</text>
+          <view class="empty-btn" wx:if="{{isLoggedIn}}" bindtap="goToUpload">去上传照片</view>
+          <view class="empty-btn" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">登录</view>
+        </view>
+        <view class="loading" wx:if="{{loading}}"><text>加载中...</text></view>
+      </scroll-view>
+    </swiper-item>
+
+    <!-- 赞过页 -->
+    <swiper-item class="swiper-item">
+      <scroll-view scroll-y class="photo-scroll" bindscrolltolower="loadMoreLiked" enhanced enable-flex>
+        <view class="photo-list" wx:if="{{liked.length > 0}}">
+          <view 
+            class="photo-card" 
+            wx:for="{{liked}}" 
+            wx:key="id"
+            bindtap="goToDetail"
+            data-id="{{item.id}}"
+          >
+            <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+            <view class="photo-overlay">
+              <text class="photo-title">{{item.title}}</text>
+              <view class="photo-stats">
+                <text class="stat-liked">❤️ {{item.likes || 0}}</text>
+                <text>👁️ {{item.views || 0}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="empty-state" wx:if="{{liked.length === 0 && !loading}}">
+          <image class="empty-icon-image" src="/assets/icons/liked-empty.png" mode="aspectFit" />
+          <text class="empty-text empty-text-dark" wx:if="{{isLoggedIn}}">暂无赞过的作品</text>
+          <text class="empty-text" wx:if="{{!isLoggedIn}}">登录后查看更多内容</text>
+          <view class="empty-btn" wx:if="{{isLoggedIn}}" bindtap="goToHome">去首页看看</view>
+          <view class="empty-btn" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">登录</view>
+        </view>
+        <view class="loading" wx:if="{{loading}}"><text>加载中...</text></view>
+      </scroll-view>
+    </swiper-item>
+  </swiper>
+
+  <!-- 头像更换底部弹窗 -->
+  <view class="avatar-modal" wx:if="{{showAvatarModal}}" bindtap="hideAvatarModal">
+    <view class="avatar-modal-content" catchtap="stopPropagation">
+      <view class="modal-option" bindtap="takePhoto">拍照</view>
+      <view class="modal-option" bindtap="chooseFromAlbum">从手机相册选择</view>
+      <view class="modal-cancel" bindtap="hideAvatarModal">取消</view>
+    </view>
+  </view>
+
+  <!-- 作品操作底部弹窗 -->
+  <view class="avatar-modal" wx:if="{{showPhotoAction}}" bindtap="hidePhotoAction">
+    <view class="avatar-modal-content" catchtap="stopPropagation">
+      <view class="modal-option" bindtap="editPhotoTitle">编辑标题</view>
+      <view class="modal-option modal-option-danger" bindtap="deletePhoto">删除</view>
+      <view class="modal-cancel" bindtap="hidePhotoAction">取消</view>
+    </view>
+  </view>
+</view>

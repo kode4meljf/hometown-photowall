@@ -1,0 +1,104 @@
+/* pages/timeline/timeline.wxss */
+.timeline-page {
+  min-height: 100vh;
+  background: #f8f8f8;
+  padding: 20rpx;
+  padding-bottom: 120rpx;
+}
+
+.timeline {
+  padding-left: 40rpx;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 40rpx;
+}
+
+.year-marker {
+  position: absolute;
+  left: -40rpx;
+  top: 0;
+  width: 80rpx;
+  height: 80rpx;
+  background: #00ff99;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+  box-shadow: 0 4rpx 16rpx rgba(0, 255, 153, 0.3);
+  z-index: 10;
+}
+
+.year-photos {
+  margin-left: 60rpx;
+  border-left: 4rpx solid #e0e0e0;
+  padding-left: 24rpx;
+}
+
+.photo-card {
+  background: #ffffff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 20rpx;
+  display: flex;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.photo-thumb {
+  width: 160rpx;
+  height: 160rpx;
+  flex-shrink: 0;
+}
+
+.photo-info {
+  flex: 1;
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.photo-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.photo-date {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty {
+  text-align: center;
+  padding: 120rpx 40rpx;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.empty-icon-image {
+  width: 120rpx;
+  height: 180rpx;
+  margin: 0 auto 20rpx;
+  display: block;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.loading {
+  text-align: center;
+  padding: 40rpx;
+  color: #666;
+}
