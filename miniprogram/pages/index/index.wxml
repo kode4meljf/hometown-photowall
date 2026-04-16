@@ -29,6 +29,10 @@
         </view>
         <view class="photo-info">
           <text class="photo-title">{{item.title}}</text>
+          <view class="photo-author-row">
+            <view class="author-avatar">{{item.author ? item.author.charAt(0) : '?'}}</view>
+            <text class="author-name">{{item.author || '匿名用户'}}</text>
+          </view>
           <view class="photo-meta">
             <text class="location" wx:if="{{item.location}}">📍 {{item.location}}</text>
             <text class="category">{{item.category}}</text>
@@ -48,6 +52,10 @@
         </view>
         <view class="photo-info">
           <text class="photo-title">{{item.title}}</text>
+          <view class="photo-author-row">
+            <view class="author-avatar">{{item.author ? item.author.charAt(0) : '?'}}</view>
+            <text class="author-name">{{item.author || '匿名用户'}}</text>
+          </view>
           <view class="photo-meta">
             <text class="location" wx:if="{{item.location}}">📍 {{item.location}}</text>
             <text class="category">{{item.category}}</text>
