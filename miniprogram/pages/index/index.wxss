@@ -97,14 +97,13 @@
 }
 
 .photo-title {
-  font-size: 26rpx;
-  font-weight: 600;
+  font-size: 22rpx;
   color: #333;
 }
 
 .photo-desc {
   font-size: 22rpx;
-  color: #666;
+  color: #333;
   margin-top: 2rpx;
 }
 
