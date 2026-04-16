@@ -1,22 +1,21 @@
 // pages/upload/upload.js
 const { postApi, uploadImage } = require('../../utils/api');
 const { showLoading, hideLoading, showToast, showSuccess } = require('../../utils/util');
-const app = getApp();
 
 Page({
   data: {
     imageList: [],        // 已选图片临时路径列表
-    imageInfoList: [],    // 图片尺寸信息 [{width, height}]
-    currentIndex: 0,      // 当前选中预览的图片索引
-    isOverflow: false,    // 缩略图是否超出屏幕宽度
+    imageInfoList: [],   // 图片尺寸信息 [{width, height}]
+    currentIndex: 0,     // 当前选中预览的图片索引
+    isOverflow: false,   // 缩略图是否超出屏幕宽度
+    scrollWidth: '100rpx',  // scroll-view 宽度（初始值，会被 JS 覆盖）
 
     form: {
       title: '',
       description: '',
       location: ''
     },
-    locations: [],        // 已有地点列表
-    locationExpanded: false,
+    locations: [],       // 已有地点列表
     customLocation: '',
 
     submitting: false,
@@ -41,23 +40,16 @@ Page({
     } catch (e) {}
   },
 
-  // 选择图片（多选）
+  // 选择图片（多选，不限数量）
   chooseImage() {
-    const remain = 9 - this.data.imageList.length;
-    if (remain <= 0) {
-      showToast('最多选择9张图片');
-      return;
-    }
-
     wx.chooseMedia({
-      count: remain,
+      count: 9,
       mediaType: ['image'],
       sourceType: ['album', 'camera'],
       success: (res) => {
         const newFiles = res.tempFiles;
         const newPaths = newFiles.map(f => f.tempFilePath);
 
-        // 获取每张图片的尺寸信息
         const getInfoPromises = newPaths.map(path => {
           return new Promise(resolve => {
             wx.getImageInfo({
@@ -75,7 +67,7 @@ Page({
           this.setData({
             imageList: newImageList,
             imageInfoList: newImageInfoList,
-            currentIndex: newImageList.length - 1  // 选中新加入的最后一张
+            currentIndex: newImageList.length - 1
           }, () => {
             this.checkOverflow();
           });
@@ -114,15 +106,35 @@ Page({
     });
   },
 
-  // 检查缩略图是否超出屏幕宽度
+  // 检查缩略图是否超出屏幕宽度，并设置 scroll-view 宽度
   checkOverflow() {
     const query = wx.createSelectorQuery().in(this);
     query.select('.thumbnail-list').boundingClientRect();
+    query.select('.thumbnail-bar').boundingClientRect();
     query.exec(res => {
       const listWidth = res[0]?.width || 0;
+      const barWidth = res[1]?.width || 0;
       const screenWidth = wx.getSystemInfoSync().windowWidth;
-      const isOverflow = listWidth > screenWidth;
-      this.setData({ isOverflow });
+
+      // 按钮宽度换算成 px：80rpx + margin-left 16rpx = 96rpx
+      const addBtnPx = Math.round(96 * (screenWidth / 750));
+
+      // 无缩略图时：scroll-view 宽度跟添加按钮同宽，这样整体能居中
+      if (this.data.imageList.length === 0) {
+        this.setData({ isOverflow: false, scrollWidth: '80rpx' });
+        return;
+      }
+
+      // 阈值：列表宽度 + 按钮宽度 > 容器宽度
+      const threshold = barWidth - addBtnPx - 20;
+      const isOverflow = listWidth > threshold;
+
+      // 溢出：scroll 占满；未溢出：scroll = 内容宽度 + 按钮宽度 + 间隙
+      const scrollWidth = isOverflow
+        ? '100%'
+        : (listWidth + addBtnPx + 10) + 'px';
+
+      this.setData({ isOverflow, scrollWidth });
     });
   },
 
@@ -144,16 +156,10 @@ Page({
     this.setData({ 'form.description': e.detail.value });
   },
 
-  // 地点选择
-  toggleLocationExpand() {
-    this.setData({ locationExpanded: !this.data.locationExpanded });
-  },
-
   selectLocation(e) {
     const location = e.currentTarget.dataset.location;
     this.setData({
       'form.location': location,
-      locationExpanded: false
     });
   },
 
@@ -166,9 +172,12 @@ Page({
       this.setData({
         'form.location': this.data.customLocation.trim(),
         customLocation: '',
-        locationExpanded: false
       });
     }
+  },
+
+  clearLocation() {
+    this.setData({ 'form.location': '' });
   },
 
   // 提交发布
@@ -191,13 +200,9 @@ Page({
     showLoading('发布中...');
 
     try {
-      // 1. 上传所有图片
-      const uploadPromises = imageList.map((path, index) => {
-        return uploadImage(path);
-      });
+      const uploadPromises = imageList.map(path => uploadImage(path));
       const fileIds = await Promise.all(uploadPromises);
 
-      // 2. 创建帖子
       const photos = fileIds.map((fileId, index) => ({
         imageUrl: fileId,
         width: imageInfoList[index].width,

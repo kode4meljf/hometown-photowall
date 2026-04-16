@@ -18,13 +18,16 @@
   </view>
 
   <!-- 缩略图栏 -->
-  <view class="thumbnail-bar {{imageList.length > 0 ? 'has-images' : ''}}">
+  <view class="thumbnail-bar {{isOverflow ? 'overflow' : 'centered'}}">
     <!-- 缩略图滚动区 -->
     <scroll-view
-      class="thumbnail-scroll {{imageList.length > 0 ? 'expand' : ''}}"
+      class="thumbnail-scroll"
+      style="width: {{scrollWidth}};"
       scroll-x
+      enhanced
+      bounces="{{false}}"
     >
-      <view class="thumbnail-list {{isOverflow ? 'overflow' : ''}}">
+      <view class="thumbnail-list">
         <view
           class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
           wx:for="{{imageList}}"
@@ -38,17 +41,13 @@
       </view>
     </scroll-view>
 
-    <!-- 添加按钮：作为 bar 的独立子元素，不参与图片滚动 -->
-    <view
-      class="thumbnail-add {{imageList.length >= 9 ? 'disabled' : ''}}"
-      bindtap="chooseImage"
-      wx:if="{{imageList.length < 9}}"
-    >
+    <!-- 添加按钮：在 scroll-view 外部，溢出时固定在右侧 -->
+    <view class="thumbnail-add" bindtap="chooseImage">
       <text class="add-icon">+</text>
     </view>
 
-    <!-- 右侧羽化遮罩 -->
-    <view class="scroll-fade-right" wx:if="{{isOverflow}}"></view>
+    <!-- 右侧羽化遮罩：覆盖在添加按钮左侧 -->
+    <view class="scroll-fade-right"></view>
   </view>
 
   <!-- 表单区域 -->
@@ -79,14 +78,22 @@
 
       <!-- 地点选择 -->
       <view class="location-section">
-        <view class="location-header" bindtap="toggleLocationExpand">
-          <text class="location-icon">📍</text>
+        <!-- 标题行：图标+文字 + 选中tag（选中时显示在右侧） -->
+        <view class="location-header {{form.location ? 'has-location' : ''}}">
+          <image class="location-icon" src="/assets/icons/location.png" mode="aspectFit" />
           <text class="location-label">{{form.location || '你在哪里'}}</text>
-          <text class="location-arrow {{locationExpanded ? 'expanded' : ''}}">›</text>
+          <!-- X 清除按钮：选中后靠屏幕最右 -->
+          <view class="location-clear-btn" wx:if="{{form.location}}" bindtap="clearLocation">×</view>
         </view>
-        <view class="location-tags {{locationExpanded ? 'expanded' : ''}}" wx:if="{{locations.length > 0}}">
+        <!-- 可选地点列表（未选中时显示） -->
+        <view class="location-tags" wx:if="{{!form.location}}">
+          <!-- 硬编码常用地点 -->
+          <view class="location-tag" bindtap="selectLocation" data-location="老根茶">
+            <text>老根茶</text>
+          </view>
+          <!-- 动态地点（数据库已有） -->
           <view
-            class="location-tag {{form.location === item ? 'active' : ''}}"
+            class="location-tag"
             wx:for="{{locations}}"
             wx:key="index"
             bindtap="selectLocation"
