@@ -78,10 +78,6 @@
         </view>
         <!-- 可选地点列表（未选中时显示） -->
         <view class="location-tags" wx:if="{{!form.location}}">
-          <!-- 硬编码常用地点 -->
-          <view class="location-tag" bindtap="selectLocation" data-location="老根茶">
-            <text>老根茶</text>
-          </view>
           <!-- 动态地点（数据库已有） -->
           <view
             class="location-tag"
