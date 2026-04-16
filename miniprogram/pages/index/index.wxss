@@ -160,7 +160,7 @@
 }
 
 .photo-date {
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #999;
 }
 
