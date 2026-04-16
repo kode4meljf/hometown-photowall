@@ -28,26 +28,6 @@ async function createPost(data, openId) {
     return { success: false, message: '标题不能为空' };
   }
   try {
-    // 查询作者信息
-    let authorNickname = '匿名用户';
-    let authorAvatar = '';
-    try {
-      const userResult = await db.collection('users').where({ _openid: openId }).get();
-      if (userResult.data.length > 0) {
-        authorNickname = userResult.data[0].nickname || '匿名用户';
-        authorAvatar = userResult.data[0].avatar || '';
-        // 头像是云存储地址时转临时链接
-        if (authorAvatar && authorAvatar.startsWith('cloud://')) {
-          try {
-            const urlResult = await cloud.getTempFileURL({ fileList: [authorAvatar] });
-            if (urlResult.fileList && urlResult.fileList[0] && urlResult.fileList[0].tempFileURL) {
-              authorAvatar = urlResult.fileList[0].tempFileURL;
-            }
-          } catch (e) { console.error('头像URL转换失败:', e); }
-        }
-      }
-    } catch (e) { console.error('查询作者信息失败:', e); }
-
     const result = await postsCollection.add({
       data: {
         title: title.trim(),
@@ -55,8 +35,6 @@ async function createPost(data, openId) {
         location: location ? location.trim() : '',
         photos,
         authorId: openId,
-        authorNickname,
-        authorAvatar,
         likes: 0,
         views: 0,
         likedUsers: [],

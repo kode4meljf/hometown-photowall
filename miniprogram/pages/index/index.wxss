@@ -141,11 +141,6 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  overflow: hidden;
-}
-
-.author-avatar-img {
-  background: #eee;
 }
 
 .author-text-col {

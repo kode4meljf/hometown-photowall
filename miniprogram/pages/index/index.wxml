@@ -35,10 +35,9 @@
             <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
           </view>
           <view class="photo-author-row">
-            <view class="author-avatar" wx:if="{{!item.authorAvatar}}">{{(item.authorNickname || item.author || '?').charAt(0)}}</view>
-            <image class="author-avatar author-avatar-img" wx:if="{{item.authorAvatar}}" src="{{item.authorAvatar}}" mode="aspectFill" />
+            <view class="author-avatar">{{(item.author || '?').charAt(0)}}</view>
             <view class="author-text-col">
-              <text class="author-name">{{item.authorNickname || item.author || '匿名用户'}}</text>
+              <text class="author-name">{{item.author || '匿名用户'}}</text>
               <text class="photo-date">{{item._formattedDate || ''}}</text>
             </view>
             <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{f.formatCount(item.likes)}}</view>
@@ -59,10 +58,9 @@
             <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
           </view>
           <view class="photo-author-row">
-            <view class="author-avatar" wx:if="{{!item.authorAvatar}}">{{(item.authorNickname || item.author || '?').charAt(0)}}</view>
-            <image class="author-avatar author-avatar-img" wx:if="{{item.authorAvatar}}" src="{{item.authorAvatar}}" mode="aspectFill" />
+            <view class="author-avatar">{{(item.author || '?').charAt(0)}}</view>
             <view class="author-text-col">
-              <text class="author-name">{{item.authorNickname || item.author || '匿名用户'}}</text>
+              <text class="author-name">{{item.author || '匿名用户'}}</text>
               <text class="photo-date">{{item._formattedDate || ''}}</text>
             </view>
             <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{f.formatCount(item.likes)}}</view>
