@@ -130,12 +130,12 @@
 }
 
 .author-avatar {
-  width: 52rpx;
-  height: 52rpx;
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
   background: #00cc77;
   color: #fff;
-  font-size: 24rpx;
+  font-size: 20rpx;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -152,7 +152,7 @@
 }
 
 .author-name {
-  font-size: 24rpx;
+  font-size: 20rpx;
   color: #333;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,12 +160,12 @@
 }
 
 .photo-date {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #999;
 }
 
 .like-badge {
-  font-size: 28rpx;
+  font-size: 22rpx;
   color: #999;
   flex-shrink: 0;
   align-self: center;
