@@ -7,8 +7,8 @@ Page({
     imageList: [],        // 已选图片临时路径列表
     imageInfoList: [],   // 图片尺寸信息 [{width, height}]
     currentIndex: 0,     // 当前选中预览的图片索引
-    isOverflow: false,   // 缩略图是否超出屏幕宽度
-    scrollWidth: '100rpx',  // scroll-view 宽度（初始值，会被 JS 覆盖）
+    isOverflow: false,
+    scrollWidth: 0,
 
     form: {
       title: '',
@@ -82,19 +82,19 @@ Page({
     this.setData({ currentIndex: index });
   },
 
-  // 删除图片
-  deleteImage(e) {
-    const index = e.currentTarget.dataset.index;
+  // 删除当前预览的图片（从预览区右上角按钮触发）
+  deleteCurrentImage() {
     const { imageList, imageInfoList, currentIndex } = this.data;
+    if (imageList.length === 0) return;
 
-    const newImageList = imageList.filter((_, i) => i !== index);
-    const newImageInfoList = imageInfoList.filter((_, i) => i !== index);
+    const newImageList = imageList.filter((_, i) => i !== currentIndex);
+    const newImageInfoList = imageInfoList.filter((_, i) => i !== currentIndex);
 
     let newCurrentIndex = currentIndex;
     if (newImageList.length === 0) {
       newCurrentIndex = 0;
-    } else if (currentIndex >= index) {
-      newCurrentIndex = Math.max(0, currentIndex - 1);
+    } else if (currentIndex >= newImageList.length) {
+      newCurrentIndex = newImageList.length - 1;
     }
 
     this.setData({
@@ -106,35 +106,23 @@ Page({
     });
   },
 
-  // 检查缩略图是否超出屏幕宽度，并设置 scroll-view 宽度
+  // 检测缩略图是否超出：先量 scroll 容器宽度，再量 row 内容宽度，
+  // JS 直接设置 scroll 容器 px 宽度，绕过 flex 布局的隐式宽度计算
   checkOverflow() {
     const query = wx.createSelectorQuery().in(this);
-    query.select('.thumbnail-list').boundingClientRect();
-    query.select('.thumbnail-bar').boundingClientRect();
-    query.exec(res => {
-      const listWidth = res[0]?.width || 0;
-      const barWidth = res[1]?.width || 0;
-      const screenWidth = wx.getSystemInfoSync().windowWidth;
+    query.select('.thumbnail-scroll').boundingClientRect();
+    query.select('.thumbnail-row').boundingClientRect();
+    query.exec((res) => {
+      const scrollRect = res[0];
+      const rowRect = res[1];
+      if (!scrollRect || !rowRect) return;
 
-      // 按钮宽度换算成 px：80rpx + margin-left 16rpx = 96rpx
-      const addBtnPx = Math.round(96 * (screenWidth / 750));
+      // 设置 scroll 容器的精确像素宽度
+      this.setData({ scrollWidth: scrollRect.width });
 
-      // 无缩略图时：scroll-view 宽度跟添加按钮同宽，这样整体能居中
-      if (this.data.imageList.length === 0) {
-        this.setData({ isOverflow: false, scrollWidth: '80rpx' });
-        return;
-      }
-
-      // 阈值：列表宽度 + 按钮宽度 > 容器宽度
-      const threshold = barWidth - addBtnPx - 20;
-      const isOverflow = listWidth > threshold;
-
-      // 溢出：scroll 占满；未溢出：scroll = 内容宽度 + 按钮宽度 + 间隙
-      const scrollWidth = isOverflow
-        ? '100%'
-        : (listWidth + addBtnPx + 10) + 'px';
-
-      this.setData({ isOverflow, scrollWidth });
+      // 判断是否溢出
+      const hasOverflow = rowRect.width > scrollRect.width;
+      this.setData({ isOverflow: hasOverflow });
     });
   },
 

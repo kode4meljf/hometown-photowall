@@ -12,22 +12,17 @@
       <text class="placeholder-icon">📷</text>
       <text class="placeholder-text">点击下方添加图片</text>
     </view>
+    <!-- 删除按钮：移到预览区右上角 -->
+    <view class="preview-delete-btn" wx:if="{{imageList.length > 0}}" catchtap="deleteCurrentImage">×</view>
     <view class="image-counter" wx:if="{{imageList.length > 1}}">
       <text>{{currentIndex + 1}}/{{imageList.length}}</text>
     </view>
   </view>
 
-  <!-- 缩略图栏 -->
-  <view class="thumbnail-bar {{isOverflow ? 'overflow' : 'centered'}}">
-    <!-- 缩略图滚动区 -->
-    <scroll-view
-      class="thumbnail-scroll"
-      style="width: {{scrollWidth}};"
-      scroll-x
-      enhanced
-      bounces="{{false}}"
-    >
-      <view class="thumbnail-list">
+  <!-- 缩略图栏：缩略图组 + 按钮一行 -->
+  <view class="thumbnail-bar">
+    <view class="thumbnail-scroll {{isOverflow ? 'overflow' : ''}}" style="width: {{scrollWidth ? scrollWidth + 'px' : '100%'}}">
+      <view class="thumbnail-row">
         <view
           class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
           wx:for="{{imageList}}"
@@ -38,16 +33,12 @@
           <image class="thumbnail-image" src="{{item}}" mode="aspectFill" />
           <view class="delete-btn" catchtap="deleteImage" data-index="{{index}}">×</view>
         </view>
+        <!-- 添加按钮：固定在 row 最右侧 -->
+        <view class="thumbnail-add" bindtap="chooseImage">
+          <text class="add-icon">+</text>
+        </view>
       </view>
-    </scroll-view>
-
-    <!-- 添加按钮：在 scroll-view 外部，溢出时固定在右侧 -->
-    <view class="thumbnail-add" bindtap="chooseImage">
-      <text class="add-icon">+</text>
     </view>
-
-    <!-- 右侧羽化遮罩：覆盖在添加按钮左侧 -->
-    <view class="scroll-fade-right"></view>
   </view>
 
   <!-- 表单区域 -->

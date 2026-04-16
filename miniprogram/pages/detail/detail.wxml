@@ -1,4 +1,5 @@
 <!-- pages/detail/detail.wxml -->
+<wxs src="../../utils/filters.wxs" module="f" />
 <!-- 外层容器：flex列，撑满全屏 -->
 <view class="detail-shell {{yPageVisible ? '' : 'y-hidden'}}" wx:if="{{photo}}">
 
@@ -66,13 +67,13 @@
           src="{{photo.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}"
           mode="aspectFit"
         />
-        <text class="action-num {{photo.liked ? 'liked' : ''}}">{{photo.likes || 0}}</text>
+        <text class="action-num {{photo.liked ? 'liked' : ''}}">{{f.formatCount(photo.likes)}}</text>
       </view>
 
       <!-- 评论 -->
       <view class="action-item" bindtap="focusCommentInput">
         <image class="action-icon-img" src="/assets/icons/comment.png" mode="aspectFit" />
-        <text class="action-num">{{photo.comments.length}}</text>
+        <text class="action-num">{{f.formatCount(photo.comments.length)}}</text>
       </view>
 
       <!-- 分享：抖音风格右上箭头，无文字 -->

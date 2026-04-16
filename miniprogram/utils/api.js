@@ -171,5 +171,6 @@ module.exports = {
   photoApi,
   adminApi,
   seedApi,
-  userApi
+  userApi,
+  postApi
 };
