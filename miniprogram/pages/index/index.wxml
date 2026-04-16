@@ -1,4 +1,5 @@
 <!-- pages/index/index.wxml -->
+<wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
   <!-- 搜索筛选栏 -->
   <view class="toolbar">
@@ -29,13 +30,17 @@
           <view class="photo-views-badge" wx:if="{{item.views}}">👁️ {{item.views}}</view>
         </view>
         <view class="photo-info">
+          <view class="photo-desc-row">
+            <text class="photo-title">{{item.title}}</text>
+            <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          </view>
           <view class="photo-author-row">
             <view class="author-avatar">{{item.author ? item.author.charAt(0) : '?'}}</view>
             <view class="author-text-col">
               <text class="author-name">{{item.author || '匿名用户'}}</text>
               <text class="photo-date">{{item._formattedDate || ''}}</text>
             </view>
-            <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{item.likes || 0}}</view>
+            <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{f.formatCount(item.likes)}}</view>
           </view>
         </view>
       </view>
@@ -48,13 +53,17 @@
           <view class="photo-views-badge" wx:if="{{item.views}}">👁️ {{item.views}}</view>
         </view>
         <view class="photo-info">
+          <view class="photo-desc-row">
+            <text class="photo-title">{{item.title}}</text>
+            <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          </view>
           <view class="photo-author-row">
             <view class="author-avatar">{{item.author ? item.author.charAt(0) : '?'}}</view>
             <view class="author-text-col">
               <text class="author-name">{{item.author || '匿名用户'}}</text>
               <text class="photo-date">{{item._formattedDate || ''}}</text>
             </view>
-            <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{item.likes || 0}}</view>
+            <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{f.formatCount(item.likes)}}</view>
           </view>
         </view>
       </view>

@@ -87,6 +87,27 @@
   padding: 12rpx 16rpx;
 }
 
+/* 标题+描述区，最多两行 */
+.photo-desc-row {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin-bottom: 10rpx;
+}
+
+.photo-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.photo-desc {
+  font-size: 22rpx;
+  color: #666;
+  margin-top: 2rpx;
+}
+
 /* 图片浏览量角标 */
 .photo-image-wrap {
   position: relative;
