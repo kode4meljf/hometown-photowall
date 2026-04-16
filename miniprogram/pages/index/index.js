@@ -94,12 +94,20 @@ Page({
       });
 
       if (res.success) {
-        const newPhotos = (res.data.posts || []).map(p => ({
-          ...p,
-          id: p._id,
-          liked: !!p.liked,
-          imageUrl: p.imageUrl
-        }));
+        const newPhotos = (res.data.posts || []).map(p => {
+          const d = p.createdAt ? new Date(p.createdAt) : null;
+          let _formattedDate = '';
+          if (d && !isNaN(d.getTime())) {
+            _formattedDate = d.getFullYear() + '.' + (d.getMonth() + 1) + '.' + d.getDate();
+          }
+          return {
+            ...p,
+            id: p._id,
+            liked: !!p.liked,
+            imageUrl: p.imageUrl,
+            _formattedDate
+          };
+        });
 
         const photos = reset ? newPhotos : [...this.data.photos, ...newPhotos];
         const hasMore = res.data.hasMore !== false && newPhotos.length > 0;
