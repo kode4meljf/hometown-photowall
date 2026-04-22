@@ -1,5 +1,5 @@
 // pages/index/index.js - 新设计：标签组筛选 + 自定义 TabBar
-const { photoApi } = require('../../utils/api');
+const { photoApi, postApi } = require('../../utils/api');
 
 const COLUMN_GAP = 16; // 列间距 rpx
 const CARD_PADDING = 40; // 卡片左右内边距总和 rpx
