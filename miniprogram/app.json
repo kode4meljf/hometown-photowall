@@ -1,7 +1,6 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/timeline/timeline",
     "pages/profile/profile",
     "pages/detail/detail",
     "pages/upload/upload",
@@ -26,12 +25,6 @@
         "text": "首页",
         "iconPath": "assets/icons/home.png",
         "selectedIconPath": "assets/icons/home-active.png"
-      },
-      {
-        "pagePath": "pages/timeline/timeline",
-        "text": "时光轴",
-        "iconPath": "assets/icons/timeline.png",
-        "selectedIconPath": "assets/icons/timeline-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
