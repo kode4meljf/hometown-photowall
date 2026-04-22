@@ -1,106 +1,190 @@
-<!-- pages/index/index.wxml -->
-<wxs src="../../utils/filters.wxs" module="f" />
-<view class="page-container">
-  <!-- 搜索筛选栏 -->
-  <view class="toolbar">
-    <view class="search-box">
+<!-- 首页 - 新设计 -->
+<view class="container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrapper">
       <text class="search-icon">🔍</text>
-      <input class="search-input" placeholder="搜索照片..." value="{{keyword}}" bindconfirm="handleSearch" bindinput="onKeywordInput" />
-    </view>
-    <view class="filter-row">
-      <picker mode="selector" range="{{categories}}" range-key="name" bindchange="onCategoryChange">
-        <view class="filter-item"><text>{{categoryText}}</text><text class="arrow">▼</text></view>
-      </picker>
-      <picker mode="selector" range="{{locations}}" bindchange="onLocationChange">
-        <view class="filter-item"><text>{{locationText}}</text><text class="arrow">▼</text></view>
-      </picker>
-      <picker mode="selector" range="{{sortOptions}}" range-key="label" bindchange="onSortChange">
-        <view class="filter-item"><text>{{sortText}}</text><text class="arrow">▼</text></view>
-      </picker>
-    </view>
-  </view>
-
-  <!-- 照片列表（瀑布流） -->
-  <view class="photo-list" wx:if="{{leftList.length > 0 || rightList.length > 0}}">
-    <!-- 左列 -->
-    <view class="waterfall-column">
-      <view class="photo-card" wx:for="{{leftList}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
-        <view class="photo-image-wrap" style="height: {{item._renderHeightRpx}}rpx">
-          <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
-          <view class="photo-views-badge" wx:if="{{item.views}}">👁️ {{item.views}}</view>
-        </view>
-        <view class="photo-info">
-          <view class="photo-desc-row">
-            <text class="photo-title">{{item.title}}</text>
-            <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
-          </view>
-          <view class="photo-author-row">
-            <view class="author-avatar">{{item.authorInitial || '?'}}</view>
-            <view class="author-text-col">
-              <text class="author-name">{{item.author || '匿名用户'}}</text>
-              <text class="photo-date">{{item._formattedDate || ''}}</text>
-            </view>
-            <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{f.formatCount(item.likes)}}</view>
-          </view>
-        </view>
-      </view>
-    </view>
-    <!-- 右列 -->
-    <view class="waterfall-column">
-      <view class="photo-card" wx:for="{{rightList}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
-        <view class="photo-image-wrap" style="height: {{item._renderHeightRpx}}rpx">
-          <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
-          <view class="photo-views-badge" wx:if="{{item.views}}">👁️ {{item.views}}</view>
-        </view>
-        <view class="photo-info">
-          <view class="photo-desc-row">
-            <text class="photo-title">{{item.title}}</text>
-            <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
-          </view>
-          <view class="photo-author-row">
-            <view class="author-avatar">{{item.authorInitial || '?'}}</view>
-            <view class="author-text-col">
-              <text class="author-name">{{item.author || '匿名用户'}}</text>
-              <text class="photo-date">{{item._formattedDate || ''}}</text>
-            </view>
-            <view class="like-badge {{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{f.formatCount(item.likes)}}</view>
-          </view>
-        </view>
+      <input 
+        class="search-input" 
+        placeholder="搜索标题或描述" 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        confirm-type="search"
+        bindconfirm="onSearchConfirm"
+      />
+      <view wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">
+        <text class="clear-icon">×</text>
       </view>
     </view>
   </view>
 
-  <!-- 加载更多动画 -->
-  <view class="load-more-wrap" wx:if="{{loadingMore}}">
-    <view class="loading-dots">
-      <view class="dot dot1"></view>
-      <view class="dot dot2"></view>
-      <view class="dot dot3"></view>
+  <!-- 筛选标签栏 -->
+  <view class="filter-bar">
+    <scroll-view class="filter-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="filter-content">
+        <!-- 排序标签 -->
+        <view class="filter-group">
+          <view 
+            class="filter-tag {{sortType === 'latest' ? 'active' : ''}}" 
+            bindtap="onSortTap"
+            data-sort="latest"
+          >
+            最新
+          </view>
+          <view 
+            class="filter-tag {{sortType === 'likes' ? 'active' : ''}}" 
+            bindtap="onSortTap"
+            data-sort="likes"
+          >
+            最多赞
+          </view>
+        </view>
+        
+        <!-- 分隔线 -->
+        <view class="filter-divider"></view>
+        
+        <!-- 地点标签 -->
+        <view class="filter-group">
+          <view 
+            wx:for="{{locations}}" 
+            wx:key="*this"
+            class="filter-tag {{selectedLocation === item ? 'active' : ''}}"
+            bindtap="onLocationTap"
+            data-location="{{item}}"
+          >
+            {{item}}
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 瀑布流内容 -->
+  <scroll-view 
+    class="waterfall-scroll" 
+    scroll-y 
+    enhanced
+    show-scrollbar="{{false}}"
+    bindscrolltolower="loadMore"
+    bindrefresherrefresh="onRefresh"
+    refresher-enabled="{{true}}"
+    refresher-triggered="{{isRefreshing}}"
+  >
+    <view class="waterfall-container">
+      <!-- 左列 -->
+      <view class="waterfall-column" id="left-column">
+        <view 
+          wx:for="{{leftPosts}}" 
+          wx:key="id"
+          class="photo-card"
+          bindtap="goToDetail"
+          data-id="{{item.id}}"
+        >
+          <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
+            <image 
+              class="card-image" 
+              src="{{item.imageUrl}}" 
+              mode="aspectFill"
+              lazy-load
+            />
+            <view class="views-badge">
+              
+              <text class="views-text">{{item.views}}</text>
+            </view>
+          </view>
+          <view class="card-content">
+            <text class="card-title" wx:if="{{item.title}}">{{item.title}}</text>
+            <text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            <view class="card-footer">
+              <view class="author-info">
+                <image class="author-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill"/>
+                <view class="author-meta">
+                  <text class="author-name">{{item.author || '匿名用户'}}</text>
+                  <text class="post-date">{{item._formattedDate}}</text>
+                </view>
+              </view>
+              <view class="like-info {{item.liked ? 'liked' : ''}}" catchtap="onLikeTap" data-id="{{item.id}}" data-index="{{index}}" data-column="left">
+                <image class="like-icon" src="{{item.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"/>
+                <text class="like-count">{{item.likes || 0}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 右列 -->
+      <view class="waterfall-column" id="right-column">
+        <view 
+          wx:for="{{rightPosts}}" 
+          wx:key="id"
+          class="photo-card"
+          bindtap="goToDetail"
+          data-id="{{item.id}}"
+        >
+          <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
+            <image 
+              class="card-image" 
+              src="{{item.imageUrl}}" 
+              mode="aspectFill"
+              lazy-load
+            />
+            <view class="views-badge">
+              
+              <text class="views-text">{{item.views}}</text>
+            </view>
+          </view>
+          <view class="card-content">
+            <text class="card-title" wx:if="{{item.title}}">{{item.title}}</text>
+            <text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            <view class="card-footer">
+              <view class="author-info">
+                <image class="author-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill"/>
+                <view class="author-meta">
+                  <text class="author-name">{{item.author || '匿名用户'}}</text>
+                  <text class="post-date">{{item._formattedDate}}</text>
+                </view>
+              </view>
+              <view class="like-info {{item.liked ? 'liked' : ''}}" catchtap="onLikeTap" data-id="{{item.id}}" data-index="{{index}}" data-column="right">
+                <image class="like-icon" src="{{item.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"/>
+                <text class="like-count">{{item.likes || 0}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
     </view>
-  </view>
-
-  <!-- 没有更多了 -->
-  <view class="no-more" wx:if="{{!loadingMore && !hasMore && photos.length > 0}}">
-    <text>没有更多了</text>
-  </view>
-
-  <!-- 空状态 -->
-  <view class="empty" wx:if="{{!loading && photos.length === 0}}">
-    <image class="empty-icon-image" src="/assets/icons/upload-empty.png" mode="aspectFit" />
-    <text class="empty-text">还没有照片，快来上传第一张吧！</text>
-  </view>
-
-  <!-- 初始加载 -->
-  <view class="init-loading" wx:if="{{loading && photos.length === 0}}">
-    <view class="loading-dots">
-      <view class="dot dot1"></view>
-      <view class="dot dot2"></view>
-      <view class="dot dot3"></view>
+    
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{isLoading}}">
+      <view class="loading-spinner"></view>
+      <text class="loading-text">加载中...</text>
     </view>
-  </view>
+    <view class="no-more" wx:if="{{!hasMore && posts.length > 0}}">
+      <text>没有更多了</text>
+    </view>
+    <view class="empty-state" wx:if="{{!isLoading && posts.length === 0}}">
+      <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit"/>
+      <text class="empty-text">暂无内容</text>
+    </view>
+    
+    <!-- 底部留白（给自定义 TabBar） -->
+    <view class="tabbar-placeholder"></view>
+  </scroll-view>
 
-  <!-- 上传按钮 -->
-  <view class="upload-btn" bindtap="goToUpload">
-    <text>+</text>
+  <!-- 自定义 TabBar -->
+  <view class="custom-tabbar">
+    <view class="tabbar-item {{activeTab === 'home' ? 'active' : ''}}" bindtap="switchTab" data-tab="home">
+      <image class="tabbar-icon" src="{{activeTab === 'home' ? '/assets/icons/home-active.png' : '/assets/icons/home.png'}}" mode="aspectFit"/>
+      <text class="tabbar-text">首页</text>
+    </view>
+    <view class="tabbar-center" bindtap="goToUpload">
+      <view class="publish-btn">
+        <text class="publish-icon">+</text>
+      </view>
+    </view>
+    <view class="tabbar-item {{activeTab === 'profile' ? 'active' : ''}}" bindtap="switchTab" data-tab="profile">
+      <image class="tabbar-icon" src="{{activeTab === 'profile' ? '/assets/icons/profile-active.png' : '/assets/icons/profile.png'}}" mode="aspectFit"/>
+      <text class="tabbar-text">我的</text>
+    </view>
   </view>
 </view>

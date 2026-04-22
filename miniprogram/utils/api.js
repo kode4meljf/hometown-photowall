@@ -36,6 +36,11 @@ const photoApi = {
     return callFunction('photos', 'list', params);
   },
 
+  // 获取帖子列表（posts 集合，同 photos 逻辑）
+  getPosts(params = {}) {
+    return callFunction('photos', 'list', params);
+  },
+
   // 获取照片详情
   getPhoto(id) {
     return callFunction('photos', 'detail', { id });
@@ -154,9 +159,9 @@ const userApi = {
 
 // 帖子 API（posts 云函数）
 const postApi = {
-  // 获取所有帖子（用于加载地点列表等）
+  // 获取所有帖子
   getPosts(params = {}) {
-    return callFunction('posts', 'list', params);
+    return callFunction('photos', 'list', params);
   },
 
   // 创建帖子

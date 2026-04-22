@@ -1,4 +1,6 @@
 // cloudfunctions/photos/index.js - 照片相关云函数（posts 集合版）
+// 已删除 category 相关代码
+
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -128,8 +130,6 @@ function normalizePost(post) {
     aspectRatio: firstPhoto
       ? (firstPhoto.height / firstPhoto.width)
       : 1,
-    // posts 集合无 category 字段，兼容
-    category: post.category || '风景',
     // posts 集合无 author 字段，通过 authorId 在外层 resolve 后注入
     // posts 集合无 authorAvatar 字段，通过 authorId 在外层 resolve 后注入
     // posts 集合的 photos 数组透传给前端（detail 页多图展示用）
@@ -159,8 +159,6 @@ exports.main = async (event, context) => {
       return await getTimeline(openId);
     case 'locations':
       return await getLocations();
-    case 'categories':
-      return await getCategories();
     case 'stats':
       return await getStats();
     case 'fixCommentAvatars':
@@ -178,12 +176,11 @@ exports.main = async (event, context) => {
 
 // 获取照片列表（读 posts 集合）
 async function getPosts(params, openId) {
-  const { location, category, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
+  const { location, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
 
   try {
     const conditions = {};
     if (location) conditions.location = location;
-    // posts 集合无 category 字段，跳过分类筛选以避免返回空
     if (keyword) {
       conditions.title = db.RegExp({ regexp: keyword, options: 'i' });
     }
@@ -599,19 +596,6 @@ async function getLocations() {
   } catch (e) {
     return { success: false, data: [] };
   }
-}
-
-// 获取分类列表（静态）
-async function getCategories() {
-  const categories = [
-    { id: 1, name: '风景', icon: '🏞️', color: '#4CAF50' },
-    { id: 2, name: '人物', icon: '👥', color: '#2196F3' },
-    { id: 3, name: '建筑', icon: '🏠', color: '#FF9800' },
-    { id: 4, name: '美食', icon: '🍜', color: '#E91E63' },
-    { id: 5, name: '民俗', icon: '🎭', color: '#9C27B0' },
-    { id: 6, name: '变迁', icon: '📸', color: '#607D8B' }
-  ];
-  return { success: true, data: categories };
 }
 
 // 获取统计数据（posts 集合）
