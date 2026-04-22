@@ -343,11 +343,48 @@
   font-size: 34rpx;
   color: #1b1b1b;
   font-weight: 500;
-  border-bottom: 1rpx solid #e5e5e5;
+  background: #fff;
+  border-top: 1rpx solid #e5e5e5;
 }
 
-.modal-option:last-of-type {
-  border-bottom: none;
+.modal-option:first-child {
+  border-top: none;
+}
+
+/* 微信头像选项：圆形缩略图在上，文字在下 */
+.modal-option-wechat {
+  padding: 24rpx 0 20rpx;
+  border-top: 1rpx solid #e5e5e5;
+  border-radius: 0;
+  background: #fff;
+}
+
+.modal-option-wechat:first-child {
+  border-top: none;
+}
+
+.wechat-avatar-ring {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #07c160;
+  margin: 0 auto 12rpx;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wechat-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.wechat-avatar-text {
+  display: block;
+  font-size: 34rpx;
+  color: #1b1b1b;
+  font-weight: 500;
 }
 
 .modal-cancel {

@@ -35,7 +35,7 @@
             <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
           </view>
           <view class="photo-author-row">
-            <view class="author-avatar">{{(item.author || '?').charAt(0)}}</view>
+            <view class="author-avatar">{{item.authorInitial || '?'}}</view>
             <view class="author-text-col">
               <text class="author-name">{{item.author || '匿名用户'}}</text>
               <text class="photo-date">{{item._formattedDate || ''}}</text>
@@ -58,7 +58,7 @@
             <text class="photo-desc" wx:if="{{item.description}}">{{item.description}}</text>
           </view>
           <view class="photo-author-row">
-            <view class="author-avatar">{{(item.author || '?').charAt(0)}}</view>
+            <view class="author-avatar">{{item.authorInitial || '?'}}</view>
             <view class="author-text-col">
               <text class="author-name">{{item.author || '匿名用户'}}</text>
               <text class="photo-date">{{item._formattedDate || ''}}</text>

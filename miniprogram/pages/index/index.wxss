@@ -97,12 +97,12 @@
 }
 
 .photo-title {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #333;
 }
 
 .photo-desc {
-  font-size: 22rpx;
+  font-size: 20rpx;
   color: #333;
   margin-top: 2rpx;
 }

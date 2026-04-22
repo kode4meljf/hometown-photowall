@@ -105,7 +105,8 @@ Page({
             id: p._id,
             liked: !!p.liked,
             imageUrl: p.imageUrl,
-            _formattedDate
+            _formattedDate,
+            authorInitial: (p.author || '?').charAt(0).toUpperCase()
           };
         });
 

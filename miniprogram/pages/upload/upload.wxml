@@ -9,7 +9,7 @@
       mode="aspectFit"
     />
     <view wx:else class="preview-placeholder">
-      <text class="placeholder-icon">📷</text>
+      <image class="placeholder-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
       <text class="placeholder-text">点击下方添加图片</text>
     </view>
     <!-- 删除按钮：移到预览区右上角 -->

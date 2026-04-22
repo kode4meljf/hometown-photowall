@@ -30,7 +30,8 @@
 }
 
 .placeholder-icon {
-  font-size: 80rpx;
+  width: 140rpx;
+  height: 140rpx;
   margin-bottom: 16rpx;
 }
 
@@ -184,7 +185,7 @@
 .location-header {
   display: flex;
   align-items: center;
-  padding: 10rpx 16rpx;
+  padding: 10rpx 6rpx;
 }
 
 /* 选中后：整体白色背景（无圆角），文字替换为老根茶 */
