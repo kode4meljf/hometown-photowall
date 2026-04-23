@@ -40,6 +40,13 @@ Page({
   },
 
   onShow() {
+    // 更新自定义 tabBar 选中状态
+    if (this.getTabBar) {
+      this.getTabBar().setData({ selected: 0 });
+    }
+  },
+
+  onShow() {
     // 从其他页面返回时刷新点赞状态
     if (this.data.posts.length > 0) {
       this.refreshPostsStatus();
