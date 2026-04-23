@@ -1,5 +1,5 @@
 // pages/detail/detail.js - 中心点 FLIP 动画（支持任意图片宽高比 + scale 缩放）
-const { photoApi } = require('../../utils/api');
+const { postApi } = require('../../utils/api');
 const { showLoading, hideLoading, showToast, showSuccess, formatDateTime } = require('../../utils/util');
 const app = getApp();
 
@@ -59,7 +59,7 @@ Page({
   async loadPhoto() {
     this.setData({ loading: true });
     try {
-      const res = await photoApi.getPhoto(this.photoId);
+      const res = await postApi.getPostDetail(this.photoId);
       if (res.data?.comments?.length) {
       }
       if (res.success && res.data) {
@@ -90,7 +90,7 @@ Page({
 
   async _loadPhotoList() {
     try {
-      const res = await photoApi.getPhotos({ page: 1, pageSize: 100 });
+      const res = await postApi.getPosts({ page: 1, pageSize: 100 });
       if (res.success) {
         this._photoList = res.data.posts || [];
         this._currentIndex = this._photoList.findIndex(p => p._id === this.photoId);
@@ -537,7 +537,7 @@ Page({
       return;
     }
     try {
-      const res = await photoApi.likePhoto(this.photoId);
+      const res = await postApi.likePost(this.photoId);
       if (res.success) {
         const photo = this.data.photo;
         photo.likes = res.likes;
@@ -567,7 +567,7 @@ Page({
     const offset = this.data.photo?.comments?.length || 0;
     this.setData({ commentsLoading: true });
     try {
-      const res = await photoApi.getMoreComments(this.data.photo._id, offset);
+      const res = await postApi.getMoreComments(this.data.photo._id, offset);
       if (res.success) {
         const newComments = (res.data.comments || []).map(c => ({
           ...c,
@@ -651,7 +651,7 @@ Page({
       return;
     }
     try {
-      const res = await photoApi.likePhoto(this.photoId);
+      const res = await postApi.likePost(this.photoId);
       if (res.success) {
         const photo = this.data.photo;
         photo.likes = res.likes;
@@ -675,7 +675,7 @@ Page({
     if (!content) { showToast('请输入评论内容'); return; }
     try {
       showLoading('发送中...');
-      const res = await photoApi.addComment(this.photoId, content);
+      const res = await postApi.addComment(this.photoId, content);
       hideLoading();
       if (res.success) {
         showSuccess('评论成功');

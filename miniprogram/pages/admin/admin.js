@@ -1,5 +1,5 @@
 // pages/admin/admin.js
-const { photoApi, adminApi } = require('../../utils/api');
+const { adminApi } = require('../../utils/api');
 const { showLoading, hideLoading, showToast, showSuccess, showConfirm, formatDate } = require('../../utils/util');
 const app = getApp();
 

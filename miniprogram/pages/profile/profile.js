@@ -1,5 +1,5 @@
 // pages/profile/profile.js
-const { photoApi, userApi } = require('../../utils/api');
+const { postApi, userApi } = require('../../utils/api');
 const { showToast } = require('../../utils/util');
 const app = getApp();
 
@@ -130,7 +130,7 @@ Page({
 
     const page = reset ? 1 : this.data.worksPage;
     try {
-      const res = await photoApi.getMyWorks({ page, pageSize: this.data._pageSize });
+      const res = await postApi.getMyWorks({ page, pageSize: this.data._pageSize });
       if (res.success) {
         const photos = (res.data.posts || []).map(p => ({
           ...p,
@@ -158,7 +158,7 @@ Page({
 
     const page = reset ? 1 : this.data.likedPage;
     try {
-      const res = await photoApi.getLikedPhotos({ page, pageSize: this.data._pageSize });
+      const res = await postApi.getMyLiked({ page, pageSize: this.data._pageSize });
       if (res.success) {
         const photos = (res.data.posts || []).map(p => ({
           ...p,
@@ -325,7 +325,7 @@ Page({
           const newTitle = res.content.trim();
           wx.showLoading({ title: '保存中...', mask: true });
           try {
-            const result = await photoApi.updatePhoto(id, { title: newTitle });
+            const result = await postApi.updatePost(id, { title: newTitle });
             wx.hideLoading();
             if (result.success) {
               // 更新本地数据
@@ -361,7 +361,7 @@ Page({
         if (res.confirm) {
           wx.showLoading({ title: '删除中...', mask: true });
           try {
-            const result = await photoApi.deletePhoto(id);
+            const result = await postApi.deletePost(id);
             wx.hideLoading();
             if (result.success) {
               // 从列表中移除

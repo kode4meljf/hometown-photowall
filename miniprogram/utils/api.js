@@ -159,14 +159,74 @@ const userApi = {
 
 // 帖子 API（posts 云函数）
 const postApi = {
-  // 获取所有帖子
+  // 获取帖子列表
   getPosts(params = {}) {
     return callFunction('posts', 'list', params);
+  },
+
+  // 获取帖子详情
+  getPostDetail(id) {
+    return callFunction('posts', 'detail', { id });
   },
 
   // 创建帖子
   createPost(data) {
     return callFunction('posts', 'create', data);
+  },
+
+  // 删除帖子
+  deletePost(id) {
+    return callFunction('posts', 'delete', { id });
+  },
+
+  // 点赞帖子
+  likePost(id) {
+    return callFunction('posts', 'like', { id });
+  },
+
+  // 添加评论
+  addComment(postId, content) {
+    return callFunction('posts', 'comment', { postId, content });
+  },
+
+  // 获取更多评论（分页）
+  getMoreComments(postId, offset = 0, limit = 10) {
+    return callFunction('posts', 'moreComments', { postId, offset, limit });
+  },
+
+  // 获取我的作品
+  getMyWorks(params = {}) {
+    return callFunction('posts', 'myWorks', params);
+  },
+
+  // 获取我赞过的帖子
+  getMyLiked(params = {}) {
+    return callFunction('posts', 'myLiked', params);
+  },
+
+  // 获取地点列表
+  getLocations() {
+    return callFunction('posts', 'locations');
+  },
+
+  // 获取分类列表
+  getCategories() {
+    return callFunction('posts', 'categories');
+  },
+
+  // 更新帖子
+  updatePost(id, updates) {
+    return callFunction('posts', 'update', { id, updates });
+  },
+
+  // 获取时间线
+  getTimeline() {
+    return callFunction('posts', 'timeline');
+  },
+
+  // 获取统计数据
+  getStats() {
+    return callFunction('posts', 'stats');
   }
 };
 

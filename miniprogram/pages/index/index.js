@@ -1,5 +1,5 @@
 // pages/index/index.js - 新设计：标签组筛选 + 自定义 TabBar
-const { photoApi, postApi } = require('../../utils/api');
+const { postApi } = require('../../utils/api');
 
 const COLUMN_GAP = 16; // 列间距 rpx
 const CARD_PADDING = 40; // 卡片左右内边距总和 rpx
@@ -61,7 +61,7 @@ Page({
   // 加载地点列表
   async loadLocations() {
     try {
-      const res = await photoApi.getLocations();
+      const res = await postApi.getLocations();
       if (res.success && res.data) {
         this.setData({
           locations: res.data
@@ -266,7 +266,7 @@ Page({
     const { id, index, column } = e.currentTarget.dataset;
     
     try {
-      const res = await photoApi.likePhoto(id);
+      const res = await postApi.likePost(id);
       
       if (res.success) {
         // 更新本地数据
