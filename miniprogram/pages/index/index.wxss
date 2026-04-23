@@ -118,15 +118,15 @@
 
 .waterfall-container {
   display: flex;
-  padding: 0 20rpx;
-  gap: 16rpx;
+  padding: 0;
+  gap: 10rpx;
 }
 
 .waterfall-column {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 10rpx;
 }
 
 /* 卡片 */
@@ -243,7 +243,7 @@
 .like-info {
   display: flex;
   align-items: center;
-  margin-left: 16rpx;
+  margin-left: 0;
   flex-shrink: 0;
 }
 
@@ -254,14 +254,19 @@
 .like-icon {
   width: 32rpx;
   height: 32rpx;
-  margin-right: 8rpx;
+  margin-right: 2rpx;
 }
 
 .like-count {
   font-size: 24rpx;
-  color: #999;
-  min-width: 40rpx;
+  color: #333;
+  min-width:20rpx;
+  max-width: 120rpx;
+  text-align: left;
+  margin-left: 4rpx;
 }
+.like-count.large { font-size: 22rpx; }
+.like-count.huge  { font-size: 20rpx; }
 
 /* 加载状态 */
 .load-more {

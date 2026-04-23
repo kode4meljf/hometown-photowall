@@ -7,16 +7,14 @@ Page({
   data: {
     isLoggedIn: false,
     userInfo: null,
-    activeTab: 'liked',
-    currentTabIndex: 1,  // 0=作品, 1=赞过
+    activeTab: 'works',
+    currentTabIndex: 0,  // 0=作品, 1=赞过
     works: [],
     liked: [],
     worksCount: 0,
     likedCount: 0,
     loading: false,
-    showAvatarModal: false,
     showPhotoAction: false,
-    wechatAvatarUrl: '',   // 当前微信头像预览
     _currentPhotoId: null,
     // 分页
     worksPage: 1,
@@ -266,35 +264,11 @@ Page({
     showToast('免费领积分功能开发中');
   },
 
-  // 头像更换
-  changeAvatar() {
-    if (!this.data.isLoggedIn) {
-      this.goToLogin();
-      return;
-    }
-    // 先取一次微信头像用于弹窗预览
-    this._loadWechatAvatar();
-    this.setData({ showAvatarModal: true });
-  },
-
-  // 拉取当前微信头像用于弹窗内显示
-  _loadWechatAvatar() {
-    // button open-type="chooseAvatar" 组件会自动拉起微信头像选择器
-    // 此处用 userInfo 里的头像作为预览兜底
-    const avatar = this.data.userInfo?.avatar || '';
-    this.setData({ wechatAvatarUrl: avatar });
-  },
-
   // 微信头像选择回调
   onChooseAvatar(e) {
     const { avatarUrl } = e.detail;
     if (!avatarUrl) return;
-    this.hideAvatarModal();
     this.uploadAvatar(avatarUrl);
-  },
-
-  hideAvatarModal() {
-    this.setData({ showAvatarModal: false });
   },
 
   // 打开作品操作弹窗

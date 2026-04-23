@@ -170,6 +170,12 @@ Page({
 
   // 提交发布
   async handleSubmit() {
+    // 如果自定义地点输入框有值但未确认（未按键盘完成），自动补写到 form.location
+    const customLoc = this.data.customLocation && this.data.customLocation.trim();
+    if (customLoc && !this.data.form.location) {
+      this.data.form.location = customLoc;
+      this.data.customLocation = '';
+    }
     const { imageList, imageInfoList, form } = this.data;
 
     if (imageList.length === 0) {

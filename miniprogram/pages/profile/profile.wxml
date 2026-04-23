@@ -4,9 +4,9 @@
   <view class="user-header">
     <view class="header-top">
       <view class="user-info">
-        <view class="avatar" bindtap="changeAvatar">
+        <button class="avatar" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
           <image class="avatar-img" src="{{userInfo.avatar || '/assets/icons/default-avatar.png'}}{{userInfo.avatarUpdateTime ? '?v=' + userInfo.avatarUpdateTime : ''}}" mode="aspectFill" />
-        </view>
+        </button>
         <view class="user-text">
           <text class="nickname">{{userInfo.nickname || '未登录'}}</text>
           <view class="points-entry" wx:if="{{isLoggedIn}}" bindtap="freePoints">
@@ -116,20 +116,7 @@
     </swiper-item>
   </swiper>
 
-  <!-- 头像更换底部弹窗 -->
-  <view class="avatar-modal" wx:if="{{showAvatarModal}}" bindtap="hideAvatarModal">
-    <view class="avatar-modal-content" catchtap="stopPropagation">
-      <button class="modal-option modal-option-wechat" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
-        <view class="wechat-avatar-ring">
-          <image class="wechat-avatar-img" src="{{wechatAvatarUrl || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
-        </view>
-        <text class="wechat-avatar-text">微信头像</text>
-      </button>
-      <view class="modal-option" bindtap="takePhoto">拍照</view>
-      <view class="modal-option" bindtap="chooseFromAlbum">从手机相册选择</view>
-      <view class="modal-cancel" bindtap="hideAvatarModal">取消</view>
-    </view>
-  </view>
+
 
   <!-- 作品操作底部弹窗 -->
   <view class="avatar-modal" wx:if="{{showPhotoAction}}" bindtap="hidePhotoAction">

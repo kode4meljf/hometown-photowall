@@ -101,6 +101,16 @@ const showConfirm = (content, title = '提示') => {
   });
 };
 
+// 点赞数格式化（靠右显示，小数原样，大数缩写）
+// 0~9999: 原样 | 1万~9999万: X万 | ≥1亿: X亿
+// 返回 { text, cls }：text 为显示文本，cls 为字号 class（large/huge/空）
+const formatLikeCount = (num) => {
+  if (!num || num < 0) return { text: '0', cls: '' };
+  if (num >= 100000000) return { text: (num / 100000000).toFixed(1).replace(/\.0$/, '') + '亿', cls: 'huge' };
+  if (num >= 10000) return { text: (num / 10000).toFixed(1).replace(/\.0$/, '') + '万', cls: 'large' };
+  return { text: num.toString(), cls: '' };
+};
+
 module.exports = {
   formatDate,
   formatDateTime,
@@ -111,5 +121,6 @@ module.exports = {
   showError,
   showLoading,
   hideLoading,
-  showConfirm
+  showConfirm,
+  formatLikeCount
 };

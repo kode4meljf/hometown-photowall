@@ -78,11 +78,20 @@
         </view>
         <!-- 可选地点列表（未选中时显示） -->
         <view class="location-tags" wx:if="{{!form.location}}">
-          <!-- 动态地点（数据库已有） -->
+          <!-- 预置地点 -->
+          <view
+            class="location-tag"
+            bindtap="selectLocation"
+            data-location="老根茶"
+          >
+            <text>老根茶</text>
+          </view>
+          <!-- 动态地点（数据库已有，排除预置的「老根茶」） -->
           <view
             class="location-tag"
             wx:for="{{locations}}"
             wx:key="index"
+            wx:if="{{item !== '老根茶'}}"
             bindtap="selectLocation"
             data-location="{{item}}"
           >
@@ -105,6 +114,7 @@
   <!-- 底部发布按钮 -->
   <view class="submit-bar">
     <view class="submit-btn {{submitting ? 'submitting' : ''}}" bindtap="{{submitting ? '' : 'handleSubmit'}}">
+      <image class="submit-icon" src="/assets/icons/camera-empty.png" mode="aspectFit" wx:if="{{!submitting}}" />
       <text>{{submitting ? '发布中…' : '发布照片'}}</text>
     </view>
   </view>

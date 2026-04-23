@@ -105,7 +105,7 @@
               </view>
               <view class="like-info {{item.liked ? 'liked' : ''}}" catchtap="onLikeTap" data-id="{{item.id}}" data-index="{{index}}" data-column="left">
                 <image class="like-icon" src="{{item.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"/>
-                <text class="like-count">{{item.likes || 0}}</text>
+                <text class="like-count {{item._likesCls}}">{{item._likesText}}</text>
               </view>
             </view>
           </view>
@@ -146,7 +146,7 @@
               </view>
               <view class="like-info {{item.liked ? 'liked' : ''}}" catchtap="onLikeTap" data-id="{{item.id}}" data-index="{{index}}" data-column="right">
                 <image class="like-icon" src="{{item.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit"/>
-                <text class="like-count">{{item.likes || 0}}</text>
+                <text class="like-count {{item._likesCls}}">{{item._likesText}}</text>
               </view>
             </view>
           </view>

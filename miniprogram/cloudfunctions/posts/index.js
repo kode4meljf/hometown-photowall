@@ -592,6 +592,7 @@ async function getLocations() {
     const result = await postsCollection
       .where({ location: _.neq('') })
       .field({ location: true })
+      .limit(100)
       .get();
 
     const locations = [...new Set(result.data.map(p => p.location).filter(l => l))];
