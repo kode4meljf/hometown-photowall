@@ -29,7 +29,8 @@ Page({
     
     // 系统信息
     windowWidth: 375,
-    columnWidth: 170, // 单列宽度 rpx
+    columnWidth: 170, // 单列宽度 px
+    textHeight: 100, // 文字区域高度 px
   },
 
   onLoad() {
@@ -50,11 +51,15 @@ Page({
     const sysInfo = wx.getSystemInfoSync();
     const windowWidth = sysInfo.windowWidth;
     // 计算列宽： (屏幕宽度 - 左右边距40 - 中间间隙16) / 2
+    // 直接存 px，后续计算直接用
     const columnWidth = (windowWidth - 40 - 8) / 2;
+    // 文字区域高度估算 (px)
+    const textHeight = 200 * windowWidth / 750;
     
     this.setData({
       windowWidth,
-      columnWidth: columnWidth * (750 / windowWidth), // 转为 rpx
+      columnWidth,
+      textHeight,
     });
   },
 
@@ -137,17 +142,14 @@ Page({
 
   // 处理帖子数据
   processPosts(posts) {
-    const windowWidth = this.data.windowWidth;
     return posts.map(post => {
       // 计算卡片图片高度：宽度固定为列宽，高度 = 宽度 * aspectRatio
       // pow(x, 0.4) 压缩极端比例，让瀑布流更整齐
-      // 注意：columnWidth 存的是 rpx，需要转成 px
-      const cardWidthRpx = this.data.columnWidth;
-      const cardWidthPx = cardWidthRpx * windowWidth / 750;
+      const cardWidth = this.data.columnWidth; // 已经是 px
       const rawRatio = post.aspectRatio || 1;
       const safeRatio = Math.min(Math.max(rawRatio, 0.6), 1.8);
       const compressedRatio = Math.pow(safeRatio, 0.4);
-      const cardHeight = Math.round(cardWidthPx * compressedRatio);
+      const cardHeight = Math.round(cardWidth * compressedRatio);
       
       // 格式化日期：2024.3.15
       const date = new Date(post.createdAt);
@@ -163,8 +165,7 @@ Page({
 
   // 瀑布流分配算法
   distributeToColumns(posts, reset) {
-    const windowWidth = this.data.windowWidth;
-    const textHeightPx = 200 * windowWidth / 750; // rpx → px
+    const textHeight = this.data.textHeight; // 已经是 px
     const leftPosts = reset ? [] : [...this.data.leftPosts];
     const rightPosts = reset ? [] : [...this.data.rightPosts];
     
@@ -182,10 +183,10 @@ Page({
       // 分配到较短的列
       if (leftHeight <= rightHeight) {
         leftPosts.push(post);
-        leftHeight += post.cardHeight + textHeightPx;
+        leftHeight += post.cardHeight + textHeight;
       } else {
         rightPosts.push(post);
-        rightHeight += post.cardHeight + textHeightPx;
+        rightHeight += post.cardHeight + textHeight;
       }
     });
     
@@ -194,10 +195,9 @@ Page({
 
   // 获取列当前高度（估算）
   getColumnHeight(column) {
-    const windowWidth = this.data.windowWidth;
-    const textHeightPx = 200 * windowWidth / 750; // rpx → px
+    const textHeight = this.data.textHeight;
     const posts = column === 'left' ? this.data.leftPosts : this.data.rightPosts;
-    return posts.reduce((sum, post) => sum + post.cardHeight + textHeightPx, 0);
+    return posts.reduce((sum, post) => sum + post.cardHeight + textHeight, 0);
   },
 
   // 刷新帖子状态（点赞等）
