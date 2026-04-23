@@ -157,43 +157,29 @@ async function handleGetCurrentUser(openId) {
 // 更新用户信息（头像、昵称等）
 async function handleUpdateUserInfo(avatar, nickname, openId) {
   try {
-    console.log('handleUpdateUserInfo - avatar:', avatar, 'nickname:', nickname, 'openId:', openId);
     
     // 查找用户
     const userResult = await usersCollection.where({
       _openid: openId
     }).get();
     
-    console.log('用户查询结果:', JSON.stringify(userResult.data));
-
     if (userResult.data.length === 0) {
       return { success: false, message: '用户不存在' };
     }
-
     const userId = userResult.data[0]._id;
     const updateData = {};
-    
     if (avatar) {
       updateData.avatar = avatar;
-      // 不再写 avatarTempUrl（tempURL 有 ~2h 时效，存库无意义）
     }
     if (nickname) {
       updateData.nickname = nickname;
     }
     updateData.updatedAt = db.serverDate();
 
-    console.log('更新数据:', JSON.stringify(updateData));
-
     // 更新用户信息
     const updateResult = await usersCollection.doc(userId).update({
       data: updateData
     });
-    
-    console.log('更新结果:', JSON.stringify(updateResult));
-
-    // 获取更新后的用户信息
-    const updatedUser = await usersCollection.doc(userId).get();
-    console.log('更新后用户:', JSON.stringify(updatedUser.data));
 
     return {
       success: true,

@@ -17,12 +17,10 @@ const callFunction = (name, action, data = {}) => {
 const uploadImage = (filePath) => {
   return new Promise((resolve, reject) => {
     const cloudPath = `photos/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-    console.log('[uploadImage] 开始上传, cloudPath:', cloudPath, ', filePath:', filePath);
     wx.cloud.uploadFile({
       cloudPath,
       filePath,
       success: (res) => {
-        console.log('[uploadImage] 上传成功, fileID:', res.fileID);
         resolve(res.fileID);
       },
       fail: (err) => {

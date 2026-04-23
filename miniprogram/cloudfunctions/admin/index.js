@@ -10,26 +10,19 @@ exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext();
   const openId = wxContext.OPENID;
 
-  console.log('Admin function called:', action, 'openId:', openId);
-
   // 验证管理员权限
   try {
     const userResult = await db.collection('users').where({
       _openid: openId
     }).get();
 
-    console.log('User query result:', userResult.data.length, 'users found');
-
     if (userResult.data.length === 0) {
-      console.log('No user found with this openId');
       return { success: false, message: '用户不存在' };
     }
 
     const user = userResult.data[0];
-    console.log('User role:', user.role);
 
     if (user.role !== 'admin') {
-      console.log('User is not admin');
       return { success: false, message: '无权限访问' };
     }
   } catch (e) {

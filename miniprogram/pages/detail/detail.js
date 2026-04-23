@@ -372,8 +372,14 @@ Page({
       this._pullStartTouchY = t[0].clientY;
 
       // 起点在底部栏内 → 标记，跳过滑动退出检测
-      var bottomBarH = this._bottomBarH || 0;
-      if (bottomBarH && t[0].clientY >= this._windowHeight - bottomBarH) {
+      var windowHeight = this._windowHeight;
+      var bottomBarH = this._bottomBarH;
+      if (!windowHeight || bottomBarH === undefined) {
+        const sysInfo = wx.getSystemInfoSync();
+        windowHeight = sysInfo.windowHeight;
+        bottomBarH = (84 / 750) * sysInfo.windowWidth + (sysInfo.safeArea?.insetBottom || 0);
+      }
+      if (t[0].clientY >= windowHeight - bottomBarH) {
         this._gestureState = 'in-bottom';
       }
     }
@@ -426,9 +432,15 @@ Page({
 
   onPreviewTouchEnd(e) {
     const touchY = e.changedTouches?.[0]?.clientY ?? 0;
-    // 使用 onLoad 缓存的底部栏高度
-    var bottomBarH = this._bottomBarH || 0;
-    var bottomBarTop = this._windowHeight - bottomBarH;
+    // 使用 onLoad 缓存的值，兜底用 getSystemInfoSync
+    var windowHeight = this._windowHeight;
+    var bottomBarH = this._bottomBarH;
+    if (!windowHeight || bottomBarH === undefined) {
+      const sysInfo = wx.getSystemInfoSync();
+      windowHeight = sysInfo.windowHeight;
+      bottomBarH = (84 / 750) * sysInfo.windowWidth + (sysInfo.safeArea?.insetBottom || 0);
+    }
+    var bottomBarTop = windowHeight - bottomBarH;
     var touchStartY = this._touchStart?.y ?? 0;
     var startedInBottom = this._gestureState === 'in-bottom';
     var endedInBottom = touchY >= bottomBarTop;
