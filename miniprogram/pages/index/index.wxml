@@ -40,8 +40,8 @@
           </view>
         </view>
         
-        <!-- 分隔线 -->
-        <view class="filter-divider"></view>
+        <!-- 分隔线：只有有地点信息时才显示 -->
+        <view wx:if="{{locations.length > 0}}" class="filter-divider"></view>
         
         <!-- 地点标签 -->
         <view class="filter-group">
