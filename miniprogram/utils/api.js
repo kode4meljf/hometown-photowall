@@ -161,7 +161,7 @@ const userApi = {
 const postApi = {
   // 获取所有帖子
   getPosts(params = {}) {
-    return callFunction('photos', 'list', params);
+    return callFunction('posts', 'list', params);
   },
 
   // 创建帖子
