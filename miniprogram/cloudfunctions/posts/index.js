@@ -429,6 +429,8 @@ async function uploadPhoto(data, openId) {
       likedUsers: [],
       createdAt: db.serverDate()
     };
+
+    const result = await postsCollection.add({ data: addData });
     return { success: true, data: { id: result._id } };
   } catch (e) {
     console.error('[uploadPhoto] 失败:', e.message, e.stack);
