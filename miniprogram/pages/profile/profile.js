@@ -265,7 +265,6 @@ Page({
       this.goToLogin();
       return;
     }
-    wx.hideTabBar({ animation: false });
     // 先取一次微信头像用于弹窗预览
     this._loadWechatAvatar();
     this.setData({ showAvatarModal: true });
@@ -289,7 +288,6 @@ Page({
 
   hideAvatarModal() {
     this.setData({ showAvatarModal: false });
-    wx.showTabBar({ animation: false });
   },
 
   // 打开作品操作弹窗
@@ -297,7 +295,6 @@ Page({
     const { id, title } = e.currentTarget.dataset;
     this._currentPhotoId = id;
     this._currentPhotoTitle = title || '';
-    wx.hideTabBar({ animation: false });
     this.setData({ showPhotoAction: true });
   },
 
@@ -305,7 +302,6 @@ Page({
   hidePhotoAction() {
     this.setData({ showPhotoAction: false });
     this._currentPhotoId = null;
-    wx.showTabBar({ animation: false });
   },
 
   // 编辑标题
