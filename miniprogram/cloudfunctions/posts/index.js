@@ -127,9 +127,13 @@ function normalizePost(post) {
     id: post._id,
     imageUrl: firstPhoto ? firstPhoto.imageUrl : '',
     // aspectRatio = height / width（供瀑布流用）
-    aspectRatio: firstPhoto
-      ? (firstPhoto.height / firstPhoto.width)
-      : 1,
+    // 添加 clamp 防止极端值（width=0 或旧帖子无数据）
+    aspectRatio: (() => {
+      if (!firstPhoto || !firstPhoto.width || !firstPhoto.height) return 1;
+      const r = firstPhoto.height / firstPhoto.width;
+      if (!isFinite(r) || isNaN(r)) return 1;
+      return Math.min(Math.max(r, 0.3), 3.0); // 限制在 0.3~3.0 范围
+    })(),
     // posts 集合无 author 字段，通过 authorId 在外层 resolve 后注入
     // posts 集合无 authorAvatar 字段，通过 authorId 在外层 resolve 后注入
     // posts 集合的 photos 数组透传给前端（detail 页多图展示用）
@@ -139,15 +143,22 @@ function normalizePost(post) {
 exports.main = async (event, context) => {
   const { action, data } = event;
 
+  console.log('[posts] 收到请求, action:', action, ', data keys:', data ? Object.keys(data) : 'null', ', data:', JSON.stringify(data).slice(0, 500));
+
   const wxContext = cloud.getWXContext();
   const openId = wxContext.OPENID;
+  console.log('[posts] openId:', openId);
 
   switch (action) {
     case 'list':
       return await getPosts(data, openId);
     case 'detail':
       return await getPostDetail(data.id, openId);
+    case 'create':
+      console.log('[posts] action=create, 走 uploadPhoto 逻辑');
+      return await uploadPhoto(data, openId);
     case 'upload':
+      console.log('[posts] action=upload, 走 uploadPhoto 逻辑');
       return await uploadPhoto(data, openId);
     case 'delete':
       return await deletePhoto(data.id, openId);
@@ -389,6 +400,9 @@ async function getMoreComments(data, openId) {
 
 // 上传照片（写入 posts 集合）
 async function uploadPhoto(data, openId) {
+  console.log('[uploadPhoto] 开始, data.photos 数量:', (data.photos || []).length);
+  console.log('[uploadPhoto] data.photos:', JSON.stringify(data.photos).slice(0, 500));
+  console.log('[uploadPhoto] title:', data.title, ', location:', data.location);
   try {
     // 获取作者信息
     let authorNickname = '匿名用户';
@@ -412,26 +426,28 @@ async function uploadPhoto(data, openId) {
       order: p.order !== undefined ? p.order : idx
     }));
 
-    const result = await postsCollection.add({
-      data: {
-        title: data.title,
-        description: data.description || '',
-        location: data.location || '',
-        photos,
-        author: authorNickname,
-        authorId: openId,
-        authorAvatar,
-        likes: 0,
-        views: 0,
-        likedUsers: [],
-        createdAt: db.serverDate()
-      }
-    });
+    const addData = {
+      title: data.title,
+      description: data.description || '',
+      location: data.location || '',
+      photos,
+      author: authorNickname,
+      authorId: openId,
+      authorAvatar,
+      likes: 0,
+      views: 0,
+      likedUsers: [],
+      createdAt: db.serverDate()
+    };
+    console.log('[uploadPhoto] 准备写入, addData.photos:', JSON.stringify(addData.photos).slice(0, 500));
 
+    const result = await postsCollection.add({ data: addData });
+
+    console.log('[uploadPhoto] 写入成功, _id:', result._id);
     return { success: true, data: { id: result._id } };
   } catch (e) {
-    console.error('上传照片失败:', e);
-    return { success: false, message: '上传失败' };
+    console.error('[uploadPhoto] 失败:', e.message, e.stack);
+    return { success: false, message: '上传失败: ' + e.message };
   }
 }
 

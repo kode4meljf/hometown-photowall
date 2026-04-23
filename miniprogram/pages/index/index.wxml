@@ -167,24 +167,5 @@
       <text class="empty-text">暂无内容</text>
     </view>
     
-    <!-- 底部留白（给自定义 TabBar） -->
-    <view class="tabbar-placeholder"></view>
   </scroll-view>
-
-  <!-- 自定义 TabBar -->
-  <view class="custom-tabbar">
-    <view class="tabbar-item {{activeTab === 'home' ? 'active' : ''}}" bindtap="switchTab" data-tab="home">
-      <image class="tabbar-icon" src="{{activeTab === 'home' ? '/assets/icons/home-active.png' : '/assets/icons/home.png'}}" mode="aspectFit"/>
-      <text class="tabbar-text">首页</text>
-    </view>
-    <view class="tabbar-center" bindtap="goToUpload">
-      <view class="publish-btn">
-        <text class="publish-icon">+</text>
-      </view>
-    </view>
-    <view class="tabbar-item {{activeTab === 'profile' ? 'active' : ''}}" bindtap="switchTab" data-tab="profile">
-      <image class="tabbar-icon" src="{{activeTab === 'profile' ? '/assets/icons/profile-active.png' : '/assets/icons/profile.png'}}" mode="aspectFit"/>
-      <text class="tabbar-text">我的</text>
-    </view>
-  </view>
 </view>

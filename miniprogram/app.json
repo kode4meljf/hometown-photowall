@@ -14,6 +14,22 @@
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f8f8f8"
   },
+  "tabBar": {
+    "custom": true,
+    "color": "#999999",
+    "selectedColor": "#1b1b1b",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
   "cloud": true,
   "style": "v2",
   "sitemapLocation": "sitemap.json"

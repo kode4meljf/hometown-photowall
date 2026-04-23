@@ -17,14 +17,18 @@ const callFunction = (name, action, data = {}) => {
 const uploadImage = (filePath) => {
   return new Promise((resolve, reject) => {
     const cloudPath = `photos/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+    console.log('[uploadImage] 开始上传, cloudPath:', cloudPath, ', filePath:', filePath);
     wx.cloud.uploadFile({
       cloudPath,
       filePath,
       success: (res) => {
-        // 直接返回 fileID，不转临时链接（临时链接有效期约 2 小时）
+        console.log('[uploadImage] 上传成功, fileID:', res.fileID);
         resolve(res.fileID);
       },
-      fail: reject
+      fail: (err) => {
+        console.error('[uploadImage] 上传失败:', err);
+        reject(err);
+      }
     });
   });
 };

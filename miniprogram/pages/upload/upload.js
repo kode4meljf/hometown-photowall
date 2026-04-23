@@ -188,8 +188,16 @@ Page({
     showLoading('发布中...');
 
     try {
-      const uploadPromises = imageList.map(path => uploadImage(path));
+      console.log('[upload] handleSubmit 开始, 图片数量:', imageList.length);
+      const uploadPromises = imageList.map((path, idx) => {
+        console.log('[upload] 上传第', idx, '张图, path:', path);
+        return uploadImage(path).then(fileId => {
+          console.log('[upload] 第', idx, '张图上传成功, fileID:', fileId);
+          return fileId;
+        });
+      });
       const fileIds = await Promise.all(uploadPromises);
+      console.log('[upload] 所有图片上传完成, fileIds:', fileIds);
 
       const photos = fileIds.map((fileId, index) => ({
         imageUrl: fileId,
@@ -197,13 +205,18 @@ Page({
         height: imageInfoList[index].height,
         order: index
       }));
+      console.log('[upload] 构造 photos 数组:', JSON.stringify(photos));
 
-      const res = await postApi.createPost({
+      const createData = {
         title: form.title.trim(),
         description: form.description.trim(),
         location: form.location.trim(),
         photos: photos
-      });
+      };
+      console.log('[upload] 调用 postApi.createPost, createData:', JSON.stringify(createData));
+
+      const res = await postApi.createPost(createData);
+      console.log('[upload] createPost 返回:', JSON.stringify(res));
 
       hideLoading();
 
@@ -216,6 +229,7 @@ Page({
         showToast(res.message || '发布失败');
       }
     } catch (e) {
+      console.error('[upload] handleSubmit 失败:', e);
       hideLoading();
       showToast('发布失败：' + (e.message || '网络错误'));
     } finally {

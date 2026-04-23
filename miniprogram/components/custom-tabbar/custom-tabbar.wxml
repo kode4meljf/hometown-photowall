@@ -1,0 +1,16 @@
+<!-- components/custom-tabbar/custom-tabbar.wxml -->
+<view class="custom-tabbar">
+  <view class="tabbar-item {{current === 0 ? 'active' : ''}}" catchtap="switchTab" data-tab="0">
+    <image class="tabbar-icon" src="{{current === 0 ? '/assets/icons/home-active.png' : '/assets/icons/home.png'}}" mode="aspectFit"/>
+    <text class="tabbar-text">首页</text>
+  </view>
+  <view class="tabbar-center" catchtap="goToUpload">
+    <view class="publish-btn">
+      <text class="publish-icon">+</text>
+    </view>
+  </view>
+  <view class="tabbar-item {{current === 1 ? 'active' : ''}}" catchtap="switchTab" data-tab="1">
+    <image class="tabbar-icon" src="{{current === 1 ? '/assets/icons/profile-active.png' : '/assets/icons/profile.png'}}" mode="aspectFit"/>
+    <text class="tabbar-text">我的</text>
+  </view>
+</view>
