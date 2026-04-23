@@ -44,6 +44,8 @@ Page({
         this._windowWidth = info.windowWidth;
         this._statusBarHeight = info.statusBarHeight || 0;
         this._sysInfo = info;
+        // 缓存底部栏高度，避免每次手势事件重复计算
+        this._bottomBarH = (84 / 750) * info.windowWidth + (info.safeArea?.insetBottom || 0);
         this.setData({ headerPaddingTop: (info.statusBarHeight || 0) + 16 });
       }
     });
@@ -370,11 +372,8 @@ Page({
       this._pullStartTouchY = t[0].clientY;
 
       // 起点在底部栏内 → 标记，跳过滑动退出检测
-      var sysInfo = this._sysInfo || (this._sysInfo = wx.getSystemInfoSync());
-      var windowH = this._windowHeight || sysInfo.windowHeight;
-      var windowW = this._windowWidth || sysInfo.windowWidth;
-      var bottomBarH = (84 / 750) * windowW + (sysInfo.safeArea?.insetBottom || 0);
-      if (t[0].clientY >= windowH - bottomBarH) {
+      var bottomBarH = this._bottomBarH || 0;
+      if (bottomBarH && t[0].clientY >= this._windowHeight - bottomBarH) {
         this._gestureState = 'in-bottom';
       }
     }
@@ -427,13 +426,9 @@ Page({
 
   onPreviewTouchEnd(e) {
     const touchY = e.changedTouches?.[0]?.clientY ?? 0;
-    // 优先用 onLoad 缓存值，兜底直接读
-    var sysInfo = this._sysInfo || (this._sysInfo = wx.getSystemInfoSync());
-    var windowHeight = this._windowHeight || sysInfo.windowHeight;
-    var windowWidth = this._windowWidth || sysInfo.windowWidth;
-    var safeAreaBottom = sysInfo.safeArea?.insetBottom || 0;
-    var bottomBarH = (84 / 750) * windowWidth + safeAreaBottom;
-    var bottomBarTop = windowHeight - bottomBarH;
+    // 使用 onLoad 缓存的底部栏高度
+    var bottomBarH = this._bottomBarH || 0;
+    var bottomBarTop = this._windowHeight - bottomBarH;
     var touchStartY = this._touchStart?.y ?? 0;
     var startedInBottom = this._gestureState === 'in-bottom';
     var endedInBottom = touchY >= bottomBarTop;
