@@ -34,9 +34,12 @@ Page({
 
   onShow() {
     // 更新自定义 tabBar 选中状态
-    if (this.getTabBar) {
-      this.getTabBar().setData({ selected: 2 });
-    }
+    setTimeout(() => {
+      const tabBar = this.getTabBar && this.getTabBar();
+      if (tabBar) {
+        tabBar.setData({ selected: 2 });
+      }
+    }, 0);
     this.updateUserStatus();
     // 只在首次加载时获取数据，不在每次 onShow 都刷新
     if (this.data.isLoggedIn && !this._loaded) {
