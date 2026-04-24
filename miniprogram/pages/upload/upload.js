@@ -8,7 +8,6 @@ Page({
     imageInfoList: [],   // 图片尺寸信息 [{width, height}]
     currentIndex: 0,     // 当前选中预览的图片索引
     isOverflow: false,
-    scrollWidth: 0,
 
     form: {
       title: '',
@@ -106,23 +105,21 @@ Page({
     });
   },
 
-  // 检测缩略图是否超出：先量 scroll 容器宽度，再量 row 内容宽度，
-  // JS 直接设置 scroll 容器 px 宽度，绕过 flex 布局的隐式宽度计算
+  // 检测缩略图是否超出：量 wrapper 宽度和屏幕宽度对比
   checkOverflow() {
     const query = wx.createSelectorQuery().in(this);
-    query.select('.thumbnail-scroll').boundingClientRect();
-    query.select('.thumbnail-row').boundingClientRect();
+    query.select('.thumbnail-wrapper').boundingClientRect();
     query.exec((res) => {
-      const scrollRect = res[0];
-      const rowRect = res[1];
-      if (!scrollRect || !rowRect) return;
-
-      // 设置 scroll 容器的精确像素宽度
-      this.setData({ scrollWidth: scrollRect.width });
-
-      // 判断是否溢出
-      const hasOverflow = rowRect.width > scrollRect.width;
-      this.setData({ isOverflow: hasOverflow });
+      const wrapperRect = res[0];
+      if (!wrapperRect) return;
+      // 获取屏幕宽度（注意这是整个窗口宽度，不是bar宽度）
+      const screenWidth = wx.getSystemInfoSync().windowWidth;
+      // 转换 rpx → px: 1rpx = screenWidth / 750
+      const rpx2px = screenWidth / 750;
+      // bar 左右 padding: 32rpx × 2 = 64rpx
+      const barPadding = 64 * rpx2px;
+      const maxWidth = screenWidth - barPadding;
+      this.setData({ isOverflow: wrapperRect.width > maxWidth });
     });
   },
 

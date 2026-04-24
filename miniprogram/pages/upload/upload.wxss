@@ -67,34 +67,41 @@
 }
 
 /* ─── 缩略图栏 ─── */
+/* 缩略图栏：居中布局 */
 .thumbnail-bar {
-  padding: 16rpx 0;
+  padding: 16rpx 4rpx 16rpx 32rpx;
   display: flex;
-  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
-/* 滚动容器：占满 bar 剩余宽度，溢出时触发水平滚动 */
+.thumbnail-wrapper {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+/* scroll-view：占满剩余空间，超出时水平滚动，NOT enable-flex（避免与父容器冲突） */
 .thumbnail-scroll {
-  flex: 1;
-  width: 100%;
+  width: calc(100% - 112rpx); /* 预留 add-button 宽度(80rpx) + gap(16rpx) + 安全边距(16rpx) */
+  max-width: 100%;
+  flex-direction: row;
+  align-items: flex-start;
+  display: flex;
+  height: 88rpx;
+  -webkit-mask-image: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 12rpx, rgba(255,255,255,1) calc(100% - 12rpx), rgba(255,255,255,0) 100%);
   min-width: 0;
-  overflow-x: auto;
   white-space: nowrap;
-  -webkit-overflow-scrolling: touch;
 }
 .thumbnail-scroll::-webkit-scrollbar {
   display: none;
 }
 
-/* 缩略图组：inline-flex 由内容决定宽度，居中靠 margin */
+/* 缩略图行 */
 .thumbnail-row {
   display: inline-flex;
   align-items: center;
-  gap: 16rpx;
-  margin: 0 auto;
-}
-.thumbnail-row.overflow {
-  margin: 0;
+  gap: 12rpx;
 }
 
 /* 缩略图项 */
@@ -105,7 +112,7 @@
   border-radius: 16rpx;
   overflow: hidden;
   flex-shrink: 0;
-  border: 4rpx solid transparent;
+  border: 2rpx solid transparent;
   transition: border-color 0.2s;
 }
 .thumbnail-item.selected {
@@ -120,6 +127,7 @@
 .thumbnail-add {
   flex-shrink: 0;
   display: inline-flex;
+  align-self: flex-start;
   align-items: center;
   justify-content: center;
   width: 80rpx;

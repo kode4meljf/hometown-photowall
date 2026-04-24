@@ -19,24 +19,25 @@
     </view>
   </view>
 
-  <!-- 缩略图栏：缩略图组 + 按钮一行 -->
+  <!-- 缩略图栏：整体居中，溢出时缩略图滚、按钮靠右固定 -->
   <view class="thumbnail-bar">
-    <view class="thumbnail-scroll {{isOverflow ? 'overflow' : ''}}" style="width: {{scrollWidth ? scrollWidth + 'px' : '100%'}}">
-      <view class="thumbnail-row">
-        <view
-          class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
-          wx:for="{{imageList}}"
-          wx:key="index"
-          bindtap="selectImage"
-          data-index="{{index}}"
-        >
-          <image class="thumbnail-image" src="{{item}}" mode="aspectFill" />
-          <view class="delete-btn" catchtap="deleteImage" data-index="{{index}}">×</view>
+    <view class="thumbnail-wrapper">
+      <scroll-view class="thumbnail-scroll" scroll-x>
+        <view class="thumbnail-row">
+          <view
+            class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
+            wx:for="{{imageList}}"
+            wx:key="index"
+            bindtap="selectImage"
+            data-index="{{index}}"
+          >
+            <image class="thumbnail-image" src="{{item}}" mode="aspectFill" />
+            <view class="delete-btn" catchtap="deleteImage" data-index="{{index}}">×</view>
+          </view>
         </view>
-        <!-- 添加按钮：固定在 row 最右侧 -->
-        <view class="thumbnail-add" bindtap="chooseImage">
-          <text class="add-icon">+</text>
-        </view>
+      </scroll-view>
+      <view class="thumbnail-add" bindtap="chooseImage">
+        <text class="add-icon">+</text>
       </view>
     </view>
   </view>
