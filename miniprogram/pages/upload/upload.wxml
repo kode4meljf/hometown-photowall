@@ -1,30 +1,47 @@
 <!-- pages/upload/upload.wxml -->
 <view class="upload-page">
   <!-- 顶部大图预览区 -->
-  <view class="preview-area" bindtap="previewFullScreen">
-    <image
+  <view class="preview-area">
+    <swiper
       wx:if="{{imageList.length > 0}}"
-      class="preview-image"
-      src="{{imageList[currentIndex]}}"
-      mode="aspectFit"
-    />
-    <view wx:else class="preview-placeholder">
+      class="preview-swiper"
+      current="{{currentIndex}}"
+      bindchange="onSwiperChange"
+      circular="{{false}}"
+    >
+      <swiper-item wx:for="{{imageList}}" wx:key="index">
+        <image
+          class="preview-image"
+          src="{{item}}"
+          mode="aspectFit"
+          bindtap="previewFullScreen"
+        />
+      </swiper-item>
+    </swiper>
+    <view wx:if="{{imageList.length === 0}}" class="preview-placeholder">
       <image class="placeholder-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
       <text class="placeholder-text">点击下方添加图片</text>
     </view>
-    <!-- 删除按钮：移到预览区右上角 -->
+    <!-- 删除按钮 -->
     <view class="preview-delete-btn" wx:if="{{imageList.length > 0}}" catchtap="deleteCurrentImage">×</view>
+    <!-- 计数器 -->
     <view class="image-counter" wx:if="{{imageList.length > 1}}">
       <text>{{currentIndex + 1}}/{{imageList.length}}</text>
     </view>
   </view>
 
   <!-- 缩略图栏：整体居中，溢出时缩略图滚、按钮靠右固定 -->
-  <view class="thumbnail-bar">
+  <view class="thumbnail-bar {{isOverflow ? 'has-overflow' : ''}}">
     <view class="thumbnail-wrapper">
-      <scroll-view class="thumbnail-scroll" scroll-x>
+      <scroll-view
+        class="thumbnail-scroll {{isOverflow ? 'has-overflow' : ''}}"
+        scroll-x
+        scroll-into-view="thumb-{{currentIndex}}"
+        scroll-with-animation
+      >
         <view class="thumbnail-row">
           <view
+            id="thumb-{{index}}"
             class="thumbnail-item {{currentIndex === index ? 'selected' : ''}}"
             wx:for="{{imageList}}"
             wx:key="index"
@@ -32,7 +49,6 @@
             data-index="{{index}}"
           >
             <image class="thumbnail-image" src="{{item}}" mode="aspectFill" />
-            <view class="delete-btn" catchtap="deleteImage" data-index="{{index}}">×</view>
           </view>
         </view>
       </scroll-view>

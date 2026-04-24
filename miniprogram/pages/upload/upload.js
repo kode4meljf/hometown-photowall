@@ -75,6 +75,12 @@ Page({
     });
   },
 
+  // swiper 左右滑动切换
+  onSwiperChange(e) {
+    const index = e.detail.current;
+    this.setData({ currentIndex: index });
+  },
+
   // 点击缩略图切换预览
   selectImage(e) {
     const index = e.currentTarget.dataset.index;
