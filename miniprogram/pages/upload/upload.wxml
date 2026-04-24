@@ -13,7 +13,7 @@
         <image
           class="preview-image"
           src="{{item}}"
-          mode="aspectFit"
+          mode="aspectFill"
           bindtap="previewFullScreen"
         />
       </swiper-item>
