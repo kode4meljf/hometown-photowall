@@ -77,11 +77,30 @@
   justify-content: center;
 }
 
-.photo-image {
+.photo-swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.photo-swiper .photo-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  display: block;
+}
+
+.photo-indicator {
+  position: absolute;
+  bottom: 24rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+.indicator-text {
+  color: #fff;
+  font-size: 24rpx;
 }
 
 /* 内容区域 */
@@ -409,6 +428,27 @@
   height: 100%;
   object-fit: contain;
 }
+
+.preview-swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.preview-indicator {
+  position: absolute;
+  bottom: 120rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.3);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+}
+
+.preview-indicator-text {
+  color: #fff;
+  font-size: 24rpx;
+}
+
 /* 点赞动画 */
 .like-animation {
   position: absolute;

@@ -14,9 +14,30 @@
 
   <!-- 可滚动内容区 -->
   <scroll-view class="detail-scroll" scroll-y bindscroll="onCommentScroll">
-    <!-- 图片区域：点击进入预览 -->
-    <view class="image-section {{isPreviewMode ? 'y-hidden' : ''}}" style="{{photoStyle}}" bindtap="enterPreview">
-      <image class="photo-image {{isPreviewMode ? 'y-hidden' : ''}}" src="{{photo.imageUrl}}" mode="{{photoMode}}" bindload="onPhotoLoad" />
+    <!-- 图片区域：多图轮播 / 单图展示 -->
+    <view class="image-section {{isPreviewMode ? 'y-hidden' : ''}}" style="{{photoStyle}}">
+      <swiper
+        class="photo-swiper"
+        current="{{currentPhotoIndex}}"
+        bindchange="onSwiperChange"
+        duration="300"
+        circular="{{false}}"
+      >
+        <swiper-item wx:for="{{photo.photos}}" wx:key="order">
+          <image
+            class="photo-image {{isPreviewMode ? 'y-hidden' : ''}}"
+            src="{{item.imageUrl}}"
+            mode="{{photoMode}}"
+            bindload="onPhotoLoad"
+            bindtap="enterPreview"
+            data-index="{{index}}"
+          />
+        </swiper-item>
+      </swiper>
+      <!-- 多图指示器 -->
+      <view class="photo-indicator" wx:if="{{photo.photos.length > 1}}">
+        <text class="indicator-text">{{currentPhotoIndex + 1}} / {{photo.photos.length}}</text>
+      </view>
     </view>
 
     <!-- 图片描述 -->
@@ -108,11 +129,24 @@
     <view class="preview-drag-overlay" style="opacity: {{overlayOpacity}};"></view>
     <!-- 动画容器：CSS transition 驱动，transform-origin: 0 0 -->
     <view class="preview-image-wrapper {{previewAnimClass}}" style="transform: {{previewTransform}}; opacity: {{previewOpacity !== 0 ? 1 : 0}};">
-      <image
-        class="preview-image"
-        src="{{photo.imageUrl}}"
-        mode="aspectFit"
-      />
+      <swiper
+        class="preview-swiper"
+        current="{{currentPhotoIndex}}"
+        bindchange="onPreviewSwiperChange"
+        duration="300"
+      >
+        <swiper-item wx:for="{{photo.photos}}" wx:key="order">
+          <image
+            class="preview-image"
+            src="{{item.imageUrl}}"
+            mode="aspectFit"
+          />
+        </swiper-item>
+      </swiper>
+      <!-- 预览模式多图指示器 -->
+      <view class="preview-indicator" wx:if="{{photo.photos.length > 1}}">
+        <text class="preview-indicator-text">{{currentPhotoIndex + 1}} / {{photo.photos.length}}</text>
+      </view>
     </view>
   </view>
 

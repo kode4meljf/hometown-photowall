@@ -27,7 +27,8 @@ Page({
     yPageVisible: true,
     showLikeAnim: false,
     canGoPrev: false,
-    canGoNext: false
+    canGoNext: false,
+    currentPhotoIndex: 0
   },
 
   // 私有状态
@@ -67,6 +68,10 @@ Page({
       if (res.success && res.data) {
         const photo = res.data;
         photo.date = formatDateTime(photo.createdAt);
+        // 兼容旧帖子：无 photos 数组时，用 imageUrl 构造单图数组
+        if (!photo.photos || photo.photos.length === 0) {
+          photo.photos = [{ imageUrl: photo.imageUrl || '', width: 1, height: 1, order: 0 }];
+        }
         photo.comments = (photo.comments || []).map(c => ({
           ...c,
           time: formatDateTime(c.createdAt),
@@ -78,7 +83,7 @@ Page({
            app.globalData.userInfo.role === 'admin' ||
            app.globalData.userInfo._id === photo.authorId);
         const hasMoreComments = res.data.hasMore || false;
-        this.setData({ photo, canDelete, loading: false, hasMoreComments });
+        this.setData({ photo, canDelete, loading: false, hasMoreComments, currentPhotoIndex: 0 });
         this._updateNavState();
       } else {
         showToast(res.message || '加载失败');
@@ -119,6 +124,16 @@ Page({
       photoMode: 'aspectFit',
       photoStyle: 'background:#F7F7F7;'
     });
+  },
+
+  // 多图轮播切换
+  onSwiperChange(e) {
+    this.setData({ currentPhotoIndex: e.detail.current });
+  },
+
+  // 预览模式轮播切换
+  onPreviewSwiperChange(e) {
+    this.setData({ currentPhotoIndex: e.detail.current });
   },
 
   // ========== aspectFit 布局计算 ==========
@@ -617,7 +632,9 @@ Page({
     if (!this.data.photo) return;
 
     showLoading('下载中...');
-    let url = this.data.photo.imageUrl;
+    const photos = this.data.photo.photos || [];
+    const idx = this.data.currentPhotoIndex || 0;
+    let url = (photos[idx] && photos[idx].imageUrl) || this.data.photo.imageUrl;
 
     if (url.startsWith('cloud://')) {
       try {
