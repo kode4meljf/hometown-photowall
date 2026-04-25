@@ -66,7 +66,7 @@ Page({
           this.setData({
             imageList: newImageList,
             imageInfoList: newImageInfoList,
-            currentIndex: newImageList.length - 1
+            currentIndex: 0
           }, () => {
             this.checkOverflow();
           });
@@ -75,10 +75,29 @@ Page({
     });
   },
 
-  // swiper 左右滑动切换
+  // swiper 滑动切换
   onSwiperChange(e) {
-    const index = e.detail.current;
-    this.setData({ currentIndex: index });
+    const newIndex = e.detail.current;
+    if (newIndex !== this.data.currentIndex) {
+      this.setData({ currentIndex: newIndex });
+    }
+  },
+
+  // 设为封面：把当前图移到数组第一位
+  setAsCover(e) {
+    const idx = e.currentTarget.dataset.index;
+    if (idx === 0) return; // 已经是封面
+    const list = this.data.imageList.slice();
+    const infoList = this.data.imageInfoList.slice();
+    const [item] = list.splice(idx, 1);
+    const [info] = infoList.splice(idx, 1);
+    list.unshift(item);
+    infoList.unshift(info);
+    this.setData({
+      imageList: list,
+      imageInfoList: infoList,
+      currentIndex: 0
+    });
   },
 
   // 点击缩略图切换预览
@@ -105,7 +124,7 @@ Page({
     this.setData({
       imageList: newImageList,
       imageInfoList: newImageInfoList,
-      currentIndex: newCurrentIndex
+      currentIndex: Math.min(newCurrentIndex, newImageList.length - 1)
     }, () => {
       this.checkOverflow();
     });

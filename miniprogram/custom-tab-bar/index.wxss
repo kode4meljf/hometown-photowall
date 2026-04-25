@@ -49,7 +49,6 @@
   justify-content: center;
   width: 100%;
   height: 100%;
-  /* 凸出效果：按钮比 tabbar 顶部高出一截 */
 }
 
 .publish-btn {
@@ -60,9 +59,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 向上凸出：translateY 为负值 */
   transform: translateY(-24rpx);
   box-shadow: 0 8rpx 24rpx rgba(255, 68, 68, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.publish-btn:active {
+  transform: translateY(-24rpx) scale(0.88);
+  box-shadow: 0 2rpx 8rpx rgba(255, 68, 68, 0.2);
 }
 
 .publish-icon {

@@ -211,10 +211,10 @@
 }
 
 .author-avatar {
-  width: 64rpx;
-  height: 64rpx;
+  width: 48rpx;
+  height: 48rpx;
   border-radius: 50%;
-  margin-right: 16rpx;
+  margin-right: 12rpx;
   background-color: #f0f0f0;
   flex-shrink: 0;
 }

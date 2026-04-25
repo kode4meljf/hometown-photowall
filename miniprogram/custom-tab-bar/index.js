@@ -2,6 +2,7 @@
 Component({
   data: {
     selected: 0,
+    hidden: false,
     list: [
       {
         text: '首页',

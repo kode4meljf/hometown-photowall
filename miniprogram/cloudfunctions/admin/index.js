@@ -33,8 +33,8 @@ exports.main = async (event, context) => {
   switch (action) {
     case 'getPhotos':
       return await getAllPhotos(data);
-    case 'deletePhoto':
-      return await deletePhoto(data.id);
+    case 'deletePost':
+      return await deletePost(data.id);
     case 'getUsers':
       return await getUsers();
     case 'getStats':
@@ -56,7 +56,7 @@ async function getAllPhotos(params = {}) {
 
     const photos = await Promise.all(result.data.map(async photo => {
       const commentCount = await db.collection('comments')
-        .where({ photoId: photo._id })
+        .where({ postId: photo._id })
         .count();
       return {
         ...photo,
@@ -72,14 +72,14 @@ async function getAllPhotos(params = {}) {
   }
 }
 
-// 删除照片（从 posts 集合删除）
-async function deletePhoto(id) {
+// 删除帖子（从 posts 集合删除）
+async function deletePost(id) {
   try {
     await db.collection('posts').doc(id).remove();
-    await db.collection('comments').where({ photoId: id }).remove();
+    await db.collection('comments').where({ postId: id }).remove();
     return { success: true };
   } catch (e) {
-    console.error('删除照片失败:', e);
+    console.error('[deletePost] 删除失败:', e);
     return { success: false, message: '删除失败' };
   }
 }

@@ -118,11 +118,15 @@
 
 
 
-  <!-- 作品操作底部弹窗 -->
+  <!-- 作品操作底部弹窗 - 微信原生 ActionSheet 风格 -->
   <view class="avatar-modal" wx:if="{{showPhotoAction}}" bindtap="hidePhotoAction">
     <view class="avatar-modal-content" catchtap="stopPropagation">
-      <view class="modal-option" bindtap="editPhotoTitle">编辑标题</view>
-      <view class="modal-option modal-option-danger" bindtap="deletePhoto">删除</view>
+      <!-- 选项组 -->
+      <view class="modal-options-group">
+        <view class="modal-option" bindtap="editPhotoTitle">编辑标题</view>
+        <view class="modal-option modal-option-danger" bindtap="deletePost">删除</view>
+      </view>
+      <!-- 取消按钮 - 独立卡片 -->
       <view class="modal-cancel" bindtap="hidePhotoAction">取消</view>
     </view>
   </view>

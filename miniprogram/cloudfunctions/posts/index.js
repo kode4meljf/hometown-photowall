@@ -1,5 +1,4 @@
-// cloudfunctions/photos/index.js - 照片相关云函数（posts 集合版）
-// 已删除 category 相关代码
+// cloudfunctions/posts/index.js - 帖子相关云函数
 
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
@@ -152,11 +151,11 @@ exports.main = async (event, context) => {
     case 'detail':
       return await getPostDetail(data.id, openId);
     case 'create':
-      return await uploadPhoto(data, openId);
+      return await createPost(data, openId);
     case 'delete':
-      return await deletePhoto(data.id, openId);
+      return await deletePost(data.id, openId);
     case 'like':
-      return await likePhoto(data.id, openId);
+      return await likePost(data.id, openId);
     case 'comment':
       return await addComment(data, openId);
     case 'timeline':
@@ -173,6 +172,8 @@ exports.main = async (event, context) => {
       return await getMyLiked(openId, data);
     case 'moreComments':
       return await getMoreComments(data, openId);
+    case 'update':
+      return await updatePost(data, openId);
     default:
       return { success: false, message: '未知操作' };
   }
@@ -323,13 +324,14 @@ async function getPostDetail(id, openId) {
 }
 
 // 查询评论并实时解析作者头像
-async function getCommentsWithAuthors(photoId, offset = 0, limit = 10) {
+async function getCommentsWithAuthors(postId, offset = 0, limit = 10) {
   try {
-    const countResult = await commentsCollection.where({ photoId }).count();
+    const query = { postId };
+    const countResult = await commentsCollection.where(query).count();
     const total = countResult.total;
 
     const commentsResult = await commentsCollection
-      .where({ photoId })
+      .where(query)
       .orderBy('createdAt', 'asc')
       .skip(offset)
       .limit(limit)
@@ -375,8 +377,8 @@ async function getCommentsWithAuthors(photoId, offset = 0, limit = 10) {
 // 获取更多评论（分页加载）
 async function getMoreComments(data, openId) {
   try {
-    const { photoId, offset = 0, limit = 10 } = data;
-    const result = await getCommentsWithAuthors(photoId, offset, limit);
+    const { postId, offset = 0, limit = 10 } = data;
+    const result = await getCommentsWithAuthors(postId, offset, limit);
 
     return {
       success: true,
@@ -391,8 +393,8 @@ async function getMoreComments(data, openId) {
   }
 }
 
-// 上传照片（写入 posts 集合）
-async function uploadPhoto(data, openId) {
+// 创建帖子（写入 posts 集合）
+async function createPost(data, openId) {
   try {
     // 获取作者信息
     let authorNickname = '匿名用户';
@@ -433,31 +435,70 @@ async function uploadPhoto(data, openId) {
     const result = await postsCollection.add({ data: addData });
     return { success: true, data: { id: result._id } };
   } catch (e) {
-    console.error('[uploadPhoto] 失败:', e.message, e.stack);
-    return { success: false, message: '上传失败: ' + e.message };
+    console.error('[createPost] 失败:', e.message, e.stack);
+    return { success: false, message: '发布失败: ' + e.message };
   }
 }
 
-// 删除照片（从 posts 集合删除）
-async function deletePhoto(id, openId) {
+// 删除帖子（从 posts 集合删除，同时删除关联评论）
+async function deletePost(id, openId) {
   try {
+    console.log('[deletePost] id:', id, 'openId:', openId);
+    if (!id) {
+      return { success: false, message: '缺少帖子ID' };
+    }
     const post = await postsCollection.doc(id).get();
     if (post.data.authorId !== openId) {
       return { success: false, message: '无权删除' };
     }
 
     await postsCollection.doc(id).remove();
-    await commentsCollection.where({ photoId: id }).remove();
+    await commentsCollection.where({ postId: id }).remove();
 
     return { success: true };
   } catch (e) {
-    console.error('删除照片失败:', e);
-    return { success: false, message: '删除失败' };
+    console.error('[deletePost] 失败:', e.message, e.stack);
+    return { success: false, message: '删除失败: ' + e.message };
   }
 }
 
-// 点赞（posts 集合）
-async function likePhoto(id, openId) {
+// 更新帖子
+async function updatePost(data, openId) {
+  try {
+    const { id, updates } = data;
+    if (!id) {
+      return { success: false, message: '缺少帖子ID' };
+    }
+
+    // 验证权限
+    const post = await postsCollection.doc(id).get();
+    if (post.data.authorId !== openId) {
+      return { success: false, message: '无权编辑' };
+    }
+
+    // 只允许更新特定字段
+    const allowedFields = ['title', 'description', 'location'];
+    const updateData = {};
+    for (const field of allowedFields) {
+      if (updates[field] !== undefined) {
+        updateData[field] = updates[field];
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return { success: false, message: '没有可更新的字段' };
+    }
+
+    await postsCollection.doc(id).update({ data: updateData });
+    return { success: true };
+  } catch (e) {
+    console.error('[updatePost] 失败:', e.message, e.stack);
+    return { success: false, message: '更新失败: ' + e.message };
+  }
+}
+
+// 点赞帖子
+async function likePost(id, openId) {
   try {
     const post = await postsCollection.doc(id).get();
     const likedUsers = post.data.likedUsers || [];
@@ -482,12 +523,12 @@ async function likePhoto(id, openId) {
       return { success: true, liked: true, likes: post.data.likes + 1 };
     }
   } catch (e) {
-    console.error('点赞失败:', e);
+    console.error('[likePost] 失败:', e);
     return { success: false, message: '操作失败' };
   }
 }
 
-// 添加评论（photoId 对应 posts._id）
+// 添加评论
 async function addComment(data, openId) {
   try {
     let authorNickname = '匿名用户';
@@ -500,7 +541,7 @@ async function addComment(data, openId) {
 
     const result = await commentsCollection.add({
       data: {
-        photoId: data.photoId,
+        postId: data.postId,
         content: data.content,
         author: authorNickname,
         authorId: openId,

@@ -109,7 +109,7 @@ Page({
 
     showLoading('删除中...');
     try {
-      const res = await adminApi.deletePhoto(id);
+      const res = await adminApi.deletePost(id);
       hideLoading();
       
       if (res.success) {

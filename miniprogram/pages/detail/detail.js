@@ -38,7 +38,7 @@ Page({
   _imgNaturalH: 0,     // 图片原始高度
 
   onLoad(options) {
-    this.photoId = options.id;
+    this.postId = options.id;
     wx.getSystemInfo({
       success: (info) => {
         this._windowHeight = info.windowHeight;
@@ -50,7 +50,7 @@ Page({
         this.setData({ headerPaddingTop: (info.statusBarHeight || 0) + 16 });
       }
     });
-    if (this.photoId) {
+    if (this.postId) {
       this.loadPhoto();
       this._loadPhotoList();
     } else {
@@ -62,7 +62,7 @@ Page({
   async loadPhoto() {
     this.setData({ loading: true });
     try {
-      const res = await postApi.getPostDetail(this.photoId);
+      const res = await postApi.getPostDetail(this.postId);
       if (res.data?.comments?.length) {
       }
       if (res.success && res.data) {
@@ -99,18 +99,18 @@ Page({
     try {
       const res = await postApi.getPosts({ page: 1, pageSize: 100 });
       if (res.success) {
-        this._photoList = res.data.posts || [];
-        this._currentIndex = this._photoList.findIndex(p => p._id === this.photoId);
+        this._postList = res.data.posts || [];
+        this._currentIndex = this._postList.findIndex(p => p._id === this.postId);
         this._updateNavState();
       }
     } catch (e) {}
   },
 
   _updateNavState() {
-    if (!this._photoList) return;
+    if (!this._postList) return;
     this.setData({
       canGoPrev: this._currentIndex > 0,
-      canGoNext: this._currentIndex < this._photoList.length - 1
+      canGoNext: this._currentIndex < this._postList.length - 1
     });
   },
 
@@ -508,10 +508,10 @@ Page({
   },
 
   _switchPhoto(delta) {
-    if (!this._photoList || this._photoList.length === 0) return;
+    if (!this._postList || this._postList.length === 0) return;
 
     const newIndex = this._currentIndex + delta;
-    if (newIndex < 0 || newIndex >= this._photoList.length) {
+    if (newIndex < 0 || newIndex >= this._postList.length) {
       this._animating = true;
       this.setData({ previewAnimating: true });
       this._applyTransform(0, 0, 1, 1);
@@ -530,7 +530,7 @@ Page({
 
     setTimeout(() => {
       this._currentIndex = newIndex;
-      this.photoId = this._photoList[newIndex]._id;
+      this.postId = this._postList[newIndex]._id;
       this.loadPhoto().then(() => {
         this._applyTransform(-direction * this._windowWidth, 0, 1, 1);
         this.setData({ previewAnimating: true });
@@ -559,7 +559,7 @@ Page({
       return;
     }
     try {
-      const res = await postApi.likePost(this.photoId);
+      const res = await postApi.likePost(this.postId);
       if (res.success) {
         const photo = this.data.photo;
         photo.likes = res.likes;
@@ -675,7 +675,7 @@ Page({
       return;
     }
     try {
-      const res = await postApi.likePost(this.photoId);
+      const res = await postApi.likePost(this.postId);
       if (res.success) {
         const photo = this.data.photo;
         photo.likes = res.likes;
@@ -699,7 +699,7 @@ Page({
     if (!content) { showToast('请输入评论内容'); return; }
     try {
       showLoading('发送中...');
-      const res = await postApi.addComment(this.photoId, content);
+      const res = await postApi.addComment(this.postId, content);
       hideLoading();
       if (res.success) {
         showSuccess('评论成功');

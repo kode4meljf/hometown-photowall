@@ -325,7 +325,7 @@
   font-size: 30rpx;
 }
 
-/* 头像更换底部弹窗 - 与微信原生 ActionSheet 样式一致 */
+/* 底部弹窗 - 微信原生 ActionSheet 风格 */
 .avatar-modal {
   position: fixed;
   top: 0;
@@ -341,20 +341,25 @@
 
 .avatar-modal-content {
   width: 100%;
-  height: auto;
-  max-height: 80vh;
-  background: #ffffff;
-  border-radius: 24rpx 24rpx 0 0;
-  padding: 0 0 calc(20rpx + env(safe-area-inset-bottom));
+  background: transparent;
+  padding: 0 16rpx calc(16rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
+}
+
+/* 选项组容器 - 白色圆角卡片 */
+.modal-options-group {
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  margin-bottom: 16rpx;
 }
 
 .modal-option {
   text-align: center;
-  padding: 32rpx 0;
+  padding: 36rpx 0;
   font-size: 34rpx;
   color: #1b1b1b;
-  font-weight: 500;
+  font-weight: 400;
   background: #fff;
   border-top: 1rpx solid #e5e5e5;
 }
@@ -399,13 +404,18 @@
   font-weight: 500;
 }
 
+/* 取消按钮 - 独立白色圆角卡片 */
 .modal-cancel {
   text-align: center;
   font-size: 34rpx;
   color: #1b1b1b;
-  padding: 32rpx 0;
+  padding: 36rpx 0;
   background: #ffffff;
-  margin-top: 16rpx;
-  border-radius: 0 0 0 0;
+  border-radius: 24rpx;
   font-weight: 500;
+}
+
+/* 危险选项（删除）红色文字 */
+.modal-option-danger {
+  color: #e02020;
 }

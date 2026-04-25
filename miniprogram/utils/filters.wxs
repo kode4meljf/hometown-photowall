@@ -13,6 +13,32 @@ function formatCount(num) {
   return (y === Math.floor(y) ? '' + y : '' + y.toFixed(1)) + '亿';
 }
 
+/**
+ * 计算 aspectFit 图片在固定容器中的精确渲染尺寸 + 圆角
+ * 解决微信小程序 swiper/scroll-view 等原生组件内 overflow:hidden 不生效的问题
+ * @param {number} imgW  图片原始宽度
+ * @param {number} imgH  图片原始高度
+ * @param {number} containerAR 容器宽高比，默认 4/3
+ * @param {string} radius   圆角值，默认 '20rpx'
+ * @returns {string} inline style 字符串
+ */
+function imageStyle(imgW, imgH, containerAR, radius) {
+  if (!imgW || !imgH) return '';
+  if (!containerAR) containerAR = 4 / 3;
+  if (!radius) radius = '20rpx';
+  var imageAR = imgW / imgH;
+  if (imageAR > containerAR) {
+    // 横图：撑满宽度，高度按比例缩
+    var hPct = (containerAR / imageAR) * 100;
+    return 'width:100%;height:' + hPct + '%;border-radius:' + radius + ';';
+  } else {
+    // 竖图/方图：撑满高度，宽度按比例缩
+    var wPct = (imageAR / containerAR) * 100;
+    return 'width:' + wPct + '%;height:100%;border-radius:' + radius + ';';
+  }
+}
+
 module.exports = {
-  formatCount: formatCount
+  formatCount: formatCount,
+  imageStyle: imageStyle
 };

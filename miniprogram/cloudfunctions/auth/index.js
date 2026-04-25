@@ -65,7 +65,8 @@ async function handleRegister(username, password, nickname, openId) {
           id: result._id,
           username,
           nickname,
-          role
+          role,
+          avatar: ''  // 新用户无头像
         }
       }
     };
@@ -93,6 +94,21 @@ async function handleLogin(username, password) {
 
     const user = result.data[0];
 
+    // 转换头像 URL（如果是云存储地址）
+    let avatar = user.avatar || '';
+    if (avatar && avatar.startsWith('cloud://')) {
+      try {
+        const urlResult = await cloud.getTempFileURL({
+          fileList: [avatar]
+        });
+        if (urlResult.fileList && urlResult.fileList[0] && urlResult.fileList[0].tempFileURL) {
+          avatar = urlResult.fileList[0].tempFileURL;
+        }
+      } catch (e) {
+        console.error('转换头像URL失败:', e);
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -100,7 +116,8 @@ async function handleLogin(username, password) {
           id: user._id,
           username: user.username,
           nickname: user.nickname,
-          role: user.role
+          role: user.role,
+          avatar
         }
       }
     };

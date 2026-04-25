@@ -1,4 +1,6 @@
 <!-- pages/upload/upload.wxml -->
+<wxs src="../../utils/filters.wxs" module="filters" />
+
 <view class="upload-page">
   <!-- 顶部大图预览区 -->
   <view class="preview-area">
@@ -7,15 +9,26 @@
       class="preview-swiper"
       current="{{currentIndex}}"
       bindchange="onSwiperChange"
-      circular="{{false}}"
     >
       <swiper-item wx:for="{{imageList}}" wx:key="index">
-        <image
-          class="preview-image"
-          src="{{item}}"
-          mode="aspectFill"
-          bindtap="previewFullScreen"
-        />
+        <view class="preview-clip">
+          <image
+            class="preview-image"
+            src="{{item}}"
+            mode="scaleToFill"
+            style="{{filters.imageStyle(imageInfoList[index].width, imageInfoList[index].height)}}"
+            bindtap="previewFullScreen"
+          />
+          <!-- 封面操作覆盖层 -->
+          <view class="cover-overlay" wx:if="{{imageList.length > 1}}">
+            <view class="cover-btn-area" wx:if="{{index !== 0}}" catchtap="setAsCover" data-index="{{index}}">
+              <text class="cover-btn-text">⭐ 设为封面</text>
+            </view>
+            <view class="cover-current-area" wx:if="{{index === 0}}">
+              <text class="cover-current-text">当前封面</text>
+            </view>
+          </view>
+        </view>
       </swiper-item>
     </swiper>
     <view wx:if="{{imageList.length === 0}}" class="preview-placeholder">
@@ -49,6 +62,10 @@
             data-index="{{index}}"
           >
             <image class="thumbnail-image" src="{{item}}" mode="aspectFill" />
+            <!-- 封面标签：仅第一张显示 -->
+            <view class="cover-tag" wx:if="{{index === 0 && imageList.length > 1}}">
+              <text class="cover-tag-text">封面</text>
+            </view>
           </view>
         </view>
       </scroll-view>

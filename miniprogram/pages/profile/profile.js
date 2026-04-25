@@ -73,36 +73,73 @@ Page({
 
   updateUserStatus() {
     const isLoggedIn = app.checkLogin();
-    // 从本地缓存获取基本信息
-    let userInfo = app.globalData.userInfo;
-    this.setData({ isLoggedIn, userInfo });
+    this.setData({ isLoggedIn });
+    
+    // 已登录时，主动获取完整用户信息（含转换后的头像 URL）
+    if (isLoggedIn) {
+      this._fetchUserInfoWithAvatar();
+    } else {
+      this.setData({ userInfo: null });
+    }
   },
-
-  // 获取最新用户信息（仅头像）
-  async fetchLatestUserInfo() {
+  
+  // 获取用户信息（含头像 URL 转换）
+  async _fetchUserInfoWithAvatar() {
     try {
       const res = await userApi.getCurrentUser();
-      
-      if (res.success && res.data && res.data.avatar) {
-        const currentAvatar = this.data.userInfo?.avatar;
-        const newAvatar = res.data.avatar;
-        
-        // 只有头像确实变化了才更新
-        if (currentAvatar !== newAvatar) {
-          const newUserInfo = {
-            ...this.data.userInfo,
-            ...res.data,
-            avatar: newAvatar,
-            avatarUpdateTime: Date.now()
-          };
-          app.globalData.userInfo = newUserInfo;
-          wx.setStorageSync('userInfo', newUserInfo);
-          this.setData({ userInfo: newUserInfo });
-        }
+      if (res.success && res.data) {
+        let userInfo = res.data;
+        // 前端兜底：确保头像 URL 是 HTTPS 临时链接
+        userInfo = await this._ensureAvatarUrl(userInfo);
+        app.globalData.userInfo = userInfo;
+        wx.setStorageSync('userInfo', userInfo);
+        this.setData({ userInfo });
       }
     } catch (e) {
-      console.error('获取最新用户信息失败:', e);
+      console.error('获取用户信息失败:', e);
+      // 降级：使用本地缓存
+      const userInfo = app.globalData.userInfo;
+      if (userInfo) {
+        const safeUserInfo = await this._ensureAvatarUrl(userInfo);
+        this.setData({ userInfo: safeUserInfo });
+      }
     }
+  },
+  
+  // 前端兜底：确保头像 URL 可用（cloud:// → HTTPS）
+  async _ensureAvatarUrl(userInfo) {
+    if (!userInfo) return userInfo;
+    
+    let avatar = userInfo.avatar;
+    if (!avatar) {
+      // 无头像，使用默认
+      return { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
+    }
+    
+    // 已经是 HTTPS 链接，直接返回
+    if (avatar.startsWith('https://')) {
+      return userInfo;
+    }
+    
+    // cloud:// 需要转换
+    if (avatar.startsWith('cloud://')) {
+      try {
+        const urlRes = await wx.cloud.getTempFileURL({ fileList: [avatar] });
+        if (urlRes.fileList && urlRes.fileList[0] && urlRes.fileList[0].tempFileURL) {
+          return { ...userInfo, avatar: urlRes.fileList[0].tempFileURL };
+        }
+      } catch (e) {
+        console.error('前端转换头像URL失败:', e);
+      }
+    }
+    
+    // 其他情况（空字符串等），使用默认头像
+    return { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
+  },
+
+  // 获取最新用户信息
+  async fetchLatestUserInfo() {
+    await this._fetchUserInfoWithAvatar();
   },
 
   async loadData() {
@@ -276,11 +313,17 @@ Page({
     const { id, title } = e.currentTarget.dataset;
     this._currentPhotoId = id;
     this._currentPhotoTitle = title || '';
+    // 隐藏 TabBar
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar) tabBar.setData({ hidden: true });
     this.setData({ showPhotoAction: true });
   },
 
   // 关闭作品操作弹窗
   hidePhotoAction() {
+    // 恢复 TabBar
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar) tabBar.setData({ hidden: false });
     this.setData({ showPhotoAction: false });
     this._currentPhotoId = null;
   },
@@ -324,8 +367,8 @@ Page({
     });
   },
 
-  // 删除作品
-  deletePhoto() {
+  // 删除帖子
+  deletePost() {
     const id = this._currentPhotoId;
     this.hidePhotoAction();
     if (!id) return;
@@ -347,12 +390,13 @@ Page({
               this._likedNeedsRefresh = true;  // 被删的可能在赞过列表里
               showToast('已删除');
             } else {
+              console.error('[deletePost] 云函数返回失败:', result);
               showToast(result.message || '删除失败');
             }
           } catch (e) {
             wx.hideLoading();
-            showToast('删除失败');
-            console.error('删除作品失败:', e);
+            console.error('[deletePost] 调用异常:', e);
+            showToast('删除失败: ' + (e.errMsg || e.message || '网络错误'));
           }
         }
       }
@@ -403,7 +447,7 @@ Page({
         return;
       }
 
-      // 保存到数据库（存 fileID，读取时由云函数转换为临时链接）
+      // 保存到数据库（存 fileID）
       const saveRes = await userApi.updateUserInfo(uploadRes.fileID);
       
       if (!saveRes.success) {
@@ -412,15 +456,8 @@ Page({
         return;
       }
 
-      // 更新本地状态（存 fileID，显示时会通过云函数转换）
-      const newUserInfo = {
-        ...app.globalData.userInfo,
-        avatar: uploadRes.fileID,
-        avatarUpdateTime: Date.now()
-      };
-      app.globalData.userInfo = newUserInfo;
-      wx.setStorageSync('userInfo', newUserInfo);
-      this.setData({ userInfo: newUserInfo });
+      // 重新获取用户信息（云函数会转换 cloud:// → HTTPS 临时链接）
+      await this._fetchUserInfoWithAvatar();
       
       hideLoading();
       showToast('头像已更新');

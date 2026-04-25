@@ -128,9 +128,9 @@ const adminApi = {
     return callFunction('admin', 'getUsers');
   },
 
-  // 删除照片
-  deletePhoto(id) {
-    return callFunction('admin', 'deletePhoto', { id });
+  // 删除帖子
+  deletePost(id) {
+    return callFunction('admin', 'deletePost', { id });
   },
 
   // 获取管理员统计数据
