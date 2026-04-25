@@ -137,12 +137,20 @@
     <view class="preview-drag-overlay" style="opacity: {{overlayOpacity}};"></view>
     <!-- 动画容器：CSS transition 驱动，transform-origin: 0 0 -->
     <view class="preview-image-wrapper {{previewAnimClass}}" style="transform: {{previewTransform}}; opacity: {{previewOpacity !== 0 ? 1 : 0}};">
-      <!-- 单张 image，不用 swiper 避免初始化位移与 FLIP transform 叠加 -->
-      <image
-        class="preview-image"
-        src="{{photo.photos[currentPhotoIndex].imageUrl}}"
-        mode="aspectFit"
-      />
+      <swiper
+        class="preview-swiper"
+        current="{{currentPhotoIndex}}"
+        bindchange="onPreviewSwiperChange"
+        duration="300"
+      >
+        <swiper-item wx:for="{{photo.photos}}" wx:key="order">
+          <image
+            class="preview-image"
+            src="{{item.imageUrl}}"
+            mode="aspectFit"
+          />
+        </swiper-item>
+      </swiper>
       <!-- 预览模式全宽线段进度条 -->
       <view class="preview-progress-bar" wx:if="{{photo.photos.length > 1}}">
         <view
