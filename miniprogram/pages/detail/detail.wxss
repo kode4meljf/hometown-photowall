@@ -88,19 +88,54 @@
   object-fit: contain;
 }
 
-.photo-indicator {
+/* ========== 全宽线段进度条（方案5：4px间距+圆角） ========== */
+.progress-bar {
   position: absolute;
-  bottom: 24rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.5);
-  padding: 8rpx 20rpx;
-  border-radius: 20rpx;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 4px;
+  pointer-events: none;
 }
 
-.indicator-text {
+.progress-segment {
+  flex: 1;
+  height: 3px;
+  border-radius: 1.5px;
+  transition: background 0.3s ease;
+}
+
+.progress-segment.done {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.progress-segment.todo {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 右上角文字指示器：滑动渐现 */
+.photo-index-badge {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 6rpx 16rpx;
+  border-radius: 16rpx;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.photo-index-badge.badge-show {
+  opacity: 1;
+}
+
+.badge-text {
   color: #fff;
-  font-size: 24rpx;
+  font-size: 22rpx;
+  font-weight: 500;
 }
 
 /* 内容区域 */
@@ -434,19 +469,56 @@
   height: 100%;
 }
 
-.preview-indicator {
+/* ========== 预览模式全宽线段进度条 ========== */
+.preview-progress-bar {
   position: absolute;
-  bottom: 120rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.3);
-  padding: 8rpx 20rpx;
-  border-radius: 20rpx;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 4px;
+  padding: 0 4px;
+  pointer-events: none;
+  z-index: 3;
 }
 
-.preview-indicator-text {
+.preview-progress-segment {
+  flex: 1;
+  height: 3px;
+  border-radius: 1.5px;
+  transition: background 0.3s ease;
+}
+
+.preview-progress-segment.done {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.preview-progress-segment.todo {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 预览模式右上角文字指示器 */
+.preview-index-badge {
+  position: absolute;
+  top: 60rpx;
+  right: 32rpx;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.preview-index-badge.badge-show {
+  opacity: 1;
+}
+
+.preview-badge-text {
   color: #fff;
   font-size: 24rpx;
+  font-weight: 500;
 }
 
 /* 点赞动画 */

@@ -28,7 +28,8 @@ Page({
     showLikeAnim: false,
     canGoPrev: false,
     canGoNext: false,
-    currentPhotoIndex: 0
+    currentPhotoIndex: 0,
+    indexBadgeVisible: false
   },
 
   // 私有状态
@@ -129,11 +130,22 @@ Page({
   // 多图轮播切换
   onSwiperChange(e) {
     this.setData({ currentPhotoIndex: e.detail.current });
+    this._showIndexBadge();
   },
 
   // 预览模式轮播切换
   onPreviewSwiperChange(e) {
     this.setData({ currentPhotoIndex: e.detail.current });
+    this._showIndexBadge();
+  },
+
+  // 右上角文字指示器：渐现 → 1.5s后渐隐
+  _showIndexBadge() {
+    if (this._badgeTimer) clearTimeout(this._badgeTimer);
+    this.setData({ indexBadgeVisible: true });
+    this._badgeTimer = setTimeout(() => {
+      this.setData({ indexBadgeVisible: false });
+    }, 1500);
   },
 
   // ========== aspectFit 布局计算 ==========

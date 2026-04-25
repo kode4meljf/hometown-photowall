@@ -34,9 +34,17 @@
           />
         </swiper-item>
       </swiper>
-      <!-- 多图指示器 -->
-      <view class="photo-indicator" wx:if="{{photo.photos.length > 1}}">
-        <text class="indicator-text">{{currentPhotoIndex + 1}} / {{photo.photos.length}}</text>
+      <!-- 全宽线段进度条 -->
+      <view class="progress-bar" wx:if="{{photo.photos.length > 1}}">
+        <view
+          wx:for="{{photo.photos}}"
+          wx:key="order"
+          class="progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
+        ></view>
+      </view>
+      <!-- 右上角文字指示器（滑动时渐现） -->
+      <view class="photo-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{photo.photos.length > 1}}">
+        <text class="badge-text">{{currentPhotoIndex + 1}}/{{photo.photos.length}}</text>
       </view>
     </view>
 
@@ -143,9 +151,17 @@
           />
         </swiper-item>
       </swiper>
-      <!-- 预览模式多图指示器 -->
-      <view class="preview-indicator" wx:if="{{photo.photos.length > 1}}">
-        <text class="preview-indicator-text">{{currentPhotoIndex + 1}} / {{photo.photos.length}}</text>
+      <!-- 预览模式全宽线段进度条 -->
+      <view class="preview-progress-bar" wx:if="{{photo.photos.length > 1}}">
+        <view
+          wx:for="{{photo.photos}}"
+          wx:key="order"
+          class="preview-progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
+        ></view>
+      </view>
+      <!-- 预览模式右上角文字指示器 -->
+      <view class="preview-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{photo.photos.length > 1}}">
+        <text class="preview-badge-text">{{currentPhotoIndex + 1}}/{{photo.photos.length}}</text>
       </view>
     </view>
   </view>
