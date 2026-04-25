@@ -83,14 +83,15 @@ Page({
     }
   },
   
-  // 获取用户信息（含头像 URL 转换）
+  // 获取用户信息
   async _fetchUserInfoWithAvatar() {
     try {
       const res = await userApi.getCurrentUser();
       if (res.success && res.data) {
         let userInfo = res.data;
-        // 前端兜底：确保头像 URL 是 HTTPS 临时链接
-        userInfo = await this._ensureAvatarUrl(userInfo);
+        if (!userInfo.avatar) {
+          userInfo = { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
+        }
         app.globalData.userInfo = userInfo;
         wx.setStorageSync('userInfo', userInfo);
         this.setData({ userInfo });
@@ -100,41 +101,12 @@ Page({
       // 降级：使用本地缓存
       const userInfo = app.globalData.userInfo;
       if (userInfo) {
-        const safeUserInfo = await this._ensureAvatarUrl(userInfo);
-        this.setData({ userInfo: safeUserInfo });
-      }
-    }
-  },
-  
-  // 前端兜底：确保头像 URL 可用（cloud:// → HTTPS）
-  async _ensureAvatarUrl(userInfo) {
-    if (!userInfo) return userInfo;
-    
-    let avatar = userInfo.avatar;
-    if (!avatar) {
-      // 无头像，使用默认
-      return { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
-    }
-    
-    // 已经是 HTTPS 链接，直接返回
-    if (avatar.startsWith('https://')) {
-      return userInfo;
-    }
-    
-    // cloud:// 需要转换
-    if (avatar.startsWith('cloud://')) {
-      try {
-        const urlRes = await wx.cloud.getTempFileURL({ fileList: [avatar] });
-        if (urlRes.fileList && urlRes.fileList[0] && urlRes.fileList[0].tempFileURL) {
-          return { ...userInfo, avatar: urlRes.fileList[0].tempFileURL };
+        if (!userInfo.avatar) {
+          userInfo.avatar = '/assets/icons/default-avatar.png';
         }
-      } catch (e) {
-        console.error('前端转换头像URL失败:', e);
+        this.setData({ userInfo });
       }
     }
-    
-    // 其他情况（空字符串等），使用默认头像
-    return { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
   },
 
   // 获取最新用户信息

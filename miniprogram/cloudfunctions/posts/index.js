@@ -9,112 +9,9 @@ const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('comments');
 const usersCollection = db.collection('users');
 
-// 实例级内存缓存：cloud:// → tempURL（TTL 15min，函数实例重启自动清空）
-const _memAvatarCache = {};
-const _memAvatarTime = {};
-const MEM_CACHE_TTL = 15 * 60 * 1000;
-
-// 解析单条头像 URL：只走 L1 内存缓存，miss 时直接 getTempFileURL
-async function resolveAvatarUrl(cloudUrl) {
-  if (!cloudUrl) return '/assets/icons/default-avatar.png';
-  if (!cloudUrl.startsWith('cloud://')) return cloudUrl;
-  const now = Date.now();
-  if (_memAvatarCache[cloudUrl] && (now - _memAvatarTime[cloudUrl]) < MEM_CACHE_TTL) {
-    return _memAvatarCache[cloudUrl];
-  }
-  try {
-    const urlRes = await cloud.getTempFileURL({ fileList: [cloudUrl] });
-    const tempUrl = urlRes.fileList?.[0]?.tempFileURL || cloudUrl;
-    _memAvatarCache[cloudUrl] = tempUrl;
-    _memAvatarTime[cloudUrl] = now;
-    return tempUrl;
-  } catch (_) {
-    return cloudUrl;
-  }
-}
-
-// 批量解析头像 URL
-async function resolveAvatarUrls(cloudUrlMap) {
-  const result = {};
-  const now = Date.now();
-  const toFetch = [];
-
-  for (const [openid, cloudUrl] of Object.entries(cloudUrlMap)) {
-    if (!cloudUrl) { result[openid] = '/assets/icons/default-avatar.png'; continue; }
-    if (_memAvatarCache[cloudUrl] && (now - _memAvatarTime[cloudUrl]) < MEM_CACHE_TTL) {
-      result[openid] = _memAvatarCache[cloudUrl];
-    } else {
-      toFetch.push({ openid, cloudUrl });
-    }
-  }
-
-  if (toFetch.length === 0) return result;
-
-  const cloudToFetch = [...new Set(toFetch.map(x => x.cloudUrl))];
-  try {
-    const urlRes = await cloud.getTempFileURL({ fileList: cloudToFetch });
-    const urlMap = {};
-    (urlRes.fileList || []).forEach(item => {
-      if (item.tempFileURL) urlMap[item.fileID] = item.tempFileURL;
-    });
-    for (const { openid, cloudUrl } of toFetch) {
-      const tempUrl = urlMap[cloudUrl] || cloudUrl;
-      result[openid] = tempUrl;
-      _memAvatarCache[cloudUrl] = tempUrl;
-      _memAvatarTime[cloudUrl] = now;
-    }
-  } catch (err) {
-    console.error('[resolveAvatarUrls] getTempFileURL error:', err);
-    toFetch.forEach(({ openid, cloudUrl }) => { result[openid] = cloudUrl; });
-  }
-
-  return result;
-}
-
-// 转换云存储 URL 为临时访问链接（通用方法）
-async function getTempUrl(fileID) {
-  if (!fileID || !fileID.startsWith('cloud://')) {
-    return fileID;
-  }
-  try {
-    const result = await cloud.getTempFileURL({
-      fileList: [fileID]
-    });
-    return result.fileList[0]?.tempFileURL || fileID;
-  } catch (e) {
-    console.error('获取临时链接失败:', e);
-    return fileID;
-  }
-}
-
-// 转换单个对象的云存储 URL（imageUrl、avatar 等字段）
-async function convertCloudUrls(obj) {
-  if (!obj) return obj;
-
-  const cloudFields = ['imageUrl', 'avatar', 'authorAvatar', 'coverUrl', 'thumbnail'];
-  for (const field of cloudFields) {
-    if (obj[field] && typeof obj[field] === 'string' && obj[field].startsWith('cloud://')) {
-      try {
-        obj[field] = await getTempUrl(obj[field]);
-      } catch (e) {
-        console.error(`转换 ${field} 失败:`, e);
-      }
-    }
-  }
-
-  // 递归处理 comments 数组
-  if (Array.isArray(obj.comments)) {
-    await Promise.all(obj.comments.map(c => convertCloudUrls(c)));
-  }
-
-  return obj;
-}
-
-// 批量转换数组中所有对象的云存储 URL
-async function convertCloudUrlsInArray(arr) {
-  if (!Array.isArray(arr)) return arr;
-  return Promise.all(arr.map(item => convertCloudUrls(item)));
-}
+// [2026-04-25] 移除所有 cloud:// → HTTPS 转换
+// 微信小程序 <image> 组件原生支持 cloud:// 协议，框架自动管理签名刷新
+// 仅前端 wx.downloadFile 等场景需要 HTTPS，由前端自行转换（见 detail.js）
 
 // 统一 posts 集合字段 → 前端兼容字段（适配 photos 的字段名）
 function normalizePost(post) {
@@ -226,20 +123,15 @@ async function getPosts(params, openId) {
         });
       } catch (e) {}
 
-      const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
-
       posts.forEach(post => {
-        if (resolvedAvatars[post.authorId]) {
-          post.authorAvatar = resolvedAvatars[post.authorId];
+        if (authorAvatarMap[post.authorId]) {
+          post.authorAvatar = authorAvatarMap[post.authorId];
         }
         if (authorNicknameMap[post.authorId]) {
           post.author = authorNicknameMap[post.authorId];
         }
       });
     }
-
-    // 转换云存储 URL
-    posts = await convertCloudUrlsInArray(posts);
 
     return {
       success: true,
@@ -272,20 +164,6 @@ async function getPostDetail(id, openId) {
     // 统一字段
     Object.assign(post, normalizePost(post));
 
-    // 转换照片云存储 URL
-    await convertCloudUrls(post);
-
-    // posts.photos 是多图数组，逐个转换
-    if (Array.isArray(post.photos)) {
-      for (const photo of post.photos) {
-        if (photo.imageUrl && photo.imageUrl.startsWith('cloud://')) {
-          try {
-            photo.imageUrl = await getTempUrl(photo.imageUrl);
-          } catch (e) {}
-        }
-      }
-    }
-
     // 批量获取作者头像+昵称
     const authorAvatarMap = {};
     const authorNicknameMap = {};
@@ -301,8 +179,7 @@ async function getPostDetail(id, openId) {
         }
       } catch (e) {}
     }
-    const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
-    if (resolvedAvatars[post.authorId]) post.authorAvatar = resolvedAvatars[post.authorId];
+    if (authorAvatarMap[post.authorId]) post.authorAvatar = authorAvatarMap[post.authorId];
     if (authorNicknameMap[post.authorId]) post.author = authorNicknameMap[post.authorId];
 
     // 评论列表
@@ -360,11 +237,8 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10) {
       }
     }
 
-    const resolved = await resolveAvatarUrls(authorAvatarMap);
-
     comments.forEach(c => {
-      const resolvedAvatar = resolved[c.authorId];
-      c.authorAvatar = resolvedAvatar || '/assets/icons/default-avatar.png';
+      c.authorAvatar = authorAvatarMap[c.authorId] || '/assets/icons/default-avatar.png';
     });
 
     return { comments, hasMore: offset + limit < total, total };
@@ -593,20 +467,15 @@ async function getTimeline(openId) {
         });
       } catch (e) {}
 
-      const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
-
       posts.forEach(post => {
-        if (resolvedAvatars[post.authorId]) {
-          post.authorAvatar = resolvedAvatars[post.authorId];
+        if (authorAvatarMap[post.authorId]) {
+          post.authorAvatar = authorAvatarMap[post.authorId];
         }
         if (authorNicknameMap[post.authorId]) {
           post.author = authorNicknameMap[post.authorId];
         }
       });
     }
-
-    // 转换云存储 URL
-    posts = await convertCloudUrlsInArray(posts);
 
     const timeline = {};
     posts.forEach(post => {
@@ -690,8 +559,6 @@ async function getMyWorks(openId, params = {}) {
       liked: (post.likedUsers || []).includes(openId)
     }));
 
-    posts = await convertCloudUrlsInArray(posts);
-
     return { success: true, data: { posts, hasMore: page * pageSize < total, total } };
   } catch (e) {
     console.error('获取我的作品失败:', e);
@@ -720,8 +587,6 @@ async function getMyLiked(openId, params = {}) {
       liked: true
     }));
 
-    posts = await convertCloudUrlsInArray(posts);
-
     // 批量获取作者头像+昵称
     const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
     if (authorIds.length > 0) {
@@ -738,11 +603,9 @@ async function getMyLiked(openId, params = {}) {
         });
       } catch (e) {}
 
-      const resolvedAvatars = await resolveAvatarUrls(authorAvatarMap);
-
       posts.forEach(post => {
-        if (resolvedAvatars[post.authorId]) {
-          post.authorAvatar = resolvedAvatars[post.authorId];
+        if (authorAvatarMap[post.authorId]) {
+          post.authorAvatar = authorAvatarMap[post.authorId];
         }
         if (authorNicknameMap[post.authorId]) {
           post.authorNickname = authorNicknameMap[post.authorId];
@@ -784,18 +647,7 @@ async function fixCommentAvatars() {
       await Promise.all(allComments.data.map(async (c) => {
         const avatar = userMap[c.authorId] || '';
         if (avatar) {
-          if (avatar.startsWith('cloud://')) {
-            try {
-              const urlRes = await cloud.getTempFileURL({ fileList: [avatar] });
-              await commentsCollection.doc(c._id).update({
-                data: { authorAvatar: urlRes.fileList?.[0]?.tempFileURL || avatar }
-              });
-            } catch (_) {
-              await commentsCollection.doc(c._id).update({ data: { authorAvatar: avatar } });
-            }
-          } else {
-            await commentsCollection.doc(c._id).update({ data: { authorAvatar: avatar } });
-          }
+          await commentsCollection.doc(c._id).update({ data: { authorAvatar: avatar } });
           fixed++;
         }
       }));
