@@ -121,11 +121,14 @@
   top: 20rpx;
   right: 20rpx;
   background: rgba(0, 0, 0, 0.25);
-  padding: 3rpx 16rpx;
+  padding: 6rpx 16rpx;
   border-radius: 16rpx;
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .photo-index-badge.badge-show {
@@ -509,6 +512,9 @@
   transition: opacity 0.3s ease;
   pointer-events: none;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .preview-index-badge.badge-show {
