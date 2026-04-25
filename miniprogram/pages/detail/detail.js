@@ -133,11 +133,7 @@ Page({
     this._showIndexBadge();
   },
 
-  // 预览模式轮播切换
-  onPreviewSwiperChange(e) {
-    this.setData({ currentPhotoIndex: e.detail.current });
-    this._showIndexBadge();
-  },
+
 
   // 右上角文字指示器：渐现 → 1.5s后渐隐
   _showIndexBadge() {
@@ -444,11 +440,12 @@ Page({
           this._applyTransform(this._startTx + dx, this._startTy + dy, this._startSx, this._startSy);
         } else {
           if (angle <= 45) {
-            // 水平滑动 → 直接退出，不拖动
-            this.exitPreview();
-            return;
+            // 水平滑动 → 切照片（拖动跟随手指）
+            this._gestureState = 'horizontal';
+            // 只做水平位移，不缩放
+            this._applyTransform(dx * 0.5, 0, 1, 1);
           } else {
-            // 垂直滑动 → 直接退出，不拖动
+            // 垂直滑动 → 直接退出
             this.exitPreview();
             return;
           }
@@ -508,7 +505,28 @@ Page({
       return;
     }
 
-    // 水平滑动切换照片（未达到退出阈值时触发）
+    // 水平滑动切换照片（未放大状态下）
+    if (this._gestureState === 'horizontal' && this._startSx <= 1.05) {
+      const dx = (this._currentTx || 0);  // 当前水平偏移
+      const threshold = (this._windowWidth || 375) * 0.15;
+
+      if (dx > threshold && this.data.canGoPrev) {
+        // 向右滑 → 上一张
+        this._switchPhotoPreview(-1);
+        return;
+      } else if (dx < -threshold && this.data.canGoNext) {
+        // 向左滑 → 下一张
+        this._switchPhotoPreview(1);
+        return;
+      }
+      // 未达阈值 → 回弹
+      this.setData({ previewAnimating: true });
+      this._applyTransform(0, 0, 1, 1);
+      setTimeout(() => { this.setData({ previewAnimating: false }); }, 300);
+      return;
+    }
+
+    // 水平滑动切换帖子（放大状态下，_switchPhoto 原有逻辑）
     if (this._gestureState === 'horizontal') {
       const threshold = (this._windowWidth || 375) * 0.25;
       if (tx > threshold && this.data.canGoPrev) {
@@ -517,6 +535,44 @@ Page({
         this._switchPhoto(1);
       }
     }
+  },
+
+  // 预览模式下切照片（切换 currentPhotoIndex，带滑动动画）
+  _switchPhotoPreview(delta) {
+    var self = this;
+    var photo = this.data.photo;
+    if (!photo || !photo.photos) return;
+
+    var newIndex = this.data.currentPhotoIndex + delta;
+    if (newIndex < 0 || newIndex >= photo.photos.length) {
+      // 边界回弹
+      this.setData({ previewAnimating: true });
+      this._applyTransform(0, 0, 1, 1);
+      setTimeout(() => { this.setData({ previewAnimating: false }); }, 300);
+      return;
+    }
+
+    var direction = delta > 0 ? -1 : 1;
+    var screenW = this._windowWidth || 375;
+
+    // 第1步：滑出当前图
+    this.setData({ previewAnimating: true });
+    this._applyTransform(direction * screenW * 0.5, 0, 1, 1);
+
+    setTimeout(function() {
+      // 第2步：换图源 + 从反方向设初始位
+      self.setData({ currentPhotoIndex: newIndex });
+      self._showIndexBadge();
+      self._applyTransform(-direction * screenW * 0.5, 0, 1, 1);
+
+      // 第3步：nextTick 后滑入新图
+      setTimeout(function() {
+        self._applyTransform(0, 0, 1, 1);
+        setTimeout(function() {
+          self.setData({ previewAnimating: false });
+        }, 300);
+      }, 20);
+    }, 200);
   },
 
   _switchPhoto(delta) {
