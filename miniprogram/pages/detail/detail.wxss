@@ -91,12 +91,12 @@
 /* ========== 全宽线段进度条（方案5：4px间距+圆角） ========== */
 .progress-bar {
   position: absolute;
-  bottom: 0;
+  bottom: 10rpx;
   left: 0;
   right: 0;
   display: flex;
   gap: 4px;
-  padding: 0 4px;
+  padding: 0 24rpx;
   pointer-events: none;
 }
 
@@ -120,8 +120,8 @@
   position: absolute;
   top: 20rpx;
   right: 20rpx;
-  background: rgba(0, 0, 0, 0.45);
-  padding: 6rpx 16rpx;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3rpx 16rpx;
   border-radius: 16rpx;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -477,7 +477,7 @@
   right: 0;
   display: flex;
   gap: 4px;
-  padding: 0 4px;
+  padding: 0 24rpx;
   pointer-events: none;
   z-index: 3;
 }
