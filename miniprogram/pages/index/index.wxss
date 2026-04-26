@@ -170,13 +170,11 @@
   padding: 20rpx;
 }
 
-.card-title {
+.card-text-row {
   display: block;
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #333;
+  font-size: 26rpx;
   line-height: 1.4;
-  margin-bottom: 8rpx;
+  margin-bottom: 12rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -184,17 +182,13 @@
   -webkit-box-orient: vertical;
 }
 
+.card-title {
+  color: #444;
+  font-weight: 500;
+}
+
 .card-desc {
-  display: block;
-  font-size: 24rpx;
   color: #666;
-  line-height: 1.5;
-  margin-bottom: 16rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
 .card-footer {

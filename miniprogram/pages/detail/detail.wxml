@@ -50,7 +50,7 @@
 
     <!-- 图片描述 -->
     <view class="content-section">
-      <text class="description" wx:if="{{photo.description}}">{{photo.description}}</text>
+      <text class="description" wx:if="{{photo.titleDesc}}">{{photo.titleDesc}}</text>
       <text class="date">{{photo.date}}</text>
     </view>
 

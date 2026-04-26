@@ -93,8 +93,7 @@
             </view>
           </view>
           <view class="card-content">
-            <text class="card-title" wx:if="{{item.title}}">{{item.title}}</text>
-            <text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            <view class="card-text-row" wx:if="{{item.title || item.description}}"><text class="card-title" wx:if="{{item.title}}">{{item.title}}</text><text wx:if="{{item.title && item.description}}"> </text><text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text></view>
             <view class="card-footer">
               <view class="author-info">
                 <image class="author-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill"/>
@@ -134,8 +133,7 @@
             </view>
           </view>
           <view class="card-content">
-            <text class="card-title" wx:if="{{item.title}}">{{item.title}}</text>
-            <text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            <view class="card-text-row" wx:if="{{item.title || item.description}}"><text class="card-title" wx:if="{{item.title}}">{{item.title}}</text><text wx:if="{{item.title && item.description}}"> </text><text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text></view>
             <view class="card-footer">
               <view class="author-info">
                 <image class="author-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill"/>

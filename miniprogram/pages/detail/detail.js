@@ -69,6 +69,11 @@ Page({
       if (res.success && res.data) {
         const photo = res.data;
         photo.date = formatDateTime(photo.createdAt);
+        // 拼接标题+描述
+        const titleParts = [];
+        if (photo.title) titleParts.push(photo.title);
+        if (photo.description) titleParts.push(photo.description);
+        photo.titleDesc = titleParts.join(' ');
         // 兼容旧帖子：无 photos 数组时，用 imageUrl 构造单图数组
         if (!photo.photos || photo.photos.length === 0) {
           photo.photos = [{ imageUrl: photo.imageUrl || '', width: 1, height: 1, order: 0 }];
