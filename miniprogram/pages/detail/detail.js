@@ -5,7 +5,7 @@ const app = getApp();
 
 Page({
   data: {
-    photo: null,
+    post: null,
     loading: true,
     commentContent: '',
     canDelete: false,
@@ -52,7 +52,7 @@ Page({
       }
     });
     if (this.postId) {
-      this.loadPhoto();
+      this.loadPost();
       this._loadPhotoList();
     } else {
       showToast('照片ID不存在');
@@ -60,36 +60,36 @@ Page({
     }
   },
 
-  async loadPhoto() {
+  async loadPost() {
     this.setData({ loading: true });
     try {
       const res = await postApi.getPostDetail(this.postId);
       if (res.data?.comments?.length) {
       }
       if (res.success && res.data) {
-        const photo = res.data;
-        photo.date = formatDateTime(photo.createdAt);
+        const post = res.data;
+        post.date = formatDateTime(post.createdAt);
         // 拼接标题+描述
         const titleParts = [];
-        if (photo.title) titleParts.push(photo.title);
-        if (photo.description) titleParts.push(photo.description);
-        photo.titleDesc = titleParts.join(' ');
+        if (post.title) titleParts.push(post.title);
+        if (post.description) titleParts.push(post.description);
+        post.titleDesc = titleParts.join(' ');
         // 兼容旧帖子：无 photos 数组时，用 imageUrl 构造单图数组
-        if (!photo.photos || photo.photos.length === 0) {
-          photo.photos = [{ imageUrl: photo.imageUrl || '', width: 1, height: 1, order: 0 }];
+        if (!post.photos || post.photos.length === 0) {
+          post.photos = [{ imageUrl: post.imageUrl || '', width: 1, height: 1, order: 0 }];
         }
-        photo.comments = (photo.comments || []).map(c => ({
+        post.comments = (post.comments || []).map(c => ({
           ...c,
           time: formatDateTime(c.createdAt),
           authorAvatar: c.authorAvatar || '/assets/icons/default-avatar.png'
         }));
-        photo.authorAvatar = photo.authorAvatar || '/assets/icons/default-avatar.png';
+        post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
         const canDelete = app.globalData.userInfo &&
-          (app.globalData.userInfo.id === photo.authorId ||
+          (app.globalData.userInfo.id === post.authorId ||
            app.globalData.userInfo.role === 'admin' ||
-           app.globalData.userInfo._id === photo.authorId);
+           app.globalData.userInfo._id === post.authorId);
         const hasMoreComments = res.data.hasMore || false;
-        this.setData({ photo, canDelete, loading: false, hasMoreComments, currentPhotoIndex: 0 });
+        this.setData({ post, canDelete, loading: false, hasMoreComments, currentPhotoIndex: 0 });
         this._updateNavState();
       } else {
         showToast(res.message || '加载失败');
@@ -188,7 +188,7 @@ Page({
   //
   enterPreview() {
     var self = this;
-    if (!self.data.photo) return;
+    if (!self.data.post) return;
 
     var imgAR = (self._imgNaturalW && self._imgNaturalH)
       ? self._imgNaturalW / self._imgNaturalH
@@ -548,7 +548,7 @@ Page({
     setTimeout(() => {
       this._currentIndex = newIndex;
       this.postId = this._postList[newIndex]._id;
-      this.loadPhoto().then(() => {
+      this.loadPost().then(() => {
         this._applyTransform(-direction * this._windowWidth, 0, 1, 1);
         this.setData({ previewAnimating: true });
         setTimeout(() => {
@@ -578,10 +578,10 @@ Page({
     try {
       const res = await postApi.likePost(this.postId);
       if (res.success) {
-        const photo = this.data.photo;
-        photo.likes = res.likes;
-        photo.liked = res.liked;
-        this.setData({ photo, showLikeAnim: true });
+        const post = this.data.post;
+        post.likes = res.likes;
+        post.liked = res.liked;
+        this.setData({ post, showLikeAnim: true });
         this._likedChanged = true;
         setTimeout(() => this.setData({ showLikeAnim: false }), 600);
       }
@@ -603,19 +603,19 @@ Page({
 
   async loadMoreComments() {
     if (this.data.commentsLoading || !this.data.hasMoreComments) return;
-    const offset = this.data.photo?.comments?.length || 0;
+    const offset = this.data.post?.comments?.length || 0;
     this.setData({ commentsLoading: true });
     try {
-      const res = await postApi.getMoreComments(this.data.photo._id, offset);
+      const res = await postApi.getMoreComments(this.data.post._id, offset);
       if (res.success) {
         const newComments = (res.data.comments || []).map(c => ({
           ...c,
           time: formatDateTime(c.createdAt),
           authorAvatar: c.authorAvatar || '/assets/icons/default-avatar.png'
         }));
-        const photo = this.data.photo;
-        photo.comments = [...(photo.comments || []), ...newComments];
-        this.setData({ photo, hasMoreComments: res.data.hasMore, commentsLoading: false });
+        const post = this.data.post;
+        post.comments = [...(post.comments || []), ...newComments];
+        this.setData({ post, hasMoreComments: res.data.hasMore, commentsLoading: false });
       } else {
         this.setData({ commentsLoading: false });
       }
@@ -641,17 +641,44 @@ Page({
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
   },
 
+  onShareAppMessage() {
+    const post = this.data.post;
+    if (post) {
+      this.setData({ 'post.shares': (post.shares || 0) + 1 });
+      // 云端计数（静默，不阻塞分享）
+      wx.cloud.callFunction({ name: 'posts', data: { action: 'incrementShares', id: post._id } }).catch(() => {});
+    }
+    return {
+      title: post?.title || '故乡照片墙',
+      path: `/pages/detail/detail?id=${post?._id}`,
+      imageUrl: post?.coverUrl || post?.imageUrl
+    };
+  },
+
+  onShareTimeline() {
+    const post = this.data.post;
+    if (post) {
+      this.setData({ 'post.shares': (post.shares || 0) + 1 });
+      wx.cloud.callFunction({ name: 'posts', data: { action: 'incrementShares', id: post._id } }).catch(() => {});
+    }
+    return {
+      title: post?.title || '故乡照片墙',
+      query: `id=${post?._id}`,
+      imageUrl: post?.coverUrl || post?.imageUrl
+    };
+  },
+
   async downloadImage() {
     if (this._singleTapTimer) {
       clearTimeout(this._singleTapTimer);
       this._singleTapTimer = null;
     }
-    if (!this.data.photo) return;
+    if (!this.data.post) return;
 
     showLoading('下载中...');
-    const photos = this.data.photo.photos || [];
+    const photos = this.data.post.photos || [];
     const idx = this.data.currentPhotoIndex || 0;
-    let url = (photos[idx] && photos[idx].imageUrl) || this.data.photo.imageUrl;
+    let url = (photos[idx] && photos[idx].imageUrl) || this.data.post.imageUrl;
 
     if (url.startsWith('cloud://')) {
       try {
@@ -694,10 +721,10 @@ Page({
     try {
       const res = await postApi.likePost(this.postId);
       if (res.success) {
-        const photo = this.data.photo;
-        photo.likes = res.likes;
-        photo.liked = res.liked;
-        this.setData({ photo });
+        const post = this.data.post;
+        post.likes = res.likes;
+        post.liked = res.liked;
+        this.setData({ post });
         this._likedChanged = true;
       }
     } catch (e) {
@@ -721,7 +748,7 @@ Page({
       if (res.success) {
         showSuccess('评论成功');
         this.setData({ commentContent: '', showCommentInput: false });
-        this.loadPhoto();
+        this.loadPost();
       } else {
         showToast(res.message || '评论失败');
       }

@@ -1,14 +1,14 @@
 <!-- pages/detail/detail.wxml -->
 <wxs src="../../utils/filters.wxs" module="f" />
 <!-- 外层容器：flex列，撑满全屏 -->
-<view class="detail-shell {{yPageVisible ? '' : 'y-hidden'}}" wx:if="{{photo}}">
+<view class="detail-shell {{yPageVisible ? '' : 'y-hidden'}}" wx:if="{{post}}">
 
   <!-- 顶部：返回 + 头像 + 昵称 -->
   <view class="header" style="padding-top:{{headerPaddingTop}}px;">
     <view class="header-left">
       <view class="back-btn" bindtap="goBack"><text>‹</text></view>
-      <image class="author-avatar" src="{{photo.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
-      <text class="author-name">{{photo.author}}</text>
+      <image class="author-avatar" src="{{post.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
+      <text class="author-name">{{post.author}}</text>
     </view>
   </view>
 
@@ -23,7 +23,7 @@
         duration="300"
         circular="{{false}}"
       >
-        <swiper-item wx:for="{{photo.photos}}" wx:key="order">
+        <swiper-item wx:for="{{post.photos}}" wx:key="order">
           <image
             class="photo-image {{isPreviewMode ? 'y-hidden' : ''}}"
             src="{{item.imageUrl}}"
@@ -35,34 +35,34 @@
         </swiper-item>
       </swiper>
       <!-- 全宽线段进度条 -->
-      <view class="progress-bar" wx:if="{{photo.photos.length > 1}}">
+      <view class="progress-bar" wx:if="{{post.photos.length > 1}}">
         <view
-          wx:for="{{photo.photos}}"
+          wx:for="{{post.photos}}"
           wx:key="order"
           class="progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
         ></view>
       </view>
       <!-- 右上角文字指示器（滑动时渐现） -->
-      <view class="photo-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{photo.photos.length > 1}}">
-        <text class="badge-text">{{currentPhotoIndex + 1}}/{{photo.photos.length}}</text>
+      <view class="photo-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post.photos.length > 1}}">
+        <text class="badge-text">{{currentPhotoIndex + 1}}/{{post.photos.length}}</text>
       </view>
     </view>
 
     <!-- 图片描述 -->
     <view class="content-section">
-      <text class="description" wx:if="{{photo.titleDesc}}">{{photo.titleDesc}}</text>
-      <text class="date">{{photo.date}}</text>
+      <text class="description" wx:if="{{post.titleDesc}}">{{post.titleDesc}}</text>
+      <text class="date">{{post.date}}</text>
     </view>
 
     <view class="divider"></view>
 
     <view class="comment-count">
-      <text>共 {{photo.commentsCount || photo.comments.length}} 条评论</text>
+      <text>共 {{post.commentsCount || post.comments.length}} 条评论</text>
     </view>
 
     <!-- 评论列表 -->
     <view class="comment-list">
-      <view class="comment-item" wx:for="{{photo.comments}}" wx:key="id">
+      <view class="comment-item" wx:for="{{post.comments}}" wx:key="id">
         <image class="comment-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
         <view class="comment-content">
           <text class="comment-author">{{item.author}}</text>
@@ -73,7 +73,7 @@
       <view class="load-more" wx:if="{{commentsLoading}}">
         <view class="loading-dots"><view class="dot dot1"></view><view class="dot dot2"></view><view class="dot dot3"></view></view>
       </view>
-      <view class="load-more load-more-done" wx:if="{{!hasMoreComments && photo.comments.length > 0}}">
+      <view class="load-more load-more-done" wx:if="{{!hasMoreComments && post.comments.length > 0}}">
         <text class="no-more-text">没有更多了</text>
       </view>
     </view>
@@ -90,24 +90,25 @@
     <!-- 操作按钮组 -->
     <view class="action-buttons">
       <!-- 点赞：图标 + 数字，点赞后数字变红 -->
-      <view class="action-item {{photo.liked ? 'liked' : ''}}" bindtap="handleLike">
+      <view class="action-item {{post.liked ? 'liked' : ''}}" bindtap="handleLike">
         <image
           class="action-icon-img"
-          src="{{photo.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}"
+          src="{{post.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}"
           mode="aspectFit"
         />
-        <text class="action-num {{photo.liked ? 'liked' : ''}}">{{f.formatCount(photo.likes)}}</text>
+        <text class="action-num {{post.liked ? 'liked' : ''}}">{{f.formatCount(post.likes)}}</text>
       </view>
 
       <!-- 评论 -->
       <view class="action-item" bindtap="focusCommentInput">
         <image class="action-icon-img" src="/assets/icons/comment.png" mode="aspectFit" />
-        <text class="action-num">{{f.formatCount(photo.comments.length)}}</text>
+        <text class="action-num">{{f.formatCount(post.comments.length)}}</text>
       </view>
 
-      <!-- 分享：抖音风格右上箭头，无文字 -->
+      <!-- 分享 -->
       <view class="action-item" bindtap="handleShare">
         <image class="action-icon-img" src="/assets/icons/share.png" mode="aspectFit" />
+        <text class="action-num">{{f.formatCount(post.shares || 0)}}</text>
       </view>
     </view>
   </view>
@@ -143,7 +144,7 @@
         bindchange="onPreviewSwiperChange"
         duration="300"
       >
-        <swiper-item wx:for="{{photo.photos}}" wx:key="order">
+        <swiper-item wx:for="{{post.photos}}" wx:key="order">
           <image
             class="preview-image"
             src="{{item.imageUrl}}"
@@ -152,16 +153,16 @@
         </swiper-item>
       </swiper>
       <!-- 预览模式全宽线段进度条 -->
-      <view class="preview-progress-bar" wx:if="{{photo.photos.length > 1}}">
+      <view class="preview-progress-bar" wx:if="{{post.photos.length > 1}}">
         <view
-          wx:for="{{photo.photos}}"
+          wx:for="{{post.photos}}"
           wx:key="order"
           class="preview-progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
         ></view>
       </view>
       <!-- 预览模式右上角文字指示器 -->
-      <view class="preview-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{photo.photos.length > 1}}">
-        <text class="preview-badge-text">{{currentPhotoIndex + 1}}/{{photo.photos.length}}</text>
+      <view class="preview-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post.photos.length > 1}}">
+        <text class="preview-badge-text">{{currentPhotoIndex + 1}}/{{post.photos.length}}</text>
       </view>
     </view>
   </view>

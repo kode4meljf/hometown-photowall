@@ -71,6 +71,8 @@ exports.main = async (event, context) => {
       return await getMoreComments(data, openId);
     case 'update':
       return await updatePost(data, openId);
+    case 'incrementShares':
+      return await incrementShares(data, openId);
     default:
       return { success: false, message: '未知操作' };
   }
@@ -189,6 +191,7 @@ async function getPostDetail(id, openId) {
       success: true,
       data: {
         ...post,
+        shares: post.shares || 0,
         comments: commentsData.comments,
         commentsCount: commentsData.total,
         hasMore: commentsData.hasMore
@@ -658,6 +661,18 @@ async function fixCommentAvatars() {
     return { success: true, fixed };
   } catch (e) {
     console.error('[fixCommentAvatars] failed:', e);
+    return { success: false, message: e.message };
+  }
+}
+
+async function incrementShares(data, openId) {
+  try {
+    const id = data.id;
+    if (!id) return { success: false, message: "缺少帖子ID" };
+    await postsCollection.doc(id).update({ data: { shares: _.inc(1) } });
+    return { success: true };
+  } catch (e) {
+    console.error("[incrementShares] failed:", e);
     return { success: false, message: e.message };
   }
 }
