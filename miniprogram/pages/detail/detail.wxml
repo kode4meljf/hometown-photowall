@@ -107,7 +107,7 @@
 
       <!-- 分享 -->
       <view class="action-item" bindtap="handleShare">
-        <image class="action-icon-img" src="/assets/icons/share.png" mode="aspectFit" />
+        <image class="action-icon-img" src="/assets/icons/icon-share.svg" mode="aspectFit" />
         <text class="action-num">{{f.formatCount(post.shares || 0)}}</text>
       </view>
     </view>
