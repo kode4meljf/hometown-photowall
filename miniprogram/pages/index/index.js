@@ -2,8 +2,8 @@
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
 
-const COLUMN_GAP = 16; // 列间距 rpx
-const CARD_PADDING = 40; // 卡片左右内边距总和 rpx
+const COLUMN_GAP = 24; // 列间距 rpx (gap 12rpx * 2 列)
+const CARD_PADDING = 24; // 卡片左右内边距总和 rpx (padding 12rpx * 2 侧)
 
 Page({
   data: {
@@ -21,6 +21,7 @@ Page({
 
     // 筛选
     sortType: 'latest', // latest | likes
+    sortMenuShow: false,
     selectedLocation: '', // 空表示不过滤
     locations: [],
     searchKeyword: '',
@@ -58,9 +59,11 @@ Page({
   initSystemInfo() {
     const sysInfo = wx.getSystemInfoSync();
     const windowWidth = sysInfo.windowWidth;
-    // 计算列宽: (屏幕宽度 - 左右边距0 - 中间间隙16) / 2
-    // 直接存 px,后续计算直接用
-    const columnWidth = (windowWidth - 8) / 2;
+    // 计算列宽: (屏幕宽度 - 左右padding 24rpx - 中间gap 12rpx) / 2
+    // rpx 转 px: rpx * windowWidth / 750
+    const gapPx = 12 * windowWidth / 750;
+    const padPx = 12 * windowWidth / 750;
+    const columnWidth = (windowWidth - padPx * 2 - gapPx) / 2;
     // 文字区域高度估算 (px)
     const textHeight = 200 * windowWidth / 750;
 
@@ -239,15 +242,29 @@ Page({
     this.loadPosts(true);
   },
 
-  // 排序标签点击
-  onSortTap(e) {
-    const sort = e.currentTarget.dataset.sort;
-    if (this.data.sortType === sort) return; // 已选中,不操作
+  // 排序下拉菜单
+  onSortToggle() {
+    this.setData({ sortMenuShow: !this.data.sortMenuShow });
+  },
 
+  onSortSelect(e) {
+    const sort = e.currentTarget.dataset.sort;
+    if (sort === this.data.sortType) {
+      this.setData({ sortMenuShow: false });
+      return;
+    }
     this.setData({
-      sortType: sort
+      sortType: sort,
+      sortMenuShow: false
     });
     this.loadPosts(true);
+  },
+
+  // 点击空白关闭下拉
+  onContentTap() {
+    if (this.data.sortMenuShow) {
+      this.setData({ sortMenuShow: false });
+    }
   },
 
   // 地点标签点击

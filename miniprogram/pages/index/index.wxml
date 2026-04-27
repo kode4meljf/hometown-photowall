@@ -1,12 +1,12 @@
 <!-- 首页 - 新设计 -->
 <view class="container">
   <!-- 搜索栏 -->
-  <view class="search-bar">
+  <view class="top-bar">
     <view class="search-input-wrapper">
       <text class="search-icon">🔍</text>
       <input 
         class="search-input" 
-        placeholder="搜索标题或描述" 
+        placeholder=" 搜索" 
         value="{{searchKeyword}}"
         bindinput="onSearchInput"
         confirm-type="search"
@@ -18,45 +18,50 @@
     </view>
   </view>
 
-  <!-- 筛选标签栏 -->
-  <view class="filter-bar">
-    <scroll-view class="filter-scroll" scroll-x enhanced show-scrollbar="{{false}}">
-      <view class="filter-content">
-        <!-- 排序标签 -->
-        <view class="filter-group">
-          <view 
-            class="filter-tag {{sortType === 'latest' ? 'active' : ''}}" 
-            bindtap="onSortTap"
-            data-sort="latest"
-          >
-            最新
-          </view>
-          <view 
-            class="filter-tag {{sortType === 'likes' ? 'active' : ''}}" 
-            bindtap="onSortTap"
-            data-sort="likes"
-          >
-            最多赞
-          </view>
+  <!-- 地点标签栏（独立行） -->
+  <view class="location-bar" wx:if="{{locations.length > 0}}">
+    <scroll-view class="location-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="location-content">
+        <view 
+          class="location-tag {{selectedLocation === '' ? 'active' : ''}}"
+          bindtap="onLocationTap"
+          data-location=""
+        >
+          <text>全部</text>
         </view>
-        
-        <!-- 分隔线：只有有地点信息时才显示 -->
-        <view wx:if="{{locations.length > 0}}" class="filter-divider"></view>
-        
-        <!-- 地点标签 -->
-        <view class="filter-group">
-          <view 
-            wx:for="{{locations}}" 
-            wx:key="*this"
-            class="filter-tag {{selectedLocation === item ? 'active' : ''}}"
-            bindtap="onLocationTap"
-            data-location="{{item}}"
-          >
-            {{item}}
-          </view>
+        <view 
+          wx:for="{{locations}}" 
+          wx:key="*this"
+          class="location-tag {{selectedLocation === item ? 'active' : ''}}"
+          bindtap="onLocationTap"
+          data-location="{{item}}"
+        >
+          <image class="location-pin" src="/assets/icons/location.png" mode="aspectFit" />
+          <text>{{item}}</text>
         </view>
       </view>
     </scroll-view>
+  </view>
+
+  <!-- 内容标题行 -->
+  <view class="content-header">
+    <text class="content-title">发现</text>
+    <view class="sort-dropdown-wrap">
+      <view class="sort-dropdown" bindtap="onSortToggle">
+        <text class="sort-text">{{sortType === 'likes' ? '最多赞' : '最新'}}</text>
+        <text class="sort-arrow {{sortMenuShow ? 'arrow-up' : ''}}">▾</text>
+      </view>
+      <view class="sort-menu" wx:if="{{sortMenuShow}}">
+        <view class="sort-option {{sortType === 'latest' ? 'active' : ''}}" bindtap="onSortSelect" data-sort="latest">
+          <text>最新</text>
+          <text class="sort-check" wx:if="{{sortType === 'latest'}}">✓</text>
+        </view>
+        <view class="sort-option {{sortType === 'likes' ? 'active' : ''}}" bindtap="onSortSelect" data-sort="likes">
+          <text>最多赞</text>
+          <text class="sort-check" wx:if="{{sortType === 'likes'}}">✓</text>
+        </view>
+      </view>
+    </view>
   </view>
 
   <!-- 瀑布流内容 -->
@@ -70,7 +75,7 @@
     refresher-enabled="{{true}}"
     refresher-triggered="{{isRefreshing}}"
   >
-    <view class="waterfall-container">
+    <view class="waterfall-container" bindtap="onContentTap">
       <!-- 左列 -->
       <view class="waterfall-column" id="left-column">
         <view 
@@ -87,9 +92,9 @@
               mode="aspectFill"
               lazy-load
             />
-            <view class="views-badge">
-              
-              <text class="views-text">{{item.views}}</text>
+            <view class="location-badge" wx:if="{{item.location}}">
+              <image class="location-badge-icon" src="/assets/icons/location.png" mode="aspectFit" />
+              <text class="location-badge-text"> {{item.location}}</text>
             </view>
           </view>
           <view class="card-content">
@@ -127,9 +132,9 @@
               mode="aspectFill"
               lazy-load
             />
-            <view class="views-badge">
-              
-              <text class="views-text">{{item.views}}</text>
+            <view class="location-badge" wx:if="{{item.location}}">
+              <image class="location-badge-icon" src="/assets/icons/location.png" mode="aspectFit" />
+              <text class="location-badge-text"> {{item.location}}</text>
             </view>
           </view>
           <view class="card-content">

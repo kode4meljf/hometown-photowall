@@ -8,25 +8,27 @@
 }
 
 /* 搜索栏 */
-.search-bar {
-  padding: 20rpx 30rpx;
-  background-color: #f8f8f8;
+.top-bar {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 24rpx 12rpx;
+  background-color: #fff;
 }
 
 .search-input-wrapper {
+  flex: 1;
   display: flex;
   align-items: center;
-  height: 72rpx;
-  background-color: #fff;
-  border-radius: 36rpx;
-  padding: 0 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  height: 64rpx;
+  background-color: #f5f5f5;
+  border-radius: 32rpx;
+  padding: 0 20rpx;
 }
 
 .search-icon {
-  width: 32rpx;
-  height: 32rpx;
-  margin-right: 16rpx;
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 12rpx;
   opacity: 0.4;
   line-height: 1;
   vertical-align: middle;
@@ -34,7 +36,7 @@
 
 .search-input {
   flex: 1;
-  height: 72rpx;
+  height: 64rpx;
   font-size: 28rpx;
   color: #333;
 }
@@ -58,56 +60,131 @@
   line-height: 1;
 }
 
-/* 筛选标签栏 */
-.filter-bar {
-  background-color: #f8f8f8;
-  padding-bottom: 16rpx;
+/* 内容标题行 */
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 24rpx 12rpx;
 }
 
-.filter-scroll {
+.content-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1b1b1b;
+}
+
+.sort-dropdown-wrap {
+  position: relative;
+}
+
+.sort-dropdown {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 24rpx;
+  background-color: #f5f5f5;
+  border-radius: 24rpx;
+}
+
+.sort-text {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.sort-arrow {
+  font-size: 22rpx;
+  color: #999;
+  margin-left: 6rpx;
+  transition: transform 0.2s;
+}
+
+.sort-arrow.arrow-up {
+  transform: rotate(180deg);
+}
+
+.sort-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  z-index: 100;
+  min-width: 200rpx;
+}
+
+.sort-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx;
+  font-size: 26rpx;
+  color: #666;
+}
+
+.sort-option.active {
+  color: #1b1b1b;
+  font-weight: 500;
+}
+
+.sort-check {
+  font-size: 26rpx;
+  color: #1b1b1b;
+  margin-left: 16rpx;
+}
+
+/* 地点标签栏 */
+.location-bar {
+  background-color: #fff;
+  padding: 12rpx 0 16rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.location-scroll {
   white-space: nowrap;
 }
 
-.filter-content {
+.location-content {
   display: inline-flex;
   align-items: center;
-  padding: 0 30rpx;
+  padding: 0 24rpx;
 }
 
-.filter-group {
-  display: inline-flex;
-  align-items: center;
-}
-
-.filter-tag {
+.location-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 56rpx;
-  padding: 0 24rpx;
-  margin-right: 16rpx;
-  background-color: #fff;
-  border-radius: 28rpx;
-  font-size: 26rpx;
+  height: 52rpx;
+  padding: 0 20rpx;
+  margin-right: 12rpx;
+  background-color: #f5f5f5;
+  border-radius: 26rpx;
+  font-size: 24rpx;
   color: #666;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
 }
 
-.filter-tag.active {
+.location-tag.active {
   background-color: #1b1b1b;
   color: #fff;
 }
 
-.filter-tag:last-child {
+.location-tag:last-child {
   margin-right: 0;
 }
 
-.filter-divider {
-  width: 2rpx;
-  height: 32rpx;
-  background-color: #ddd;
-  margin: 0 20rpx;
+.location-pin {
+  width: 24rpx;
+  height: 24rpx;
+  margin-right: 4rpx;
+  opacity: 0.7;
+}
+
+.location-tag.active .location-pin {
+  opacity: 1;
+  /* 白色图标：用亮度滤镜反色 */
+  filter: brightness(10);
 }
 
 /* 瀑布流 */
@@ -118,21 +195,21 @@
 
 .waterfall-container {
   display: flex;
-  padding: 0;
-  gap: 10rpx;
+  padding: 0 12rpx;
+  gap: 12rpx;
 }
 
 .waterfall-column {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+  gap: 12rpx;
 }
 
 /* 卡片 */
 .photo-card {
   background-color: #fff;
-  border-radius: 16rpx;
+  border-radius: 24rpx;
   overflow: hidden;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 }
@@ -149,19 +226,26 @@
   height: 100%;
 }
 
-.views-badge {
+/* 地点badge（毛玻璃风格） */
+.location-badge {
   position: absolute;
-  right: 12rpx;
-  bottom: 12rpx;
+  left: 12rpx;
+  top: 12rpx;
   display: flex;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.5);
-  border-radius: 20rpx;
-  padding: 6rpx 14rpx;
+  background-color: rgba(0, 0, 0, 0.45);
+  border-radius: 16rpx;
+  padding: 4rpx 12rpx;
 }
 
+.location-badge-icon {
+  width: 20rpx;
+  height: 20rpx;
+  margin-right: 2rpx;
+  filter: brightness(10);
+}
 
-.views-text {
+.location-badge-text {
   font-size: 20rpx;
   color: #fff;
 }
