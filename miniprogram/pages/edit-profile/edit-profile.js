@@ -37,7 +37,7 @@ Page({
     });
     console.log('[DEBUG] tagStates:', JSON.stringify(states));
     console.log('[DEBUG] data.tags:', JSON.stringify(this.data.tags));
-  }
+  },
   onLoad() {
     // Expose tagStates for debug
     this._updateTagStates();

@@ -347,6 +347,7 @@ async function deletePost(id, openId) {
 
 // 更新帖子
 async function updatePost(data, openId) {
+  console.log('[updatePost] received data:', JSON.stringify(data), 'openId:', openId);
   try {
     // 兼容两种调用格式：
     // 1. { id, updates } — 标准格式
