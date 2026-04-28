@@ -6,7 +6,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const _ = db.command;
 const postsCollection = db.collection('posts');
-const commentsCollection = db.collection('comments');
+const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
 
 // [2026-04-25] 移除所有 cloud:// → HTTPS 转换
@@ -73,6 +73,12 @@ exports.main = async (event, context) => {
       return await updatePost(data, openId);
     case 'incrementShares':
       return await incrementShares(data, openId);
+    case 'migrateHidden':
+      return await migrateHiddenField();
+    case 'myComments':
+      return await getMyComments(openId, data);
+    case 'receivedComments':
+      return await getReceivedComments(openId, data);
     default:
       return { success: false, message: '未知操作' };
   }
@@ -342,22 +348,27 @@ async function deletePost(id, openId) {
 // 更新帖子
 async function updatePost(data, openId) {
   try {
-    const { id, updates } = data;
-    if (!id) {
+    // 兼容两种调用格式：
+    // 1. { id, updates } — 标准格式
+    // 2. { postId, data: { hidden/title/... } } — profile.js toggleHidePost 调用
+    const postId = data.id || data.postId;
+    const updates = data.updates || data.data;
+
+    if (!postId) {
       return { success: false, message: '缺少帖子ID' };
     }
 
     // 验证权限
-    const post = await postsCollection.doc(id).get();
-    if (post.data.authorId !== openId) {
+    const post = await postsCollection.doc(postId).get();
+    if (!post.data || post.data.authorId !== openId) {
       return { success: false, message: '无权编辑' };
     }
 
     // 只允许更新特定字段
-    const allowedFields = ['title', 'description', 'location'];
+    const allowedFields = ['title', 'description', 'location', 'hidden'];
     const updateData = {};
     for (const field of allowedFields) {
-      if (updates[field] !== undefined) {
+      if (updates && updates[field] !== undefined) {
         updateData[field] = updates[field];
       }
     }
@@ -366,7 +377,7 @@ async function updatePost(data, openId) {
       return { success: false, message: '没有可更新的字段' };
     }
 
-    await postsCollection.doc(id).update({ data: updateData });
+    await postsCollection.doc(postId).update({ data: updateData });
     return { success: true };
   } catch (e) {
     console.error('[updatePost] 失败:', e.message, e.stack);
@@ -545,13 +556,18 @@ async function getStats() {
 
 // 获取我的作品（读 posts 集合）
 async function getMyWorks(openId, params = {}) {
-  const { page = 1, pageSize = 20 } = params;
+  const { page = 1, pageSize = 20, hidden } = params;
+  // hidden: true=仅隐藏, false=仅显示, undefined=全部
+  const whereCond = { authorId: openId };
+  if (hidden !== undefined) {
+    whereCond.hidden = hidden;
+  }
   try {
-    const countResult = await postsCollection.where({ authorId: openId }).count();
+    const countResult = await postsCollection.where(whereCond).count();
     const total = countResult.total;
 
     const result = await postsCollection
-      .where({ authorId: openId })
+      .where(whereCond)
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
@@ -574,12 +590,12 @@ async function getMyLiked(openId, params = {}) {
   const { page = 1, pageSize = 20 } = params;
   try {
     const countResult = await postsCollection
-      .where({ likedUsers: _.elemMatch(_.eq(openId)) })
+      .where({ likedUsers: _.elemMatch(_.eq(openId)), hidden: false })
       .count();
     const total = countResult.total;
 
     const result = await postsCollection
-      .where({ likedUsers: _.elemMatch(_.eq(openId)) })
+      .where({ likedUsers: _.elemMatch(_.eq(openId)), hidden: false })
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
@@ -674,5 +690,153 @@ async function incrementShares(data, openId) {
   } catch (e) {
     console.error("[incrementShares] failed:", e);
     return { success: false, message: e.message };
+  }
+}
+
+// 获取我发出的评论
+async function getMyComments(openId, params = {}) {
+  const { offset = 0, limit = 20 } = params;
+  try {
+    const query = { authorId: openId };
+    const countResult = await commentsCollection.where(query).count();
+    const total = countResult.total;
+
+    const commentsRes = await commentsCollection
+      .where(query)
+      .orderBy('createdAt', 'desc')
+      .skip(offset)
+      .limit(limit)
+      .get();
+
+    const comments = commentsRes.data.map(c => {
+      c.id = c._id;
+      return c;
+    });
+
+    // 批量解析帖子信息（thumbnail、title、authorId）
+    const postIds = [...new Set(comments.map(c => c.postId).filter(Boolean))];
+    let postMap = {};
+    if (postIds.length > 0) {
+      const postsRes = await postsCollection
+        .where({ _id: _.in(postIds) })
+        .field({ _id: true, thumbnail: true, title: true, authorId: true })
+        .get();
+      postsRes.data.forEach(p => { postMap[p._id] = p; });
+    }
+
+    // 批量解析评论者信息（author、authorAvatar）
+    const commenterIds = [...new Set(comments.map(c => c.authorId).filter(Boolean))];
+    let authorMap = {};
+    if (commenterIds.length > 0) {
+      const usersRes = await usersCollection
+        .where({ _openid: _.in(commenterIds) })
+        .field({ _openid: true, avatar: true, nickname: true })
+        .get();
+      usersRes.data.forEach(u => { authorMap[u._openid] = u; });
+    }
+
+    comments.forEach(c => {
+      const post = postMap[c.postId];
+      c.postThumb = post ? (post.thumbnail || '') : '';
+      c.postTitle = post ? (post.title || '') : '';
+      const author = authorMap[c.authorId];
+      c.authorAvatar = author ? (author.avatar || '') : (c.authorAvatar || '');
+      c.author = author ? (author.nickname || '') : (c.author || '');
+      if (!c.time && c.createdAt) {
+        const d = new Date(c.createdAt);
+        const M = (d.getMonth() + 1).toString().padStart(2, '0');
+        const dd = d.getDate().toString().padStart(2, '0');
+        const h = d.getHours().toString().padStart(2, '0');
+        const m = d.getMinutes().toString().padStart(2, '0');
+        c.time = `${M}-${dd} ${h}:${m}`;
+      }
+    });
+
+
+    return { success: true, data: { comments, hasMore: offset + limit < total, total } };
+  } catch (e) {
+    console.error('[getMyComments] failed:', e);
+    return { success: false, data: { comments: [], hasMore: false, total: 0 } };
+  }
+}
+
+// 获取我收到的评论（别人在我的帖子下的评论）
+async function getReceivedComments(openId, params = {}) {
+  const { offset = 0, limit = 20 } = params;
+  try {
+    // 先查我发的所有帖子 ID
+    const myPostsRes = await postsCollection
+      .where({ authorId: openId })
+      .field({ _id: true })
+      .get();
+    const myPostIds = myPostsRes.data.map(p => p._id).filter(Boolean);
+
+    if (myPostIds.length === 0) {
+      return { success: true, data: { comments: [], hasMore: false, total: 0, newCount: 0 } };
+    }
+
+    const query = { postId: _.in(myPostIds) };
+    const countResult = await commentsCollection.where(query).count();
+    const total = countResult.total;
+
+    const commentsRes = await commentsCollection
+      .where(query)
+      .orderBy('createdAt', 'desc')
+      .skip(offset)
+      .limit(limit)
+      .get();
+
+    const comments = commentsRes.data.map(c => {
+      c.id = c._id;
+      return c;
+    });
+
+    // 批量获取帖子信息
+    const postIds = [...new Set(comments.map(c => c.postId).filter(Boolean))];
+    let postMap = {};
+    if (postIds.length > 0) {
+      const postsRes = await postsCollection
+        .where({ _id: _.in(postIds) })
+        .field({ _id: true, thumbnail: true, title: true })
+        .get();
+      postsRes.data.forEach(p => { postMap[p._id] = p; });
+    }
+
+    // 批量获取评论者信息
+    const commenterIds = [...new Set(comments.map(c => c.authorId).filter(Boolean))];
+    let authorMap = {};
+    if (commenterIds.length > 0) {
+      const usersRes = await usersCollection
+        .where({ _openid: _.in(commenterIds) })
+        .field({ _openid: true, avatar: true, nickname: true })
+        .get();
+      usersRes.data.forEach(u => { authorMap[u._openid] = u; });
+    }
+
+    // 新回复数：createdAt > 24h 前的（简化版：按 offset=0 首次加载时计算差值）
+    const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const newCount = commentsRes.data.filter(c => c.createdAt && c.createdAt > dayAgo).length;
+
+    comments.forEach(c => {
+      const post = postMap[c.postId];
+      c.postThumb = post ? (post.thumbnail || '') : '';
+      c.postTitle = post ? (post.title || '') : '';
+      const author = authorMap[c.authorId];
+      c.authorAvatar = author ? (author.avatar || '') : (c.authorAvatar || '');
+      c.author = author ? (author.nickname || '') : (c.author || '');
+      if (!c.time && c.createdAt) {
+        const d = new Date(c.createdAt);
+        const M = (d.getMonth() + 1).toString().padStart(2, '0');
+        const dd = d.getDate().toString().padStart(2, '0');
+        const h = d.getHours().toString().padStart(2, '0');
+        const m = d.getMinutes().toString().padStart(2, '0');
+        c.time = `${M}-${dd} ${h}:${m}`;
+      }
+    });
+
+    return { success: true, data: { comments, hasMore: offset + limit < total, total, newCount } };
+  } catch (e) {
+    console.error('[getReceivedComments] failed:', e);
+    return { success: false, data: { comments: [], hasMore: false, total: 0, newCount: 0 } };
   }
 }

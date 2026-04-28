@@ -1,0 +1,113 @@
+<!-- pages/edit-profile/edit-profile.wxml -->
+<view class="edit-page">
+  <!-- 页面内容 -->
+  <view class="page-content">
+
+    <!-- 头像区域 -->
+    <view class="avatar-card">
+      <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <image class="avatar-img" src="{{formData.avatar || '/assets/icons/default-avatar.png'}}{{avatarVersion}}" mode="aspectFill" />
+      </button>
+      <text class="avatar-hint">点击更换头像</text>
+    </view>
+
+    <!-- 基本信息表单 -->
+    <view class="form-card">
+      <!-- 昵称 -->
+      <view class="form-row">
+        <text class="form-label">昵称</text>
+        <input
+          class="form-input"
+          type="nickname"
+          placeholder="未设置"
+          value="{{formData.nickname}}"
+          bindinput="onNicknameInput"
+          bindblur="onNicknameBlur"
+        />
+      </view>
+
+      <!-- 性别 -->
+      <view class="form-row">
+        <text class="form-label">性别</text>
+        <view class="gender-row">
+          <view
+            class="gender-opt {{formData.gender === 'male' ? 'active' : ''}}"
+            data-g="male"
+            bindtap="onGenderSelect"
+          >
+            <view class="radio"><view class="radio-dot" wx:if="{{formData.gender === 'male'}}"></view></view>
+            <text>男</text>
+          </view>
+          <view
+            class="gender-opt {{formData.gender === 'female' ? 'active' : ''}}"
+            data-g="female"
+            bindtap="onGenderSelect"
+          >
+            <view class="radio"><view class="radio-dot" wx:if="{{formData.gender === 'female'}}"></view></view>
+            <text>女</text>
+          </view>
+          <view
+            class="gender-opt {{formData.gender === 'secret' ? 'active' : ''}}"
+            data-g="secret"
+            bindtap="onGenderSelect"
+          >
+            <view class="radio"><view class="radio-dot" wx:if="{{formData.gender === 'secret'}}"></view></view>
+            <text>保密</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 地区（省+区） -->
+      <view class="form-row">
+        <text class="form-label">地区</text>
+        <picker class="region-picker" mode="region" bindchange="onRegionChange">
+          <view class="form-right">
+            <text class="form-value {{formData.regionDisplay ? '' : 'region-empty'}}">{{formData.regionDisplay || '未设置'}}</text>
+            <text class="arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <!-- 个人简介 -->
+      <view class="form-row form-row-bio">
+        <view class="bio-header">
+          <text class="form-label">简介</text>
+          <text class="char-count">{{bioLength}}/50</text>
+        </view>
+        <textarea
+          class="form-textarea"
+          placeholder="介绍一下自己..."
+          maxlength="50"
+          value="{{formData.bio}}"
+          bindinput="onBioInput"
+        />
+      </view>
+    </view>
+
+    <!-- 兴趣标签 -->
+    <view class="form-card">
+      <view class="form-card-header">
+        <text class="form-card-title">兴趣标签</text>
+        <text class="form-card-hint">（可多选）</text>
+      </view>
+      <view class="tags-wrap">
+        <view
+          class="tag {{tags.indexOf(item) !== -1 ? 'active' : ''}}" data-check="{{item}}:={{tags.indexOf(item)}}"
+          wx:for="{{allTags}}"
+          wx:key="this"
+          data-tag="{{item}}"
+          bindtap="onTagToggle"
+        >{{item}}</view>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 保存按钮 -->
+  <view class="save-bar">
+    <view class="save-btn {{saving ? 'saving' : ''}}" bindtap="onSave">
+      <text wx:if="{{!saving}}">保存修改</text>
+      <text wx:if="{{saving}}">保存中...</text>
+    </view>
+  </view>
+</view>

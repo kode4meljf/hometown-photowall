@@ -55,7 +55,7 @@ async function getAllPhotos(params = {}) {
       .get();
 
     const photos = await Promise.all(result.data.map(async photo => {
-      const commentCount = await db.collection('comments')
+      const commentCount = await db.collection('post_comments')
         .where({ postId: photo._id })
         .count();
       return {
@@ -76,7 +76,7 @@ async function getAllPhotos(params = {}) {
 async function deletePost(id) {
   try {
     await db.collection('posts').doc(id).remove();
-    await db.collection('comments').where({ postId: id }).remove();
+    await db.collection('post_comments').where({ postId: id }).remove();
     return { success: true };
   } catch (e) {
     console.error('[deletePost] 删除失败:', e);
@@ -97,7 +97,7 @@ async function getUsers() {
         .where({ authorId: user._openid })
         .count();
 
-      const commentCount = await db.collection('comments')
+      const commentCount = await db.collection('post_comments')
         .where({ authorId: user._openid })
         .count();
 
@@ -126,7 +126,7 @@ async function getAdminStats() {
     const [postCount, userCount, commentCount] = await Promise.all([
       db.collection('posts').count(),
       db.collection('users').count(),
-      db.collection('comments').count()
+      db.collection('post_comments').count()
     ]);
 
     const likesResult = await db.collection('posts')

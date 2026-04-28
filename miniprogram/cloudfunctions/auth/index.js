@@ -5,10 +5,10 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const usersCollection = db.collection('users');
 
+// 云函数入口
 exports.main = async (event, context) => {
   const { action } = event;
   const data = event.data || {};
-  // 兼容两种传参方式：data 内嵌 或直接在 event 顶层
   const username = data.username !== undefined ? data.username : event.username;
   const password = data.password !== undefined ? data.password : event.password;
   const nickname = data.nickname !== undefined ? data.nickname : event.nickname;
@@ -24,6 +24,8 @@ exports.main = async (event, context) => {
       return await handleGetCurrentUser(wxContext.OPENID);
     case 'updateUserInfo':
       return await handleUpdateUserInfo(avatar, nickname, wxContext.OPENID);
+    case 'updateUserProfile':
+      return await handleUpdateUserProfile(event.data || event, wxContext.OPENID);
     default:
       return { success: false, message: '未知操作' };
   }
@@ -36,20 +38,17 @@ async function handleRegister(username, password, nickname, openId) {
   }
 
   try {
-    // 检查用户名是否存在
     const existUser = await usersCollection.where({ username }).get();
     if (existUser.data.length > 0) {
       return { success: false, message: '用户名已存在' };
     }
 
-    // 检查是否是第一个用户（自动成为管理员）
     const userCount = await usersCollection.count();
     const role = userCount.total === 0 ? 'admin' : 'user';
 
-    // 创建用户 - 云函数中必须手动添加 _openid
     const result = await usersCollection.add({
       data: {
-        _openid: openId,  // 必须手动添加
+        _openid: openId,
         username,
         password,
         nickname,
@@ -66,7 +65,7 @@ async function handleRegister(username, password, nickname, openId) {
           username,
           nickname,
           role,
-          avatar: ''  // 新用户无头像
+          avatar: ''
         }
       }
     };
@@ -83,31 +82,13 @@ async function handleLogin(username, password) {
   }
 
   try {
-    const result = await usersCollection.where({
-      username,
-      password
-    }).get();
-
+    const result = await usersCollection.where({ username, password }).get();
     if (result.data.length === 0) {
       return { success: false, message: '用户名或密码错误' };
     }
 
     const user = result.data[0];
-
-    // 转换头像 URL（如果是云存储地址）
-    let avatar = user.avatar || '';
-    if (avatar && avatar.startsWith('cloud://')) {
-      try {
-        const urlResult = await cloud.getTempFileURL({
-          fileList: [avatar]
-        });
-        if (urlResult.fileList && urlResult.fileList[0] && urlResult.fileList[0].tempFileURL) {
-          avatar = urlResult.fileList[0].tempFileURL;
-        }
-      } catch (e) {
-        console.error('转换头像URL失败:', e);
-      }
-    }
+    const avatar = await resolveAvatarUrl(user.avatar);
 
     return {
       success: true,
@@ -130,30 +111,13 @@ async function handleLogin(username, password) {
 // 获取当前用户
 async function handleGetCurrentUser(openId) {
   try {
-    const result = await usersCollection.where({
-      _openid: openId
-    }).get();
-
+    const result = await usersCollection.where({ _openid: openId }).get();
     if (result.data.length === 0) {
       return { success: true, data: null };
     }
 
     const user = result.data[0];
-    
-    // 转换头像 URL（如果是云存储地址）
-    let avatar = user.avatar || '';
-    if (avatar && avatar.startsWith('cloud://')) {
-      try {
-        const urlResult = await cloud.getTempFileURL({
-          fileList: [avatar]
-        });
-        if (urlResult.fileList && urlResult.fileList[0] && urlResult.fileList[0].tempFileURL) {
-          avatar = urlResult.fileList[0].tempFileURL;
-        }
-      } catch (e) {
-        console.error('转换头像URL失败:', e);
-      }
-    }
+    const avatar = await resolveAvatarUrl(user.avatar);
 
     return {
       success: true,
@@ -162,7 +126,11 @@ async function handleGetCurrentUser(openId) {
         username: user.username,
         nickname: user.nickname,
         role: user.role,
-        avatar: avatar
+        avatar,
+        gender: user.gender || 'secret',
+        region: user.region || '',
+        bio: user.bio || '',
+        tags: user.tags || []
       }
     };
   } catch (e) {
@@ -171,42 +139,73 @@ async function handleGetCurrentUser(openId) {
   }
 }
 
-// 更新用户信息（头像、昵称等）
+// 更新用户信息（头像、昵称）
 async function handleUpdateUserInfo(avatar, nickname, openId) {
   try {
-    
-    // 查找用户
-    const userResult = await usersCollection.where({
-      _openid: openId
-    }).get();
-    
+    const userResult = await usersCollection.where({ _openid: openId }).get();
     if (userResult.data.length === 0) {
       return { success: false, message: '用户不存在' };
     }
+
     const userId = userResult.data[0]._id;
     const updateData = {};
-    if (avatar) {
-      updateData.avatar = avatar;
-    }
-    if (nickname) {
-      updateData.nickname = nickname;
-    }
+    if (avatar) updateData.avatar = avatar;
+    if (nickname) updateData.nickname = nickname;
     updateData.updatedAt = db.serverDate();
 
-    // 更新用户信息
-    const updateResult = await usersCollection.doc(userId).update({
-      data: updateData
-    });
+    await usersCollection.doc(userId).update({ data: updateData });
 
-    return {
-      success: true,
-      data: {
-        avatar: updatedUser.data.avatar || avatar,
-        nickname: updatedUser.data.nickname || nickname
-      }
-    };
+    return { success: true, data: { avatar, nickname } };
   } catch (e) {
     console.error('更新用户信息失败:', e);
     return { success: false, message: '更新失败' };
   }
+}
+
+// 更新完整用户资料
+async function handleUpdateUserProfile(params, openId) {
+  try {
+    const { avatar, nickname, gender, region, bio, tags } = params;
+
+    const userResult = await usersCollection.where({ _openid: openId }).get();
+    if (userResult.data.length === 0) {
+      return { success: false, message: '用户不存在' };
+    }
+
+    const userId = userResult.data[0]._id;
+    const updateData = {};
+    if (avatar !== undefined) updateData.avatar = avatar;
+    if (nickname !== undefined) updateData.nickname = nickname;
+    if (gender !== undefined) updateData.gender = gender;
+    if (region !== undefined) updateData.region = region;
+    if (bio !== undefined) updateData.bio = bio;
+    if (tags !== undefined) updateData.tags = tags;
+    updateData.updatedAt = db.serverDate();
+
+    try {
+      await usersCollection.doc(userId).update({ data: updateData });
+    } catch (e) {
+      console.error('更新用户资料失败:', e);
+      return { success: false, message: '更新失败，请重试' };
+    }
+
+    return { success: true, message: '更新成功' };
+  } catch (e) {
+    console.error('更新用户资料失败:', e);
+    return { success: false, message: '更新失败' };
+  }
+}
+
+// 转换云存储头像为临时链接
+async function resolveAvatarUrl(avatar) {
+  if (!avatar) return '';
+  if (avatar.startsWith('cloud://')) {
+    try {
+      const result = await cloud.getTempFileURL({ fileList: [avatar] });
+      return (result.fileList && result.fileList[0] && result.fileList[0].tempFileURL) || avatar;
+    } catch (e) {
+      return avatar;
+    }
+  }
+  return avatar;
 }

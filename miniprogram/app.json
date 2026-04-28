@@ -2,6 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/profile/profile",
+    "pages/comments/comments",
+    "pages/edit-profile/edit-profile",
     "pages/detail/detail",
     "pages/upload/upload",
     "pages/admin/admin",

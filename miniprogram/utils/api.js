@@ -156,6 +156,11 @@ const userApi = {
   // 更新用户信息（头像、昵称）
   updateUserInfo(avatar, nickname) {
     return callFunction('auth', 'updateUserInfo', { avatar, nickname });
+  },
+
+  // 更新完整用户资料（头像、昵称、性别、地区、简介、标签）
+  updateUserProfile(params = {}) {
+    return callFunction('auth', 'updateUserProfile', { data: params });
   }
 };
 
@@ -204,6 +209,16 @@ const postApi = {
   // 获取我赞过的帖子
   getMyLiked(params = {}) {
     return callFunction('posts', 'myLiked', params);
+  },
+
+  // 获取我发出的评论
+  getMyComments(params = {}) {
+    return callFunction('posts', 'myComments', params);
+  },
+
+  // 获取我收到的评论
+  getReceivedComments(params = {}) {
+    return callFunction('posts', 'receivedComments', params);
   },
 
   // 获取地点列表
