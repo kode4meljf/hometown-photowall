@@ -18,3 +18,4 @@ miniprogram/miniprogram_npm/
 miniprogram/__ACC__TEST__/
 miniprogram/devtools/
 miniprogram/.cloudfunction*
+!miniprogram/cloudfunctions/
