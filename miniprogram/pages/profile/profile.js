@@ -11,7 +11,7 @@ Page({
     currentTabIndex: 0,  // 0=作品, 1=赞过
     worksFilter: 'all',  // 'all' | 'hidden'
     worksDropdownOpen: false,  // 下拉弹窗是否展开
-    dropdownTop: 0,
+dropdownTop: 0,
     dropdownLeft: 0,
     triangleLeft: 0,
     works: [],
@@ -20,6 +20,7 @@ Page({
     likedCount: 0,
     loading: false,
     hiddenCount: 0,       // 隐藏作品数量
+
     showPhotoAction: false,
     currentPhotoHidden: false,
     _postId: null,
@@ -98,8 +99,10 @@ Page({
   async _fetchUserInfoWithAvatar() {
     try {
       const res = await userApi.getCurrentUser();
+      console.log('[DEBUG] getCurrentUser result:', JSON.stringify(res));
       if (res.success && res.data) {
         let userInfo = res.data;
+        console.log('[DEBUG] userInfo from cloud:', JSON.stringify(userInfo));
         if (!userInfo.avatar) {
           userInfo = { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
         }
@@ -107,9 +110,14 @@ Page({
         if (userInfo.region && userInfo.region.length >= 2) {
           userInfo.regionDisplay = userInfo.region[0].slice(0, -1) + '·' + userInfo.region[1];
         }
+        console.log('[DEBUG] userInfo after format:', JSON.stringify(userInfo));
+        console.log('[DEBUG] bio:', userInfo.bio, '| tags:', JSON.stringify(userInfo.tags));
         app.globalData.userInfo = userInfo;
         wx.setStorageSync('userInfo', userInfo);
         this.setData({ userInfo });
+        console.log('[DEBUG] setData done, userInfo.nickname:', userInfo.nickname, 'regionDisplay:', userInfo.regionDisplay);
+      } else {
+        console.log('[DEBUG] getCurrentUser failed or no data:', res);
       }
     } catch (e) {
       console.error('获取用户信息失败:', e);
@@ -146,6 +154,7 @@ Page({
     try {
       await Promise.all([
         this.loadWorks(true),
+        this.loadWorks(true, 'hidden'),  // 预取 hiddenCount，不重置列表
         this.loadLiked(true)
       ]);
     } finally {
@@ -154,15 +163,15 @@ Page({
     }
   },
 
-  async loadWorks(reset = false) {
-    const filter = this.data.worksFilter;
+  async loadWorks(reset = false, silentFilter = null) {
+    const filter = silentFilter ?? this.data.worksFilter;
     // hidden: true=仅隐藏帖子, false=仅可见帖子, undefined=全部帖子
-    const hidden = filter === 'hidden' ? true : (filter === 'visible' ? false : undefined);
+    const hidden = filter === 'hidden' ? true : false;
 
-    if (reset) {
+    if (reset && !silentFilter) {
       this.setData({ works: [], worksPage: 1, worksHasMore: true });
     }
-    if (!this.data.worksHasMore) return;
+    if (!this.data.worksHasMore && !silentFilter) return;
 
     const page = reset ? 1 : this.data.worksPage;
     try {
@@ -174,12 +183,14 @@ Page({
           imageUrl: p.imageUrl
         }));
         const works = reset ? photos : [...this.data.works, ...photos];
-        const setData = {
-          works,
-          worksPage: page + 1,
-          worksHasMore: res.data.hasMore !== false
-        };
-        // 分别维护可见计数和隐藏计数，切换时互不覆盖
+        const setData = {};
+        // silent 模式（预取计数）不更新列表，只更新计数
+        if (!silentFilter) {
+          setData.works = works;
+          setData.worksPage = page + 1;
+          setData.worksHasMore = res.data.hasMore !== false;
+        }
+        // 分别维护三个计数，切换筛选时互不覆盖
         if (filter === 'hidden') {
           setData.hiddenCount = res.data.total || photos.length;
         } else {
@@ -243,13 +254,9 @@ Page({
     }
   },
 
-  onPageTouch() {
-    if (this.data.worksDropdownOpen) {
-      this.setData({ worksDropdownOpen: false });
-    }
-  },
+  // 空操作，用于遮罩层阻止 touchstart 冒泡
+  noop() {},
 
-  // 切换作品筛选：全部 / 已隐藏
   onWorksFilterChange(e) {
     const filter = e.currentTarget.dataset.filter;
     if (filter === this.data.worksFilter && this.data.worksDropdownOpen) {
@@ -366,6 +373,10 @@ Page({
     wx.navigateTo({ url: '/pages/edit-profile/edit-profile' });
   },
 
+  onSettingsTap() {
+    wx.navigateTo({ url: '/pages/settings/settings' });
+  },
+
   buyPoints() {
     showToast('购买积分功能开发中');
   },
@@ -467,36 +478,37 @@ Page({
     this.hidePhotoAction();
 
     wx.showLoading({ title: currentlyHidden ? '显示中...' : '隐藏中...', mask: true });
+    const callData = { action: 'update', postId: id, data: { hidden: !currentlyHidden } };
+    console.log('[toggleHidePost] calling cloud with:', JSON.stringify(callData));
     wx.cloud.callFunction({
       name: 'posts',
-      data: {
-        action: 'update',
-        postId: id,
-        data: { hidden: !currentlyHidden }
-      }
+      data: callData
     }).then(res => {
       wx.hideLoading();
       if (res.result && res.result.success) {
-        // 更新本地数据
-        // 乐观更新：本地列表和计数同步
-        const updateList = (list) => list.map(item =>
-          item.id === id ? { ...item, hidden: !currentlyHidden } : item
-        );
+        // 乐观更新
         const filter = this.data.worksFilter;
-        const setData = { works: updateList(this.data.works), liked: updateList(this.data.liked) };
-        // 全部列表：隐藏时可见计数-1、隐藏计数+1，显示时反过来
+        const setData = {};
         if (filter === 'all') {
-          if (currentlyHidden) {
+          // 隐藏操作：从全部列表中移除该帖子（全部作品不过滤hidden，只靠列表本身）
+          if (!currentlyHidden) {
+            setData.works = this.data.works.filter(item => item.id !== id);
             setData.worksCount = Math.max(0, this.data.worksCount - 1);
             setData.hiddenCount = (this.data.hiddenCount || 0) + 1;
           } else {
-            setData.worksCount = this.data.worksCount + 1;
+            // 显示操作：帖子的 hidden 被云函数改成 false，但它不在列表里（被移除了），
+            // 重新加载时自然会出现，这里只更新计数
             setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
           }
         } else if (filter === 'hidden') {
-          // 已隐藏列表：操作后该帖从列表消失，hiddenCount-1
-          setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
+          // 在"已隐藏"列表里，显示帖子：移除 + hiddenCount -1
+          if (currentlyHidden) {
+            setData.works = this.data.works.filter(item => item.id !== id);
+            setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
+          }
         }
+        // liked 列表里同样移除（已隐藏的帖子不该出现在"赞过"列表）
+        setData.liked = this.data.liked.filter(item => item.id !== id);
         this.setData(setData);
         showToast(currentlyHidden ? '已显示' : '已隐藏');
       } else {

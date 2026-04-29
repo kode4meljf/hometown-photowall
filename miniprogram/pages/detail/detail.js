@@ -15,6 +15,9 @@ Page({
     headerPaddingTop: 0,
     photoMode: 'aspectFit',
     photoStyle: '',
+    // 回复相关
+    replyToId: null,   // 当前回复的评论id（顶级评论id）
+    replyToAuthor: '', // 当前回复的评论作者名
     // 全屏预览状态
     isPreviewMode: false,
     previewTransform: 'translate(0px, 0px) scale(1, 1)',
@@ -81,7 +84,14 @@ Page({
         post.comments = (post.comments || []).map(c => ({
           ...c,
           time: formatDateTime(c.createdAt),
-          authorAvatar: c.authorAvatar || '/assets/icons/default-avatar.png'
+          authorAvatar: c.authorAvatar || '/assets/icons/default-avatar.png',
+          // 顶级评论的回复时间
+          replies: (c.replies || []).map(r => ({
+            ...r,
+            time: formatDateTime(r.createdAt)
+          })),
+          // 如果有更多回复未加载完，标记 hasMore
+          _repliesHasMore: (c.repliesCount || 0) > (c.replies || []).length
         }));
         post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
         const canDelete = app.globalData.userInfo &&
@@ -634,8 +644,8 @@ Page({
 
   goBack() { wx.navigateBack(); },
 
-  focusCommentInput() { this.setData({ showCommentInput: true }); },
-  hideCommentInput() { this.setData({ showCommentInput: false }); },
+  focusCommentInput() { this.setData({ showCommentInput: true, replyToId: null, replyToAuthor: '', commentContent: '' }); },
+  hideCommentInput() { this.setData({ showCommentInput: false, replyToId: null, replyToAuthor: '', commentContent: '' }); },
 
   handleShare() {
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
@@ -732,22 +742,108 @@ Page({
     }
   },
 
+  // ========== 评论点赞/回复 ==========
+
+  // 点赞/取消点赞评论（顶层评论）
+  async toggleCommentLike(e) {
+    if (!app.checkLogin()) { wx.navigateTo({ url: '/pages/login/login' }); return; }
+    const commentId = e.currentTarget.dataset.id;
+    if (!commentId) return;
+    try {
+      const res = await postApi.toggleCommentLike(commentId);
+      if (res.success) {
+        this._updateCommentLike(commentId, res.liked, res.likes);
+      }
+    } catch (e) { showToast('操作失败'); }
+  },
+
+  // 更新本地评论的点赞状态（通用：处理顶层评论和回复）
+  _updateCommentLike(commentId, liked, likes, isReply = false) {
+    const post = this.data.post;
+    if (!post || !post.comments) return;
+    if (isReply) {
+      // 在回复中找（需要知道父评论id，目前简化：直接刷新）
+      // 点击回复的点赞后直接刷新页面
+      this.loadPost();
+      return;
+    }
+    const comment = post.comments.find(c => c.id === commentId);
+    if (comment) {
+      comment.liked = liked;
+      comment.likes = likes;
+      this.setData({ post });
+    }
+  },
+
+  // 点击回复按钮：设置回复目标 + 预填 @xxx
+  handleReplyTap(e) {
+    const { id, author } = e.currentTarget.dataset;
+    if (!id) return;
+    this.setData({
+      replyToId: id,
+      replyToAuthor: author || '',
+      showCommentInput: true,
+      commentContent: ''
+    });
+  },
+
+  // 取消回复
+  cancelReply() {
+    this.setData({ replyToId: null, replyToAuthor: '', commentContent: '' });
+  },
+
+  // 展开更多回复（分批加载，每次10条）
+  async expandReplies(e) {
+    const commentId = e.currentTarget.dataset.id;
+    if (!commentId) return;
+    const post = this.data.post;
+    const comment = post.comments.find(c => c.id === commentId);
+    if (!comment) return;
+    // 标记该评论为"加载中"（禁用按钮）
+    comment._repliesLoading = true;
+    this.setData({ post });
+    try {
+      const offset = comment.replies ? comment.replies.length : 0;
+      const res = await postApi.getCommentReplies(commentId, offset, 10);
+      if (res.success && res.data?.replies) {
+        const newReplies = res.data.replies.map(r => ({
+          ...r,
+          time: formatDateTime(r.createdAt)
+        }));
+        const thePost = this.data.post;
+        const theComment = thePost.comments.find(c => c.id === commentId);
+        if (theComment) {
+          theComment.replies = [...(theComment.replies || []), ...newReplies];
+          theComment._repliesLoading = false;
+          theComment._repliesHasMore = res.data.hasMore;
+          this.setData({ post: thePost });
+        }
+      }
+    } catch (e) {
+      const thePost = this.data.post;
+      const theComment = thePost.comments.find(c => c.id === commentId);
+      if (theComment) { theComment._repliesLoading = false; this.setData({ post: thePost }); }
+      showToast('加载失败');
+    }
+  },
+
   onCommentInput(e) { this.setData({ commentContent: e.detail.value }); },
 
   async submitComment() {
-    if (!app.checkLogin()) {
-      wx.navigateTo({ url: '/pages/login/login' });
-      return;
-    }
+    if (!app.checkLogin()) { wx.navigateTo({ url: '/pages/login/login' }); return; }
     const content = this.data.commentContent.trim();
     if (!content) { showToast('请输入评论内容'); return; }
+    // 去掉自动补的 @author 前缀（用户可能没删）
+    const cleanContent = content.replace(/^@[^\s]+\s/, '').trim();
+    if (!cleanContent) { showToast('请输入评论内容'); return; }
     try {
       showLoading('发送中...');
-      const res = await postApi.addComment(this.postId, content);
+      const parentId = this.data.replyToId || null;
+      const res = await postApi.addComment(this.postId, cleanContent, parentId);
       hideLoading();
       if (res.success) {
-        showSuccess('评论成功');
-        this.setData({ commentContent: '', showCommentInput: false });
+        showSuccess(parentId ? '回复成功' : '评论成功');
+        this.setData({ commentContent: '', showCommentInput: false, replyToId: null, replyToAuthor: '' });
         this.loadPost();
       } else {
         showToast(res.message || '评论失败');

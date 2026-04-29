@@ -66,7 +66,44 @@
   font-size: 24rpx;
   color: #aaa;
   text-align: center;
-  margin-bottom: 24rpx;
+  margin-bottom: 16rpx;
+}
+
+/* bio + 标签区块（方案C极简） */
+.profile-bio-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 20rpx;
+  padding: 0 16rpx;
+}
+
+.profile-bio {
+  font-size: 22rpx;
+  color: #888;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.profile-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.profile-tag {
+  font-size: 20rpx;
+  color: #666;
+  background: #f0f0f0;
+  padding: 5rpx 14rpx;
+  border-radius: 16rpx;
+}
+
+.profile-tag-first {
+  background: #1b1b1b;
+  color: #fff;
 }
 
 /* 三栏统计 */
@@ -127,6 +164,9 @@
 .action-btn-primary:active {
   transform: scale(0.94);
   background: #333;
+}
+.action-btn-press {
+  opacity: 0.5;
 }
 
 /* 常用功能3宫格 */
@@ -284,7 +324,8 @@
 
 .photo-stats {
   display: flex;
-  gap: 20rpx;
+  align-items: center;
+  gap: 8rpx;
   margin-top: 8rpx;
   font-size: 22rpx;
   opacity: 0.9;
@@ -491,7 +532,17 @@
 }
 /* ── 作品下拉筛选弹窗（fixed 定位，防止被 swiper overflow 截断） ── */
 
-/* 遮罩层 */
+/* 遮罩层：透明全屏，点击关闭弹窗 */
+.works-dropdown-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 990;
+  background: transparent;
+}
+
 /* 弹窗外层：JS 动态计算位置，水平居中在 Tab 正下方 */
 .works-dropdown-wrap {
   position: fixed;
@@ -603,4 +654,19 @@
   transform: rotate(-135deg);
   margin-bottom: 0;
   margin-top: 3rpx;
+}
+
+/* 浏览量图标（B-2 适中圆：加粗 + stroke-linejoin/cap round） */
+.views-icon {
+  width: 22rpx;
+  height: 22rpx;
+  display: block;
+  flex-shrink: 0;
+}
+
+.views-count {
+  font-size: 22rpx;
+  color: #fff;
+  font-weight: 500;
+  line-height: 1;
 }

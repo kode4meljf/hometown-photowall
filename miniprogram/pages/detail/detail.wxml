@@ -63,11 +63,58 @@
     <!-- 评论列表 -->
     <view class="comment-list">
       <view class="comment-item" wx:for="{{post.comments}}" wx:key="id">
-        <image class="comment-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
-        <view class="comment-content">
-          <text class="comment-author">{{item.author}}</text>
-          <text class="comment-text">{{item.content}}</text>
-          <text class="comment-time">{{item.time}}</text>
+        <view class="comment-item-row">
+          <image class="comment-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
+          <view class="comment-content">
+            <text class="comment-author">{{item.author}}</text>
+            <!-- 顶级评论正文 -->
+            <text class="comment-text">{{item.content}}</text>
+
+            <!-- 评论底部行：时间 + 回复（靠左）+ 点赞（靠右） -->
+            <view class="comment-footer">
+              <view class="comment-footer-left">
+                <text class="comment-time">{{item.time}}</text>
+                <text class="reply-text-btn" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">回复</text>
+              </view>
+              <view class="like-btn" catchtap="toggleCommentLike" data-id="{{item.id}}">
+                <image src="{{item.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
+                <text>{{item.likes || 0}}</text>
+              </view>
+            </view>
+
+            <!-- 回复列表（默认显示前3条） -->
+            <view class="reply-list" wx:if="{{item.replies && item.replies.length > 0}}">
+              <!-- 每条回复：纵向排列，头像+昵称 | 内容 | footer -->
+              <view class="reply-item" wx:for="{{item.replies}}" wx:for-item="reply" wx:key="id">
+                <!-- 头像 + 昵称（单行） -->
+                <view class="reply-row">
+                  <image class="reply-avatar" src="{{reply.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
+                  <text class="reply-author">{{reply.author}}</text>
+                </view>
+                <!-- 回复内容（缩进对齐昵称） -->
+                <view class="reply-content-wrap">
+                  <text class="reply-text">{{reply.content}}</text>
+                </view>
+                <!-- 底部行：时间靠左，点赞靠右 -->
+                <view class="comment-footer reply-footer">
+                  <view class="comment-footer-left">
+                    <text class="comment-time">{{reply.time}}</text>
+                    <text class="reply-text-btn" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{reply.author}}">回复</text>
+                  </view>
+                  <view class="like-btn" catchtap="toggleCommentLike" data-id="{{reply.id}}" data-parent="{{item.id}}">
+                    <image src="{{reply.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
+                    <text>{{reply.likes || 0}}</text>
+                  </view>
+                </view>
+              </view>
+              <!-- 展开更多回复（分批，每批10条） -->
+              <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item.repliesCount > (item.replies ? item.replies.length : 0)}}" catchtap="expandReplies" data-id="{{item.id}}">
+                <text wx:if="{{item._repliesLoading}}">加载中...</text>
+                <text wx:elif="{{item._repliesHasMore === false}}">已展开全部 {{item.repliesCount}} 条回复</text>
+                <text wx:else>展开更多回复 ›</text>
+              </view>
+            </view>
+          </view>
         </view>
       </view>
       <view class="load-more" wx:if="{{commentsLoading}}">
@@ -119,8 +166,12 @@
 <view class="comment-modal" wx:if="{{showCommentInput}}">
   <view class="comment-modal-mask" bindtap="hideCommentInput"></view>
   <view class="comment-modal-content">
-    <input class="comment-input-field" placeholder="写下你的评论..." value="{{commentContent}}" bindinput="onCommentInput" focus="{{showCommentInput}}" confirm-type="send" bindconfirm="submitComment" />
-    <view class="comment-send-btn" bindtap="submitComment">发送</view>
+    <!-- 输入行：@提示(placeholder) + 输入框 -->
+    <view class="comment-input-row">
+      <input class="comment-input-field" placeholder="{{replyToId ? '回复 ' + replyToAuthor : '说点什么...'}}" value="{{commentContent}}" bindinput="onCommentInput" focus="{{showCommentInput}}" confirm-type="send" bindconfirm="submitComment" />
+    </view>
+    <view class="comment-send-btn" catchtap="cancelReply" wx:if="{{replyToId}}">取消</view>
+    <view class="comment-send-btn" catchtap="submitComment" wx:else>发送</view>
   </view>
 </view>
 

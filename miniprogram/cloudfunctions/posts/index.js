@@ -69,10 +69,22 @@ exports.main = async (event, context) => {
       return await getMyLiked(openId, data);
     case 'moreComments':
       return await getMoreComments(data, openId);
-    case 'update':
-      return await updatePost(data, openId);
+    case 'update': {
+      // 加日志看清楚前端到底传了什么
+      console.log('[update] event.full:', JSON.stringify(event));
+      const { postId, ...rest } = event;
+      const payload = { postId, ...event.data };
+      console.log('[update] payload:', JSON.stringify(payload));
+      console.log('[update] event.data.updates:', JSON.stringify(event.data?.updates));
+      console.log('[update] event.data.data:', JSON.stringify(event.data?.data));
+      return await updatePost(payload, openId);
+    }
     case 'incrementShares':
       return await incrementShares(data, openId);
+    case 'toggleCommentLike':
+      return await toggleCommentLike(data, openId);
+    case 'getCommentReplies':
+      return await getCommentReplies(data, openId);
     case 'migrateHidden':
       return await migrateHiddenField();
     case 'myComments':
@@ -191,7 +203,7 @@ async function getPostDetail(id, openId) {
     if (authorNicknameMap[post.authorId]) post.author = authorNicknameMap[post.authorId];
 
     // 评论列表
-    const commentsData = await getCommentsWithAuthors(id, 0, 20);
+    const commentsData = await getCommentsWithAuthors(id, 0, 20, openId);
 
     return {
       success: true,
@@ -210,21 +222,66 @@ async function getPostDetail(id, openId) {
 }
 
 // 查询评论并实时解析作者头像
-async function getCommentsWithAuthors(postId, offset = 0, limit = 10) {
+async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
   try {
-    const query = { postId };
+    // 只返回一级评论（parentId 为空/null），按热度排序
+    const query = { postId, parentId: _.or(_.eq(null), _.exists(false)) };
+    console.log('[getCommentsWithAuthors] postId:', postId, 'query:', JSON.stringify(query));
     const countResult = await commentsCollection.where(query).count();
     const total = countResult.total;
+    console.log('[getCommentsWithAuthors] total comments:', total);
 
     const commentsResult = await commentsCollection
       .where(query)
-      .orderBy('createdAt', 'asc')
+      .orderBy('likes', 'desc')
       .skip(offset)
       .limit(limit)
       .get();
 
+    // 楼中楼：统计每条顶级评论的子评论数
+    const topCommentIds = commentsResult.data
+      .filter(c => !c.parentId)
+      .map(c => c._id);
+    let repliesCountMap = {};
+    if (topCommentIds.length > 0) {
+      // 批量查询所有子评论
+      const repliesRes = await commentsCollection
+        .where({ parentId: _.in(topCommentIds) })
+        .field({ parentId: true, likes: true, likedUsers: true, authorId: true, author: true, content: true, createdAt: true })
+        .get();
+      // 按 parentId 分组，排序（热度 likes desc）
+      const repliesMap = {};
+      repliesRes.data.forEach(r => {
+        if (!repliesMap[r.parentId]) repliesMap[r.parentId] = [];
+        repliesMap[r.parentId].push(r);
+      });
+      Object.keys(repliesMap).forEach(pid => {
+        repliesMap[pid].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+        repliesCountMap[pid] = repliesMap[pid].length;
+      });
+      // 给每个顶级评论挂上 replies 数组（截取前3条）+ repliesCount
+      commentsResult.data.forEach(c => {
+        if (!c.parentId && repliesMap[c._id]) {
+          c.replies = repliesMap[c._id].slice(0, 3).map(r => ({
+            id: r._id,
+            authorId: r.authorId,
+            author: r.author,
+            content: r.content,
+            likes: r.likes || 0,
+            liked: openId && (r.likedUsers || []).includes(openId),
+            createdAt: r.createdAt
+          }));
+        }
+      });
+    }
+
     const comments = commentsResult.data.map((c) => {
       c.id = c._id;
+      // likes/likedUsers 默认值兜底
+      c.likes = c.likes || 0;
+      c.likedUsers = c.likedUsers || [];
+      c.liked = openId && c.likedUsers.includes(openId);
+      c.repliesCount = repliesCountMap[c._id] || 0;
       return c;
     });
 
@@ -250,6 +307,7 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10) {
       c.authorAvatar = authorAvatarMap[c.authorId] || '/assets/icons/default-avatar.png';
     });
 
+    console.log('[getCommentsWithAuthors] returning comments count:', comments.length);
     return { comments, hasMore: offset + limit < total, total };
   } catch (e) {
     console.error('查询评论失败:', e);
@@ -261,7 +319,7 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10) {
 async function getMoreComments(data, openId) {
   try {
     const { postId, offset = 0, limit = 10 } = data;
-    const result = await getCommentsWithAuthors(postId, offset, limit);
+    const result = await getCommentsWithAuthors(postId, offset, limit, openId);
 
     return {
       success: true,
@@ -349,11 +407,12 @@ async function deletePost(id, openId) {
 async function updatePost(data, openId) {
   console.log('[updatePost] received data:', JSON.stringify(data), 'openId:', openId);
   try {
-    // 兼容两种调用格式：
+    // 兼容三种调用格式：
     // 1. { id, updates } — 标准格式
     // 2. { postId, data: { hidden/title/... } } — profile.js toggleHidePost 调用
+    // 3. { postId, hidden: true } — 前端直接传顶层字段
     const postId = data.id || data.postId;
-    const updates = data.updates || data.data;
+    const updates = data.updates || data.data || (data.hidden !== undefined || data.title !== undefined ? data : undefined);
 
     if (!postId) {
       return { success: false, message: '缺少帖子ID' };
@@ -417,6 +476,94 @@ async function likePost(id, openId) {
   }
 }
 
+// 点赞/取消点赞评论
+async function toggleCommentLike(data, openId) {
+  try {
+    const { commentId } = data;
+    if (!commentId) return { success: false, message: '缺少评论ID' };
+
+    const comment = await commentsCollection.doc(commentId).get();
+    if (!comment.data) return { success: false, message: '评论不存在' };
+
+    const likedUsers = comment.data.likedUsers || [];
+    const hasLiked = likedUsers.includes(openId);
+
+    if (hasLiked) {
+      const newLikes = Math.max(0, (comment.data.likes || 0) - 1);
+      await commentsCollection.doc(commentId).update({
+        data: {
+          likes: newLikes,
+          likedUsers: _.pull(openId)
+        }
+      });
+      return { success: true, liked: false, likes: newLikes };
+    } else {
+      await commentsCollection.doc(commentId).update({
+        data: {
+          likes: _.inc(1),
+          likedUsers: _.push(openId)
+        }
+      });
+      return { success: true, liked: true, likes: (comment.data.likes || 0) + 1 };
+    }
+  } catch (e) {
+    console.error('[toggleCommentLike] 失败:', e);
+    return { success: false, message: '操作失败' };
+  }
+}
+
+// 获取某条一级评论的所有回复（用于点击"展开"时加载完整列表）
+async function getCommentReplies(data, openId) {
+  try {
+    const { commentId, offset = 0, limit = 10 } = data;
+    if (!commentId) return { success: false, message: '缺少评论ID' };
+
+    // 先查总数
+    const countRes = await commentsCollection
+      .where({ parentId: commentId })
+      .count();
+    const total = countRes.total;
+
+    const repliesRes = await commentsCollection
+      .where({ parentId: commentId })
+      .orderBy('likes', 'desc')
+      .skip(offset)
+      .limit(limit)
+      .get();
+
+    const replies = repliesRes.data.map(r => ({
+      id: r._id,
+      authorId: r.authorId,
+      author: r.author || '',
+      content: r.content,
+      likes: r.likes || 0,
+      liked: openId && (r.likedUsers || []).includes(openId),
+      createdAt: r.createdAt
+    }));
+
+    // 批量获取回复者头像
+    const authorIds = [...new Set(replies.map(r => r.authorId).filter(Boolean))];
+    let authorAvatarMap = {};
+    if (authorIds.length > 0) {
+      const usersRes = await usersCollection
+        .where({ _openid: _.in(authorIds) })
+        .field({ _openid: true, avatar: true })
+        .get();
+      usersRes.data.forEach(u => {
+        if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
+      });
+    }
+    replies.forEach(r => {
+      r.authorAvatar = authorAvatarMap[r.authorId] || '/assets/icons/default-avatar.png';
+    });
+
+    return { success: true, data: { replies, hasMore: offset + replies.length < total, total } };
+  } catch (e) {
+    console.error('[getCommentReplies] 失败:', e);
+    return { success: false, message: '加载失败' };
+  }
+}
+
 // 添加评论
 async function addComment(data, openId) {
   try {
@@ -434,9 +581,13 @@ async function addComment(data, openId) {
         content: data.content,
         author: authorNickname,
         authorId: openId,
-        createdAt: db.serverDate()
+        createdAt: db.serverDate(),
+        likes: 0,
+        likedUsers: [],
+        parentId: data.parentId || null  // 回复某条评论时传入
       }
     });
+    console.log('[addComment] success, commentId:', result._id, 'postId:', data.postId);
 
     return {
       success: true,
@@ -720,7 +871,7 @@ async function getMyComments(openId, params = {}) {
     if (postIds.length > 0) {
       const postsRes = await postsCollection
         .where({ _id: _.in(postIds) })
-        .field({ _id: true, thumbnail: true, title: true, authorId: true })
+        .field({ _id: true, photos: true, title: true, authorId: true })
         .get();
       postsRes.data.forEach(p => { postMap[p._id] = p; });
     }
@@ -738,11 +889,13 @@ async function getMyComments(openId, params = {}) {
 
     comments.forEach(c => {
       const post = postMap[c.postId];
-      c.postThumb = post ? (post.thumbnail || '') : '';
+      c.postThumb = post ? (post.photos?.[0]?.imageUrl || '') : '';
       c.postTitle = post ? (post.title || '') : '';
       const author = authorMap[c.authorId];
       c.authorAvatar = author ? (author.avatar || '') : (c.authorAvatar || '');
       c.author = author ? (author.nickname || '') : (c.author || '');
+      c.likes = c.likes || 0;
+      c.liked = openId && (c.likedUsers || []).includes(openId);
       if (!c.time && c.createdAt) {
         const d = new Date(c.createdAt);
         const M = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -776,7 +929,8 @@ async function getReceivedComments(openId, params = {}) {
       return { success: true, data: { comments: [], hasMore: false, total: 0, newCount: 0 } };
     }
 
-    const query = { postId: _.in(myPostIds) };
+    // 只查询一级评论（parentId 为空/null）
+    const query = { postId: _.in(myPostIds), parentId: _.or(_.eq(null), _.exists(false)) };
     const countResult = await commentsCollection.where(query).count();
     const total = countResult.total;
 
@@ -798,7 +952,7 @@ async function getReceivedComments(openId, params = {}) {
     if (postIds.length > 0) {
       const postsRes = await postsCollection
         .where({ _id: _.in(postIds) })
-        .field({ _id: true, thumbnail: true, title: true })
+        .field({ _id: true, photos: true, title: true })
         .get();
       postsRes.data.forEach(p => { postMap[p._id] = p; });
     }
@@ -820,11 +974,13 @@ async function getReceivedComments(openId, params = {}) {
 
     comments.forEach(c => {
       const post = postMap[c.postId];
-      c.postThumb = post ? (post.thumbnail || '') : '';
+      c.postThumb = post ? (post.photos?.[0]?.imageUrl || '') : '';
       c.postTitle = post ? (post.title || '') : '';
       const author = authorMap[c.authorId];
       c.authorAvatar = author ? (author.avatar || '') : (c.authorAvatar || '');
       c.author = author ? (author.nickname || '') : (c.author || '');
+      c.likes = c.likes || 0;
+      c.liked = openId && (c.likedUsers || []).includes(openId);
       if (!c.time && c.createdAt) {
         const d = new Date(c.createdAt);
         const M = (d.getMonth() + 1).toString().padStart(2, '0');

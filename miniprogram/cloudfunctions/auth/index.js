@@ -180,6 +180,7 @@ async function handleUpdateUserProfile(params, openId) {
     if (region !== undefined) updateData.region = region;
     if (bio !== undefined) updateData.bio = bio;
     if (tags !== undefined) updateData.tags = tags;
+    else updateData.tags = [];
     updateData.updatedAt = db.serverDate();
 
     try {

@@ -45,7 +45,7 @@
 
         <!-- 空状态 -->
         <view class="empty-state" wx:if="{{!sentLoading && sentList.length === 0}}">
-          <image class="empty-icon" src="/assets/icons/empty-comments.png" mode="aspectFit" />
+          <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
           <text class="empty-text">暂无发出评论</text>
         </view>
         <view class="load-more" wx:if="{{sentLoading}}">加载中...</view>
@@ -102,7 +102,7 @@
 
         <!-- 空状态 -->
         <view class="empty-state" wx:if="{{!receivedLoading && receivedList.length === 0}}">
-          <image class="empty-icon" src="/assets/icons/empty-comments.png" mode="aspectFit" />
+          <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
           <text class="empty-text">暂无收到评论</text>
         </view>
         <view class="load-more" wx:if="{{receivedLoading}}">加载中...</view>

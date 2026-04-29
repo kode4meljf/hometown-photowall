@@ -1,5 +1,5 @@
 // pages/comments/comments.js
-const api = require('../../utils/api.js');
+const { postApi } = require('../../utils/api.js');
 
 Page({
   data: {
@@ -55,8 +55,10 @@ Page({
   loadSent() {
     if (this.data.sentLoading || !this.data.sentHasMore) return;
     this.setData({ sentLoading: true });
-    api.getMyComments({ offset: this.data.sentOffset, limit: this.LIMIT })
+    console.log('[comments] loadSent called, offset:', this.data.sentOffset);
+    postApi.getMyComments({ offset: this.data.sentOffset, limit: this.LIMIT })
       .then(res => {
+        console.log('[comments] getMyComments res:', JSON.stringify(res));
         if (res.success) {
           const { comments, hasMore } = res.data;
           const list = this.data.sentOffset === 0
@@ -67,9 +69,14 @@ Page({
             sentOffset: this.data.sentOffset + (comments ? comments.length : 0),
             sentHasMore: hasMore,
           });
+        } else {
+          wx.showToast({ title: res.message || '加载失败', icon: 'none' });
         }
       })
-      .catch(err => console.error('loadSent err', err))
+      .catch(err => {
+        console.error('loadSent err', err);
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      })
       .finally(() => this.setData({ sentLoading: false }));
   },
 
@@ -77,8 +84,10 @@ Page({
   loadReceived() {
     if (this.data.receivedLoading || !this.data.receivedHasMore) return;
     this.setData({ receivedLoading: true });
-    api.getReceivedComments({ offset: this.data.receivedOffset, limit: this.LIMIT })
+    console.log('[comments] loadReceived called, offset:', this.data.receivedOffset);
+    postApi.getReceivedComments({ offset: this.data.receivedOffset, limit: this.LIMIT })
       .then(res => {
+        console.log('[comments] getReceivedComments res:', JSON.stringify(res));
         if (res.success) {
           const { comments, hasMore, total, newCount } = res.data;
           const list = this.data.receivedOffset === 0
@@ -91,9 +100,14 @@ Page({
             receivedTotal: total !== undefined ? total : this.data.receivedTotal,
             receivedNew: newCount !== undefined ? newCount : this.data.receivedNew,
           });
+        } else {
+          wx.showToast({ title: res.message || '加载失败', icon: 'none' });
         }
       })
-      .catch(err => console.error('loadReceived err', err))
+      .catch(err => {
+        console.error('loadReceived err', err);
+        wx.showToast({ title: '网络错误', icon: 'none' });
+      })
       .finally(() => this.setData({ receivedLoading: false }));
   },
 

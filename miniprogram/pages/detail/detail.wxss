@@ -183,9 +183,15 @@
 
 .comment-item {
   display: flex;
-  gap: 16rpx;
+  flex-direction: column;
   padding: 24rpx 0;
   border-bottom: 1rpx solid #f5f5f5;
+}
+
+.comment-item-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: flex-start;
 }
 
 .comment-avatar {
@@ -217,6 +223,143 @@
 .comment-time {
   font-size: 24rpx;
   color: #999;
+}
+
+/* 评论底部行：时间+回复靠左，点赞靠右，内嵌在 comment-content 底部 */
+.comment-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+
+.comment-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.comment-footer .comment-time {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.comment-footer .like-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  flex-shrink: 0;
+}
+
+.comment-footer .like-btn image {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.comment-footer .like-btn text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.reply-text-btn {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.like-btn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+}
+
+.like-btn image {
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.like-btn text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 回复列表：纵向排列，每条 reply-item 是独立列 */
+.reply-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+/* 每条回复：纵向三行，头像+昵称 | 内容（缩进） | footer */
+.reply-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+/* 头像 + 昵称（单行） */
+.reply-row {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.reply-avatar {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.reply-author {
+  font-size: 24rpx;
+  font-weight: 500;
+  color: #1b1b1b;
+  flex-shrink: 0;
+}
+
+/* 回复内容：相对于昵称缩进，与昵称左对齐 */
+.reply-content-wrap {
+  padding-left: 44rpx; /* 36rpx头像 + 8rpx gap */
+}
+
+/* 内容 */
+.reply-text {
+  font-size: 26rpx;
+  color: #333;
+  line-height: 1.5;
+}
+
+/* 子回复底部行：与内容文字左对齐（同样缩进 44rpx） */
+.reply-footer {
+  padding-left: 44rpx;
+  margin-top: 6rpx;
+}
+
+/* 展开更多回复 */
+/* 展开更多回复按钮 */
+.expand-replies {
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #1b1b1b;
+  font-weight: 500;
+}
+
+.expand-replies.loading {
+  color: #aaa;
+}
+
+/* 评论输入弹窗 - 回复提示行 */
+.comment-input-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  flex-wrap: wrap;
+}
+.reply-cancel {
+  font-size: 36rpx;
+  color: #999;
+  line-height: 1;
 }
 
 /* 加载更多动画 */

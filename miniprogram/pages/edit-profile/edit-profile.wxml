@@ -84,22 +84,7 @@
       </view>
     </view>
 
-    <!-- 兴趣标签 -->
-    <view class="form-card">
-      <view class="form-card-header">
-        <text class="form-card-title">兴趣标签</text>
-        <text class="form-card-hint">（可多选）</text>
-      </view>
-      <view class="tags-wrap">
-        <view
-          class="tag {{tags.indexOf(item) !== -1 ? 'active' : ''}}" data-check="{{item}}:={{tags.indexOf(item)}}"
-          wx:for="{{allTags}}"
-          wx:key="this"
-          data-tag="{{item}}"
-          bindtap="onTagToggle"
-        >{{item}}</view>
-      </view>
-    </view>
+
 
   </view>
 

@@ -1,5 +1,5 @@
 <!-- pages/profile/profile.wxml -->
-<view class="profile-page" bindtouchstart="onPageTouch">
+<view class="profile-page">
   <!-- 顶部用户信息 - 白色卡片，内容垂直居中 -->
   <view class="user-header">
     <!-- 头像 -->
@@ -8,8 +8,14 @@
     </view>
     <!-- 昵称 + 副标题 + 地区 -->
     <text class="nickname">{{userInfo.nickname || '未登录'}}</text>
-    <text class="profile-subtitle">记录家乡的每一个瞬间 ✨</text>
     <text class="profile-region" wx:if="{{userInfo.regionDisplay}}">{{userInfo.regionDisplay}}</text>
+    <!-- bio + 标签 -->
+    <view class="profile-bio-tags" wx:if="{{userInfo.bio || (userInfo.tags && userInfo.tags.length > 0)}}">
+      <text class="profile-bio" wx:if="{{userInfo.bio}}">「 {{userInfo.bio}} 」</text>
+      <view class="profile-tags" wx:if="{{userInfo.tags && userInfo.tags.length > 0}}">
+        <text class="profile-tag {{index === 0 ? 'profile-tag-first' : ''}}" wx:for="{{userInfo.tags}}" wx:key="this">{{item}}</text>
+      </view>
+    </view>
 
     <!-- 三栏统计 -->
     <view class="stats-row">
@@ -30,7 +36,7 @@
     <!-- 操作按钮 -->
     <view class="action-btns">
       <view class="action-btn action-btn-primary" bindtap="goToEditProfile">编辑资料</view>
-      <view class="action-btn">设置</view>
+      <view class="action-btn" hover-class="action-btn-press" bindtap="onSettingsTap">设置</view>
     </view>
   </view>
 
@@ -75,6 +81,9 @@
     </view>
   </view>
 
+  <!-- 点击遮罩关闭弹窗，不冒泡不导航 -->
+  <view class="works-dropdown-mask" wx:if="{{worksDropdownOpen}}" catchtap="closeWorksDropdown" catchtouchstart="noop"></view>
+
     <view class="works-dropdown-wrap" wx:if="{{worksDropdownOpen}}" style="top:{{dropdownTop}}px;left:{{dropdownLeft}}px;">
     <view class="dropdown-arrow" style="left:{{triangleLeft}}rpx"></view>
     <view class="works-dropdown">
@@ -112,10 +121,9 @@
           >
             <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
             <view class="photo-overlay">
-              <text class="photo-title">{{item.title}}</text>
               <view class="photo-stats">
-                <text class="{{item.liked ? 'stat-liked' : ''}}">{{item.liked ? '❤️' : '🤍'}} {{item.likes || 0}}</text>
-                <text>👁️ {{item.views || 0}}</text>
+                <image src="/assets/icons/icon-views.svg" class="views-icon" mode="aspectFit" />
+                <text class="views-count">{{item.views || 0}}</text>
               </view>
             </view>
             <!-- 右上角操作按钮（仅作品 tab 显示） -->
@@ -152,10 +160,9 @@
           >
             <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
             <view class="photo-overlay">
-              <text class="photo-title">{{item.title}}</text>
               <view class="photo-stats">
-                <text class="stat-liked">❤️ {{item.likes || 0}}</text>
-                <text>👁️ {{item.views || 0}}</text>
+                <image src="/assets/icons/icon-views.svg" class="views-icon" mode="aspectFit" />
+                <text class="views-count">{{item.views || 0}}</text>
               </view>
             </view>
           </view>

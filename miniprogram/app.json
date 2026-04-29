@@ -4,10 +4,12 @@
     "pages/profile/profile",
     "pages/comments/comments",
     "pages/edit-profile/edit-profile",
+    "pages/settings/settings",
     "pages/detail/detail",
     "pages/upload/upload",
     "pages/admin/admin",
-    "pages/login/login"
+    "pages/login/login",
+    "pages/signin/signin"
   ],
   "window": {
     "backgroundTextStyle": "dark",

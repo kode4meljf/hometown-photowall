@@ -1,0 +1,47 @@
+<!-- miniprogram/pages/signin/signin.wxml -->
+<view class="signin-page">
+
+  <!-- 连续签到大字 -->
+  <view class="streak-display">
+    <view class="streak-number">{{streakDays}}</view>
+    <view class="streak-unit">连续签到</view>
+    <view class="streak-hint">每日签到，记录坚持的力量</view>
+  </view>
+
+  <view class="divider"></view>
+
+  <!-- 今日签到 -->
+  <view class="today-section">
+    <view class="section-label">TODAY</view>
+    <view class="today-row">
+      <view class="today-date-wrap">
+        <view class="today-date-main">{{todayText}}</view>
+        <view class="today-weekday">{{todayWeekday}}</view>
+      </view>
+      <view class="today-status" wx:if="{{signedToday}}">今日已签到</view>
+    </view>
+    <button class="checkin-btn {{signedToday ? 'signed' : ''}}" bindtap="onCheckinTap" disabled="{{signedToday}}">
+      {{signedToday ? '已签到' : '立即签到'}}
+    </button>
+  </view>
+
+  <view class="divider"></view>
+
+  <!-- 本周 -->
+  <view class="week-section">
+    <view class="section-label">THIS WEEK</view>
+    <view class="week-grid">
+      <view class="week-item {{weekDayStates[item.day] === 'checked' ? 'checked' : ''}} {{item.isToday ? 'today' : ''}}"
+            wx:for="{{weekDays}}" wx:key="day">
+        <view class="week-dot">{{weekDayStates[item.day] === 'checked' ? '✓' : item.day}}</view>
+        <view class="week-day-label">{{item.label}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="footer">
+    <view class="footer-note">坚持签到，让记忆更有重量</view>
+    <view class="footer-note">邀请好友可获得补签卡</view>
+  </view>
+
+</view>

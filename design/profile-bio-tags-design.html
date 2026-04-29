@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>个人中心 bio + 标签 设计稿</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #f8f8f8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', PingFang SC, sans-serif;
+  padding: 24rpx;
+  padding-top: env(safe-area-inset-top);
+}
+button:active { opacity: 0.7; }
+
+/* ── 方案A：bio 替换副标题，标签放在操作按钮下方 ── */
+.section-label { font-size: 13px; color: #bbb; font-weight: 500; margin-bottom: 16px; margin-top: 8px; letter-spacing: 1px; }
+
+/* 方案标题 */
+.plan-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1b1b1b;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+.plan-desc {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+/* 用户卡片 */
+.user-card {
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 32px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+.plan-gap { margin-top: 16px; }
+
+/* 头像 */
+.avatar {
+  width: 100px; height: 100px;
+  border-radius: 50%;
+  background: #e0e0e0;
+  margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; color: #aaa;
+}
+/* 昵称 */
+.nickname { font-size: 30px; font-weight: 600; color: #1b1b1b; text-align: center; margin-bottom: 6px; }
+/* 副标题 / bio */
+.profile-subtitle { font-size: 20px; color: #aaa; text-align: center; margin-bottom: 6px; min-height: 20px; }
+/* 地区 */
+.profile-region { font-size: 20px; color: #aaa; text-align: center; margin-bottom: 20px; }
+
+/* bio 样式（方案用） */
+.bio-text {
+  font-size: 20px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 6px;
+  line-height: 1.5;
+  padding: 0 8px;
+}
+
+/* 标签区域 */
+.tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 8px;
+  margin-top: 2px;
+}
+.tag-pill {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+}
+.tag-pill.light {
+  background: #f0f0f0;
+  color: #555;
+}
+.tag-pill.dark {
+  background: #1b1b1b;
+  color: #fff;
+}
+
+/* 三栏统计 */
+.stats-row {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+.stat-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.stat-num { font-size: 28px; font-weight: 700; color: #1b1b1b; }
+.stat-label { font-size: 18px; color: #999; }
+
+/* 操作按钮 */
+.action-btns { display: flex; gap: 12px; width: 100%; justify-content: center; }
+.action-btn {
+  flex: 1; max-width: 280px;
+  padding: 14px 0;
+  border-radius: 32px;
+  font-size: 24px; font-weight: 500;
+  text-align: center;
+  border: 1px solid #e0e0e0;
+  color: #1b1b1b;
+  background: #fff;
+}
+.action-btn.primary {
+  background: #1b1b1b; color: #fff; border-color: transparent;
+}
+
+/* 功能区 */
+.func-section {
+  background: #fff;
+  border-radius: 0 0 16px 16px;
+  padding: 56px 24px 36px;
+  margin-top: 2px;
+}
+.func-row { display: flex; justify-content: space-around; }
+.func-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.func-icon { width: 36px; height: 36px; background: #f0f0f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.func-icon-inner { width: 22px; height: 22px; background: #bbb; border-radius: 4px; }
+.func-text { font-size: 21px; font-weight: 600; color: #1b1b1b; margin-top: 4px; }
+
+/* Divider */
+.divider { height: 2px; background: #f0f0f0; margin: 24px 0; }
+
+/* 方案B：bio + 标签 整合在一个信息区块 */
+.info-block {
+  background: linear-gradient(135deg, #f9f9f9, #fff);
+  border: 1px solid #f0f0f0;
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin: 0 4px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.info-bio {
+  font-size: 19px;
+  color: #444;
+  text-align: center;
+  line-height: 1.55;
+}
+.info-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+
+/* 方案C：标签横排紧凑，嵌在昵称行下方 */
+.compact-bio-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 0 16px;
+}
+.bio-line {
+  font-size: 19px;
+  color: #666;
+  text-align: center;
+}
+.tags-mini { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.tag-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #1b1b1b;
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+  margin-top: -2px;
+}
+.tag-mini-pill {
+  font-size: 17px;
+  color: #444;
+  background: #f0f0f0;
+  padding: 4px 12px;
+  border-radius: 14px;
+}
+.tag-mini-pill.active {
+  background: #1b1b1b;
+  color: #fff;
+}
+
+/* 手机框 */
+.phone-frame {
+  width: 375px;
+  border: 6px solid #1b1b1b;
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
+  margin: 0 auto;
+  background: #f8f8f8;
+}
+.phone-notch {
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 28px;
+  background: #1b1b1b;
+  border-radius: 0 0 18px 18px;
+  z-index: 10;
+}
+.page-title {
+  text-align: center;
+  font-size: 13px;
+  color: #888;
+  margin: 24px 0 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.compare-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.compare-col { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.compare-label {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+
+<div class="page-title">三个方案对比 — 个人中心 bio + 标签展示</div>
+
+<div class="compare-table">
+  <!-- 方案A -->
+  <div class="compare-col">
+    <div class="compare-label">方案A</div>
+    <div class="phone-frame" style="border-radius:0;border:2px solid #e0e0e0;overflow:visible;">
+      <div style="height:32px;background:#fff;"></div>
+      <div style="background:#f8f8f8;padding-bottom:16px;">
+        <!-- 用户卡片 -->
+        <div class="user-card" style="border-radius:16px 16px 0 0;padding:24px 20px 20px;">
+          <div class="avatar">👤</div>
+          <div class="nickname">李明</div>
+          <!-- bio 替换副标题 -->
+          <div class="bio-text" style="margin-bottom:4px;">记录家乡的每一个瞬间 ✨</div>
+          <div class="profile-region" style="margin-bottom:14px;">广东·深圳</div>
+          <!-- 标签 -->
+          <div class="tags-wrap" style="margin-bottom:16px;">
+            <span class="tag-pill dark">摄影</span>
+            <span class="tag-pill light">美食</span>
+            <span class="tag-pill light">旅行</span>
+          </div>
+          <!-- 统计 -->
+          <div class="stats-row">
+            <div class="stat-item"><span class="stat-num">42</span><span class="stat-label">作品</span></div>
+            <div class="stat-item"><span class="stat-num">128</span><span class="stat-label">赞过</span></div>
+            <div class="stat-item"><span class="stat-num">860</span><span class="stat-label">积分</span></div>
+          </div>
+          <!-- 按钮 -->
+          <div class="action-btns">
+            <div class="action-btn primary">编辑资料</div>
+            <div class="action-btn">设置</div>
+          </div>
+        </div>
+        <!-- 功能区 -->
+        <div class="func-section" style="border-radius:0 0 12px 12px;padding:48px 20px 28px;">
+          <div class="section-label">常用功能</div>
+          <div class="func-row">
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">我的评论</span></div>
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">每日签到</span></div>
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">数据统计</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="plan-title" style="margin-top:12px;">方案A：bio 替换副标题</div>
+    <div class="plan-desc">用用户填写的 bio（个人简介）替换掉原来写死的副标题「记录家乡...✨」，标签以圆角胶囊形式放在地区下方。结构最自然，符合用户预期。</div>
+  </div>
+
+  <!-- 方案B -->
+  <div class="compare-col">
+    <div class="compare-label">方案B</div>
+    <div class="phone-frame" style="border-radius:0;border:2px solid #e0e0e0;overflow:visible;">
+      <div style="height:32px;background:#fff;"></div>
+      <div style="background:#f8f8f8;padding-bottom:16px;">
+        <div class="user-card" style="border-radius:16px 16px 0 0;padding:24px 20px 20px;">
+          <div class="avatar">👤</div>
+          <div class="nickname">李明</div>
+          <div class="profile-subtitle" style="margin-bottom:4px;">记录家乡的每一个瞬间 ✨</div>
+          <div class="profile-region" style="margin-bottom:14px;">广东·深圳</div>
+          <!-- bio+标签 整合区块 -->
+          <div class="info-block" style="margin-bottom:16px;">
+            <div class="info-bio">热爱摄影，喜欢记录生活的点点滴滴 📷</div>
+            <div class="info-tags">
+              <span class="tag-pill dark" style="font-size:16px;padding:5px 14px;">摄影</span>
+              <span class="tag-pill light" style="font-size:16px;padding:5px 14px;">美食</span>
+              <span class="tag-pill light" style="font-size:16px;padding:5px 14px;">旅行</span>
+            </div>
+          </div>
+          <!-- 统计 -->
+          <div class="stats-row">
+            <div class="stat-item"><span class="stat-num">42</span><span class="stat-label">作品</span></div>
+            <div class="stat-item"><span class="stat-num">128</span><span class="stat-label">赞过</span></div>
+            <div class="stat-item"><span class="stat-num">860</span><span class="stat-label">积分</span></div>
+          </div>
+          <!-- 按钮 -->
+          <div class="action-btns">
+            <div class="action-btn primary">编辑资料</div>
+            <div class="action-btn">设置</div>
+          </div>
+        </div>
+        <div class="func-section" style="border-radius:0 0 12px 12px;padding:48px 20px 28px;">
+          <div class="section-label">常用功能</div>
+          <div class="func-row">
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">我的评论</span></div>
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">每日签到</span></div>
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">数据统计</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="plan-title" style="margin-top:12px;">方案B：bio+标签整合区块</div>
+    <div class="plan-desc">bio + 标签放入独立的信息区块，有轻微背景色区分。视觉上更聚拢，适合 bio 内容较长的用户。</div>
+  </div>
+
+  <!-- 方案C -->
+  <div class="compare-col">
+    <div class="compare-label">方案C</div>
+    <div class="phone-frame" style="border-radius:0;border:2px solid #e0e0e0;overflow:visible;">
+      <div style="height:32px;background:#fff;"></div>
+      <div style="background:#f8f8f8;padding-bottom:16px;">
+        <div class="user-card" style="border-radius:16px 16px 0 0;padding:24px 20px 20px;">
+          <div class="avatar">👤</div>
+          <div class="nickname">李明</div>
+          <div class="profile-subtitle" style="margin-bottom:4px;">广东·深圳</div>
+          <!-- bio+标签 紧凑横排 -->
+          <div class="compact-bio-tags" style="margin-bottom:14px;">
+            <div class="bio-line" style="font-size:18px;color:#888;">「 热爱摄影，记录生活点滴 📷 」</div>
+            <div class="tags-mini">
+              <span class="tag-mini-pill active">摄影</span>
+              <span class="tag-mini-pill">美食</span>
+              <span class="tag-mini-pill">旅行</span>
+            </div>
+          </div>
+          <!-- 统计 -->
+          <div class="stats-row">
+            <div class="stat-item"><span class="stat-num">42</span><span class="stat-label">作品</span></div>
+            <div class="stat-item"><span class="stat-num">128</span><span class="stat-label">赞过</span></div>
+            <div class="stat-item"><span class="stat-num">860</span><span class="stat-label">积分</span></div>
+          </div>
+          <!-- 按钮 -->
+          <div class="action-btns">
+            <div class="action-btn primary">编辑资料</div>
+            <div class="action-btn">设置</div>
+          </div>
+        </div>
+        <div class="func-section" style="border-radius:0 0 12px 12px;padding:48px 20px 28px;">
+          <div class="section-label">常用功能</div>
+          <div class="func-row">
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">我的评论</span></div>
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">每日签到</span></div>
+            <div class="func-item"><div class="func-icon"><div class="func-icon-inner"></div></div><span class="func-text">数据统计</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="plan-title" style="margin-top:12px;">方案C：极简紧凑</div>
+    <div class="plan-desc">地区作为一行，bio 以引用格式「」居中显示，标签用小号圆角胶囊横排。视觉最轻盈，不抢占注意力。</div>
+  </div>
+</div>
+
+<!-- 底部说明 -->
+<div style="max-width:900px;margin:32px auto;background:#fff;border-radius:16px;padding:24px 28px;border:1px solid #f0f0f0;">
+  <div style="font-size:14px;font-weight:700;color:#1b1b1b;margin-bottom:12px;">💡 实现说明</div>
+  <div style="font-size:13px;color:#666;line-height:2;">
+    <strong>bio 字段：</strong>userInfo.bio，直接替换原来写死的副标题文案「记录家乡的每一个瞬间 ✨」，为空时不显示。<br>
+    <strong>tags 字段：</strong>userInfo.tags（数组），渲染为圆角胶囊标签，选中态为深色背景白色文字，与编辑资料页保持一致。<br>
+    <strong>代码改动点：</strong>profile.wxml 在 user-header 区域追加 tags 渲染 + bio 条件展示；profile.wxss 补充 tags-wrap/Tag-pill 样式。
+  </div>
+</div>
+
+</body>
+</html>

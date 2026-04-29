@@ -1,0 +1,74 @@
+<view class="settings-page">
+
+  <!-- 页面内容 -->
+  <view class="page-body">
+
+    <!-- 账号安全 -->
+    <view class="section-title">账号安全</view>
+    <view class="settings-card">
+      <view class="item" bindtap="onItemTap" data-action="security">
+        <view class="item-icon">
+          <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ii8+PC9zdmc+" mode="aspectFit" />
+        </view>
+        <text class="item-text">账号安全</text>
+        <text class="item-value">微信已绑定</text>
+        <text class="item-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 关于 -->
+    <view class="section-title">关于</view>
+    <view class="settings-card">
+      <view class="item" bindtap="onItemTap" data-action="about">
+        <view class="item-icon">
+          <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjxsaW5lIHgxPSIxMiIgeTE9IjgiIHgyPSIxMiIgeTI9IjEyIi8+PGxpbmUgeDE9IjEyIiB5MT0iMTYiIHgyPSIxMi4wMSIgeTI9IjE2Ii8+PC9zdmc+" mode="aspectFit" />
+        </view>
+        <text class="item-text">关于故乡照片墙</text>
+        <text class="item-arrow">›</text>
+      </view>
+      <view class="item" bindtap="onItemTap" data-action="agreement">
+        <view class="item-icon">
+          <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMTQgMkg2YTIgMiAwIDAgMC0yIDJ2MTZhMiAyIDAgMCAwIDIgMmgxMmEyIDIgMCAwIDAgMi0yVjh6Ii8+PHBvbHlsaW5lIHBvaW50cz0iMTQgMiAxNCA4IDIwIDgiLz48bGluZSB4MT0iMTYiIHkxPSIxMyIgeDI9IjgiIHkyPSIxMyIvPjxsaW5lIHgxPSIxNiIgeTE9IjE3IiB4Mj0iOCIgeTI9IjE3Ii8+PC9zdmc+" mode="aspectFit" />
+        </view>
+        <text class="item-text">用户协议</text>
+        <text class="item-arrow">›</text>
+      </view>
+      <view class="item" bindtap="onItemTap" data-action="privacy">
+        <view class="item-icon">
+          <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSIzIiB5PSIxMSIgd2lkdGg9IjE4IiBoZWlnaHQ9IjExIiByeD0iMiIgcnk9IjIiLz48cGF0aCBkPSJNNyAxMVY3YTUgNSAwIDAgMSAxMCAwdjQiLz48L3N2Zz4=" mode="aspectFit" />
+        </view>
+        <text class="item-text">隐私政策</text>
+        <text class="item-arrow">›</text>
+      </view>
+      <view class="item" bindtap="onItemTap" data-action="feedback">
+        <view class="item-icon">
+          <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMTVhMiAyIDAgMCAxLTIgMkg3bC00IDRWNWEyIDIgMCAwIDEgMi0yaDE0YTIgMiAwIDAgMSAyIDJ6Ii8+PC9zdmc+" mode="aspectFit" />
+        </view>
+        <text class="item-text">意见反馈</text>
+        <text class="item-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 存储 -->
+    <view class="section-title">存储</view>
+    <view class="settings-card">
+      <view class="item" bindtap="onItemTap" data-action="clear">
+        <view class="item-icon">
+          <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cG9seWxpbmUgcG9pbnRzPSIzIDYgNSA2IDIxIDYiLz48cGF0aCBkPSJNMTkgNnYxNGEyIDIgMCAwIDEtMiAySDdhMiAyIDAgMCAxLTItMlY2bTMgMFY0YTEgMSAwIDAgMSAxLTFoNGExIDEgMCAwIDEgMSAxdjIiLz48L3N2Zz4=" mode="aspectFit" />
+        </view>
+        <text class="item-text">清理缓存</text>
+        <text class="item-value">{{cacheSize}}</text>
+        <text class="item-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 退出登录 -->
+    <button class="logout-btn" bindtap="onLogout">退出登录</button>
+
+    <!-- 版本信息 -->
+    <view class="version-bar">
+      <text class="version-text">故乡照片墙 v1.0.0</text>
+    </view>
+
+  </view>
+</view>

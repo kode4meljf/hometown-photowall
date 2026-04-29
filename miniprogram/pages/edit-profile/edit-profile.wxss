@@ -335,9 +335,3 @@
   background: #999;
   pointer-events: none;
 }
-
-/* === 调试：强制覆盖选中态边框 === */
-.tag[class*="active"] {
-  border-style: solid !important;
-  background: #f5f5f5 !important;
-}

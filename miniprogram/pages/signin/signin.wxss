@@ -1,0 +1,175 @@
+/* pages/signin/signin.wxss */
+
+.signin-page {
+  min-height: 100vh;
+  background: #fff;
+  padding: 0 24rpx;
+}
+
+/* 连续签到大字 */
+.streak-display {
+  text-align: center;
+  padding: 96rpx 0 80rpx;
+}
+
+.streak-number {
+  font-size: 192rpx;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -8rpx;
+  color: #1a1a1a;
+}
+
+.streak-unit {
+  font-size: 32rpx;
+  font-weight: 400;
+  color: #b0b0b0;
+  margin-top: 16rpx;
+  letter-spacing: 4rpx;
+}
+
+.streak-hint {
+  font-size: 24rpx;
+  color: #b0b0b0;
+  margin-top: 32rpx;
+  letter-spacing: 2rpx;
+}
+
+.divider {
+  height: 2rpx;
+  background: #f0f0f0;
+}
+
+/* 今日签到 */
+.today-section {
+  padding: 64rpx 0;
+}
+
+.section-label {
+  font-size: 22rpx;
+  letter-spacing: 6rpx;
+  color: #b0b0b0;
+  text-transform: uppercase;
+  margin-bottom: 32rpx;
+}
+
+.today-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 20rpx;
+}
+
+.today-date-main {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.today-weekday {
+  font-size: 26rpx;
+  color: #b0b0b0;
+  margin-top: 8rpx;
+}
+
+.today-status {
+  font-size: 22rpx;
+  color: #b0b0b0;
+}
+
+.checkin-btn {
+  width: 100%;
+  height: 104rpx;
+  background: #1a1a1a;
+  border: none;
+  border-radius: 8rpx;
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 500;
+  letter-spacing: 4rpx;
+  margin-top: 40rpx;
+  line-height: 104rpx;
+  text-align: center;
+}
+
+.checkin-btn::after { border: none; }
+
+.checkin-btn:active {
+  background: #555;
+}
+
+.checkin-btn.signed {
+  background: #fafafa;
+  color: #b0b0b0;
+  cursor: default;
+  border: 2rpx solid #f0f0f0;
+}
+
+/* 本周 */
+.week-section {
+  padding: 64rpx 0;
+}
+
+.week-grid {
+  display: flex;
+  gap: 16rpx;
+}
+
+.week-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.week-dot {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #b0b0b0;
+  border: 2rpx solid #f0f0f0;
+}
+
+.week-item.checked .week-dot {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.week-item.today .week-dot {
+  border: 4rpx solid #1a1a1a;
+  background: #fff;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.week-item.checked.today .week-dot {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.week-day-label {
+  font-size: 20rpx;
+  color: #b0b0b0;
+  letter-spacing: 2rpx;
+}
+
+/* 底部 */
+.footer {
+  padding: 48rpx 0;
+  text-align: center;
+}
+
+.footer-note {
+  font-size: 20rpx;
+  color: #b0b0b0;
+  letter-spacing: 2rpx;
+  line-height: 2;
+}

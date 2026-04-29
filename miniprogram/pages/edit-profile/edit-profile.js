@@ -16,32 +16,10 @@ Page({
     avatarVersion: '',
     bioLength: 0,
     saving: false,
-    tags: [],  // 兴趣标签（顶层数组）
-
-    // 可选标签
-    allTags: [
-      '老根茶', '石板街', '后山',
-      '人文', '风景', '美食',
-      '童年', '建筑', '民俗',
-      '纪实', '黑白', '夜景',
-      '春天', '夏天', '秋天', '冬天'
-    ]
   },
 
 
-  // DEBUG: expose computed tag states to data
-  _updateTagStates() {
-    const states = {};
-    (this.data.allTags || []).forEach(tag => {
-      states[tag] = this.data.tags.indexOf(tag) !== -1;
-    });
-    console.log('[DEBUG] tagStates:', JSON.stringify(states));
-    console.log('[DEBUG] data.tags:', JSON.stringify(this.data.tags));
-  },
   onLoad() {
-    // Expose tagStates for debug
-    this._updateTagStates();
-    console.log('[DEBUG] onLoad data.tags:', this.data.tags);
     wx.setNavigationBarTitle({ title: '编辑资料' });
     this.loadUserInfo();
   },
@@ -64,6 +42,7 @@ Page({
       wx.hideLoading();
       if (res.success && res.data) {
         const u = res.data;
+        console.log('[DEBUG] loadUserInfo u.tags:', JSON.stringify(u.tags));
         this.setData({
           formData: {
             avatar: u.avatar || '',
@@ -73,7 +52,6 @@ Page({
             regionDisplay: this._formatRegionForEdit(u.region || []),
             bio: u.bio || ''
           },
-          tags: [],
           bioLength: (u.bio || '').length
         });
       }
@@ -158,28 +136,12 @@ Page({
     });
   },
 
-  // 标签切换
-  onTagToggle(e) {
-    const tag = e.currentTarget.dataset.tag;
-    console.log('[DEBUG] onTagToggle data.tags before:', this.data.tags);
-    const tags = [...(this.data.tags || [])];
-    const idx = tags.indexOf(tag);
-    if (idx === -1) {
-      tags.push(tag);
-    } else {
-      tags.splice(idx, 1);
-    }
-    this.setData({ tags });
-    console.log('[DEBUG] onTagToggle data.tags after:', this.data.tags);
-  },
-
   // 保存
   async onSave() {
     if (this.data.saving) return;
     this.setData({ saving: true });
 
     const { avatar, nickname, gender, region, bio } = this.data.formData;
-    const tags = this.data.tags;
 
     // 简单校验
     if (!nickname || !nickname.trim()) {
@@ -191,14 +153,16 @@ Page({
     wx.showLoading({ title: '保存中...', mask: true });
     try {
       // 调用更新接口（avatar 单独处理）
-      const res = await userApi.updateUserProfile({
+      const payload = {
         avatar,
         nickname: nickname.trim(),
         gender,
         region,
-        bio,
-        tags
-      });
+        bio
+      };
+      console.log('[DEBUG] onSave payload:', JSON.stringify(payload));
+      const res = await userApi.updateUserProfile(payload);
+      console.log('[DEBUG] onSave result:', JSON.stringify(res));
 
       wx.hideLoading();
       this.setData({ saving: false });

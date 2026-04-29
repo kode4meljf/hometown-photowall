@@ -192,8 +192,18 @@ const postApi = {
   },
 
   // 添加评论
-  addComment(postId, content) {
-    return callFunction('posts', 'comment', { postId, content });
+  addComment(postId, content, parentId = null) {
+    return callFunction('posts', 'comment', { postId, content, parentId });
+  },
+
+  // 点赞/取消点赞评论
+  toggleCommentLike(commentId) {
+    return callFunction('posts', 'toggleCommentLike', { commentId });
+  },
+
+  // 获取某条评论的完整回复列表（点击"展开"时用）
+  getCommentReplies(commentId, offset = 0, limit = 10) {
+    return callFunction('posts', 'getCommentReplies', { commentId, offset, limit });
   },
 
   // 获取更多评论（分页）
