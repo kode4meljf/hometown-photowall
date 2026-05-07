@@ -13,7 +13,6 @@ const usersCollection = db.collection('users');
 // 微信小程序 <image> 组件原生支持 cloud:// 协议，框架自动管理签名刷新
 // 仅前端 wx.downloadFile 等场景需要 HTTPS，由前端自行转换（见 detail.js）
 
-// 统一 posts 集合字段 → 前端兼容字段（适配 photos 的字段名）
 function normalizePost(post) {
   // posts 集合：photos = [{imageUrl, width, height, order}]
   // 取第一张图作为列表展示图
@@ -127,6 +126,7 @@ async function getPosts(params, openId) {
       liked: openId && (post.likedUsers || []).includes(openId)
     }));
 
+
     // 批量获取作者头像+昵称
     const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
     if (authorIds.length > 0) {
@@ -202,8 +202,15 @@ async function getPostDetail(id, openId) {
     if (authorAvatarMap[post.authorId]) post.authorAvatar = authorAvatarMap[post.authorId];
     if (authorNicknameMap[post.authorId]) post.author = authorNicknameMap[post.authorId];
 
+
     // 评论列表
     const commentsData = await getCommentsWithAuthors(id, 0, 20, openId);
+    // 总评论数（含楼中楼回复）
+    let allCommentsCount = 0;
+    try {
+      const cntRes = await commentsCollection.where({ postId: id }).count();
+      allCommentsCount = cntRes.total || 0;
+    } catch (e) {}
 
     return {
       success: true,
@@ -211,7 +218,7 @@ async function getPostDetail(id, openId) {
         ...post,
         shares: post.shares || 0,
         comments: commentsData.comments,
-        commentsCount: commentsData.total,
+        commentsCount: allCommentsCount,
         hasMore: commentsData.hasMore
       }
     };
@@ -244,12 +251,13 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
       .map(c => c._id);
     let repliesCountMap = {};
     if (topCommentIds.length > 0) {
-      // 批量查询所有子评论
+      // 查顶级评论的直接子评论（B层，全部平级混排）
       const repliesRes = await commentsCollection
         .where({ parentId: _.in(topCommentIds) })
-        .field({ parentId: true, likes: true, likedUsers: true, authorId: true, author: true, content: true, createdAt: true })
+        .field({ parentId: true, likes: true, likedUsers: true, authorId: true, author: true, authorAvatar: true, content: true, createdAt: true, replyTo: true, replyToAuthor: true })
         .get();
-      // 按 parentId 分组，排序（热度 likes desc）
+
+      // 按parentId分组，排序（热度likes desc）
       const repliesMap = {};
       repliesRes.data.forEach(r => {
         if (!repliesMap[r.parentId]) repliesMap[r.parentId] = [];
@@ -259,18 +267,13 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
         repliesMap[pid].sort((a, b) => (b.likes || 0) - (a.likes || 0));
         repliesCountMap[pid] = repliesMap[pid].length;
       });
-      // 给每个顶级评论挂上 replies 数组（截取前3条）+ repliesCount
+
+      // 给每个顶级评论挂上replies数组（首批前3条）+ repliesCount
       commentsResult.data.forEach(c => {
-        if (!c.parentId && repliesMap[c._id]) {
-          c.replies = repliesMap[c._id].slice(0, 3).map(r => ({
-            id: r._id,
-            authorId: r.authorId,
-            author: r.author,
-            content: r.content,
-            likes: r.likes || 0,
-            liked: openId && (r.likedUsers || []).includes(openId),
-            createdAt: r.createdAt
-          }));
+        if (!c.parentId) {
+          c.replies = [];
+          c.repliesCount = repliesCountMap[c._id] || 0;
+          c._hasReplies = (repliesCountMap[c._id] || 0) > 0;
         }
       });
     }
@@ -370,6 +373,7 @@ async function createPost(data, openId) {
       likes: 0,
       views: 0,
       likedUsers: [],
+      hidden: false,  // 默认可见
       createdAt: db.serverDate()
     };
 
@@ -538,7 +542,9 @@ async function getCommentReplies(data, openId) {
       content: r.content,
       likes: r.likes || 0,
       liked: openId && (r.likedUsers || []).includes(openId),
-      createdAt: r.createdAt
+      createdAt: r.createdAt,
+      replyTo: r.replyTo || null,
+      replyToAuthor: r.replyToAuthor || ''
     }));
 
     // 批量获取回复者头像
@@ -575,17 +581,48 @@ async function addComment(data, openId) {
       }
     } catch (e) {}
 
-    const result = await commentsCollection.add({
-      data: {
-        postId: data.postId,
-        content: data.content,
-        author: authorNickname,
-        authorId: openId,
-        createdAt: db.serverDate(),
-        likes: 0,
-        likedUsers: [],
-        parentId: data.parentId || null  // 回复某条评论时传入
+    // 构建评论数据
+    const commentData = {
+      postId: data.postId,
+      content: data.content,
+      author: authorNickname,
+      authorId: openId,
+      createdAt: db.serverDate(),
+      likes: 0,
+      likedUsers: [],
+      parentId: data.parentId || null,  // 回复某条评论时传入
+      replyTo: data.replyTo || null,      // 被回复的评论ID
+      replyToAuthor: ''                   // 默认空；根据被回复评论类型决定是否设置
+    };
+
+    console.log('[addComment] ===== START =====');
+    console.log('[addComment] data.replyTo:', data.replyTo, 'data.replyToAuthor:', data.replyToAuthor);
+
+    // 如果有 replyTo（回复某条评论），查出被回复评论，判断是否需要设置 replyToAuthor
+    if (data.replyTo) {
+      try {
+        const parentCommentRes = await commentsCollection.doc(data.replyTo).get();
+        console.log('[addComment] parentComment found:', JSON.stringify(parentCommentRes.data));
+        if (parentCommentRes.data) {
+          // 只有被回复的评论本身是子评论时（parentComment.data.replyTo 有值）才有 › 引用
+          console.log('[addComment] parentComment.data.replyTo:', parentCommentRes.data.replyTo);
+          if (parentCommentRes.data.replyTo) {
+            commentData.replyToAuthor = parentCommentRes.data.author;
+            console.log('[addComment] SET replyToAuthor =', parentCommentRes.data.author);
+          } else {
+            console.log('[addComment] parent is top-level comment, keep replyToAuthor = empty');
+          }
+        }
+      } catch (e) {
+        console.warn('[addComment] 查被回复评论失败:', e);
       }
+    } else {
+      console.log('[addComment] no data.replyTo, keep replyToAuthor = empty');
+    }
+    console.log('[addComment] FINAL commentData.replyToAuthor:', commentData.replyToAuthor);
+
+    const result = await commentsCollection.add({
+      data: commentData
     });
     console.log('[addComment] success, commentId:', result._id, 'postId:', data.postId);
 
@@ -642,6 +679,7 @@ async function getTimeline(openId) {
         }
       });
     }
+
 
     const timeline = {};
     posts.forEach(post => {
@@ -730,6 +768,7 @@ async function getMyWorks(openId, params = {}) {
       liked: (post.likedUsers || []).includes(openId)
     }));
 
+
     return { success: true, data: { posts, hasMore: page * pageSize < total, total } };
   } catch (e) {
     console.error('获取我的作品失败:', e);
@@ -757,6 +796,7 @@ async function getMyLiked(openId, params = {}) {
       ...normalizePost(post),
       liked: true
     }));
+
 
     // 批量获取作者头像+昵称
     const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
@@ -909,6 +949,7 @@ async function getMyComments(openId, params = {}) {
 
     return { success: true, data: { comments, hasMore: offset + limit < total, total } };
   } catch (e) {
+
     console.error('[getMyComments] failed:', e);
     return { success: false, data: { comments: [], hasMore: false, total: 0 } };
   }

@@ -4,11 +4,18 @@ const app = getApp();
 Page({
   data: {
     cacheSize: '12.4 MB',
+    isLoggedIn: false,
   },
 
   onLoad() {
     wx.setNavigationBarTitle({ title: '设置' });
     this.calculateCacheSize();
+    this.checkLogin();
+  },
+
+  checkLogin() {
+    const userInfo = app.globalData.userInfo;
+    this.setData({ isLoggedIn: !!userInfo });
   },
 
   onShow() {
@@ -133,6 +140,7 @@ Page({
         if (res.confirm) {
           // 清除登录态
           app.globalData.userInfo = null;
+          app.globalData.isLoggedIn = false;
           wx.removeStorageSync('token');
           wx.removeStorageSync('userInfo');
           wx.removeStorageSync('openid');

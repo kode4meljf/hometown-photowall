@@ -57,18 +57,18 @@
     <view class="divider"></view>
 
     <view class="comment-count">
-      <text>共 {{post.commentsCount || post.comments.length}} 条评论</text>
+      <text>共 {{commentsCountText}} 条评论</text>
     </view>
 
     <!-- 评论列表 -->
     <view class="comment-list">
-      <view class="comment-item" wx:for="{{post.comments}}" wx:key="id">
-        <view class="comment-item-row">
+      <view class="comment-item {{highlightCommentId === item.id ? 'highlight' : ''}}" wx:for="{{post.comments}}" wx:key="id" id="comment-{{item.id}}">
+        <view class="comment-item-row" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">
           <image class="comment-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
           <view class="comment-content">
             <text class="comment-author">{{item.author}}</text>
             <!-- 顶级评论正文 -->
-            <text class="comment-text">{{item.content}}</text>
+            <text class="comment-text" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">{{item.content}}</text>
 
             <!-- 评论底部行：时间 + 回复（靠左）+ 点赞（靠右） -->
             <view class="comment-footer">
@@ -85,21 +85,23 @@
             <!-- 回复列表（默认显示前3条） -->
             <view class="reply-list" wx:if="{{item.replies && item.replies.length > 0}}">
               <!-- 每条回复：纵向排列，头像+昵称 | 内容 | footer -->
-              <view class="reply-item" wx:for="{{item.replies}}" wx:for-item="reply" wx:key="id">
+              <view class="reply-item" wx:for="{{item.replies}}" wx:for-item="reply" wx:key="id" catchtap="noop">
                 <!-- 头像 + 昵称（单行） -->
                 <view class="reply-row">
                   <image class="reply-avatar" src="{{reply.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
                   <text class="reply-author">{{reply.author}}</text>
+                  <text wx:if="{{reply.replyToAuthor}}" class="reply-arrow">›</text>
+                  <text wx:if="{{reply.replyToAuthor}}" class="reply-target">{{reply.replyToAuthor}}</text>
                 </view>
                 <!-- 回复内容（缩进对齐昵称） -->
-                <view class="reply-content-wrap">
+                <view class="reply-content-wrap" catchtap="handleReplyTap" data-reply-id="{{reply.id}}" data-id="{{item.id}}" data-author="{{reply.author}}">
                   <text class="reply-text">{{reply.content}}</text>
                 </view>
                 <!-- 底部行：时间靠左，点赞靠右 -->
                 <view class="comment-footer reply-footer">
                   <view class="comment-footer-left">
                     <text class="comment-time">{{reply.time}}</text>
-                    <text class="reply-text-btn" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{reply.author}}">回复</text>
+                    <text class="reply-text-btn" catchtap="handleReplyTap" data-reply-id="{{reply.id}}" data-id="{{item.id}}" data-author="{{reply.author}}">回复</text>
                   </view>
                   <view class="like-btn" catchtap="toggleCommentLike" data-id="{{reply.id}}" data-parent="{{item.id}}">
                     <image src="{{reply.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
@@ -107,12 +109,13 @@
                   </view>
                 </view>
               </view>
-              <!-- 展开更多回复（分批，每批10条） -->
-              <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item.repliesCount > (item.replies ? item.replies.length : 0)}}" catchtap="expandReplies" data-id="{{item.id}}">
-                <text wx:if="{{item._repliesLoading}}">加载中...</text>
-                <text wx:elif="{{item._repliesHasMore === false}}">已展开全部 {{item.repliesCount}} 条回复</text>
-                <text wx:else>展开更多回复 ›</text>
-              </view>
+            </view>
+
+            <!-- 展开更多回复（B级有回复时才显示，在A下方独立一行） -->
+            <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item._hasReplies}}" catchtap="expandReplies" data-id="{{item.id}}">
+              <text wx:if="{{item._repliesLoading}}">加载中...</text>
+              <text wx:elif="{{item._repliesHasMore === false}}">已展开全部 {{item.repliesCount}} 条回复</text>
+              <text wx:else>展开更多回复 ›</text>
             </view>
           </view>
         </view>
@@ -153,7 +156,7 @@
       </view>
 
       <!-- 分享 -->
-      <view class="action-item" bindtap="handleShare">
+      <view class="action-item" catchtap="showShareSheet">
         <image class="action-icon-img" src="/assets/icons/icon-share.svg" mode="aspectFit" />
         <text class="action-num">{{f.formatCount(post.shares || 0)}}</text>
       </view>
@@ -170,8 +173,7 @@
     <view class="comment-input-row">
       <input class="comment-input-field" placeholder="{{replyToId ? '回复 ' + replyToAuthor : '说点什么...'}}" value="{{commentContent}}" bindinput="onCommentInput" focus="{{showCommentInput}}" confirm-type="send" bindconfirm="submitComment" />
     </view>
-    <view class="comment-send-btn" catchtap="cancelReply" wx:if="{{replyToId}}">取消</view>
-    <view class="comment-send-btn" catchtap="submitComment" wx:else>发送</view>
+    <view class="comment-send-btn" catchtap="submitComment">发送</view>
   </view>
 </view>
 
@@ -229,11 +231,57 @@
       <view class="preview-action-item" catchtap="exitPreview">
         <text class="preview-action-icon">×</text>
       </view>
+      <view class="preview-action-item" catchtap="showShareSheet">
+        <text class="preview-action-icon">↗</text>
+      </view>
       <view class="preview-action-item" catchtap="downloadImage">
         <text class="preview-action-icon">↓</text>
       </view>
     </view>
   </view>
+</view>
+
+<!-- 分享面板 -->
+<view class="share-sheet-mask {{shareSheetVisible ? 'visible' : ''}}" bindtap="hideShareSheet"></view>
+<view class="share-sheet {{shareSheetVisible ? 'visible' : ''}}">
+  <view class="share-sheet-header">
+    <text class="share-sheet-title">分享到</text>
+    <view class="share-sheet-close" catchtap="hideShareSheet">×</view>
+  </view>
+  <view class="share-sheet-preview" wx:if="{{post}}">
+    <image class="share-preview-thumb" src="{{post.coverUrl || (post.photos && post.photos[0] && post.photos[0].imageUrl) || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
+    <view class="share-preview-info">
+      <text class="share-preview-title">{{post.title || '故乡照片墙'}}</text>
+      <text class="share-preview-sub">来自「故乡照片墙」</text>
+    </view>
+  </view>
+  <view class="share-sheet-grid">
+    <view class="share-sheet-item" catchtap="shareToFriend">
+      <view class="share-icon-wrap share-icon-wechat">
+        <image src="/assets/icons/icon-wechat.svg" mode="aspectFit" />
+      </view>
+      <text class="share-label">微信好友</text>
+    </view>
+    <view class="share-sheet-item" catchtap="shareToMoments">
+      <view class="share-icon-wrap share-icon-moments">
+        <image src="/assets/icons/icon-moments.svg" mode="aspectFit" />
+      </view>
+      <text class="share-label">朋友圈</text>
+    </view>
+    <view class="share-sheet-item" catchtap="generatePoster">
+      <view class="share-icon-wrap share-icon-poster">
+        <image src="/assets/icons/icon-poster.svg" mode="aspectFit" />
+      </view>
+      <text class="share-label">生成海报</text>
+    </view>
+    <view class="share-sheet-item" catchtap="copyLink">
+      <view class="share-icon-wrap share-icon-link">
+        <image src="/assets/icons/icon-link.svg" mode="aspectFit" />
+      </view>
+      <text class="share-label">复制链接</text>
+    </view>
+  </view>
+  <view class="share-sheet-cancel" catchtap="hideShareSheet">取消</view>
 </view>
 
 <!-- 加载状态 -->

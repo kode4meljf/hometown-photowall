@@ -42,7 +42,6 @@ Page({
       wx.hideLoading();
       if (res.success && res.data) {
         const u = res.data;
-        console.log('[DEBUG] loadUserInfo u.tags:', JSON.stringify(u.tags));
         this.setData({
           formData: {
             avatar: u.avatar || '',

@@ -1,6 +1,6 @@
 // pages/detail/detail.js - 中心点 FLIP 动画（支持任意图片宽高比 + scale 缩放）
 const { postApi } = require('../../utils/api');
-const { showLoading, hideLoading, showToast, showSuccess, formatDateTime } = require('../../utils/util');
+const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatLikeCount } = require('../../utils/util');
 const app = getApp();
 
 Page({
@@ -16,8 +16,10 @@ Page({
     photoMode: 'aspectFit',
     photoStyle: '',
     // 回复相关
-    replyToId: null,   // 当前回复的评论id（顶级评论id）
+    replyToId: null,   // 当前回复的评论id（用于显示›被回复人）
     replyToAuthor: '', // 当前回复的评论作者名
+    parentId: null,    // 顶级评论ID（云函数用）
+    highlightCommentId: null,  // 滚动定位时高亮的评论ID
     // 全屏预览状态
     isPreviewMode: false,
     previewTransform: 'translate(0px, 0px) scale(1, 1)',
@@ -32,7 +34,8 @@ Page({
     canGoPrev: false,
     canGoNext: false,
     currentPhotoIndex: 0,
-    indexBadgeVisible: false
+    indexBadgeVisible: false,
+    shareSheetVisible: false
   },
 
   // 私有状态
@@ -88,7 +91,8 @@ Page({
           // 顶级评论的回复时间
           replies: (c.replies || []).map(r => ({
             ...r,
-            time: formatDateTime(r.createdAt)
+            time: formatDateTime(r.createdAt),
+            authorAvatar: r.authorAvatar || '/assets/icons/default-avatar.png'
           })),
           // 如果有更多回复未加载完，标记 hasMore
           _repliesHasMore: (c.repliesCount || 0) > (c.replies || []).length
@@ -99,7 +103,8 @@ Page({
            app.globalData.userInfo.role === 'admin' ||
            app.globalData.userInfo._id === post.authorId);
         const hasMoreComments = res.data.hasMore || false;
-        this.setData({ post, canDelete, loading: false, hasMoreComments, currentPhotoIndex: 0 });
+        const commentsCountText = formatLikeCount(post.commentsCount || 0).text;
+        this.setData({ post, canDelete, loading: false, hasMoreComments, commentsCountText, currentPhotoIndex: 0 });
         this._updateNavState();
       } else {
         showToast(res.message || '加载失败');
@@ -599,6 +604,7 @@ Page({
   },
 
   onCommentScroll(e) {
+    this._scrollTop = e.detail.scrollTop;
     const { scrollTop, scrollHeight } = e.detail;
     const clientHeight = e.detail.clientHeight || this._windowHeight || 600;
     if (scrollHeight - scrollTop - clientHeight < 300) {
@@ -644,11 +650,63 @@ Page({
 
   goBack() { wx.navigateBack(); },
 
-  focusCommentInput() { this.setData({ showCommentInput: true, replyToId: null, replyToAuthor: '', commentContent: '' }); },
-  hideCommentInput() { this.setData({ showCommentInput: false, replyToId: null, replyToAuthor: '', commentContent: '' }); },
+  focusCommentInput() { this.setData({ showCommentInput: true, replyToId: null, replyToAuthor: '', parentId: null, commentContent: '' }); },
+  hideCommentInput() { this.setData({ showCommentInput: false, replyToId: null, replyToAuthor: '', parentId: null, commentContent: '' }); },
 
   handleShare() {
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
+  },
+
+  showShareSheet() {
+    this.setData({ shareSheetVisible: true });
+  },
+
+  hideShareSheet() {
+    this.setData({ shareSheetVisible: false });
+  },
+
+  shareToFriend() {
+    this.setData({ shareSheetVisible: false });
+    setTimeout(() => {
+      wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] });
+      const post = this.data.post;
+      if (post) {
+        this.setData({ 'post.shares': (post.shares || 0) + 1 });
+        wx.cloud.callFunction({ name: 'posts', data: { action: 'incrementShares', id: post._id } }).catch(() => {});
+      }
+    }, 300);
+  },
+
+  shareToMoments() {
+    this.setData({ shareSheetVisible: false });
+    setTimeout(() => {
+      wx.showShareMenu({ withShareTicket: true, menus: ['shareTimeline'] });
+      const post = this.data.post;
+      if (post) {
+        this.setData({ 'post.shares': (post.shares || 0) + 1 });
+        wx.cloud.callFunction({ name: 'posts', data: { action: 'incrementShares', id: post._id } }).catch(() => {});
+      }
+    }, 300);
+  },
+
+  generatePoster() {
+    this.setData({ shareSheetVisible: false });
+    const post = this.data.post;
+    if (!post) return;
+    showToast('海报生成功能开发中');
+    // TODO: 生成海报
+  },
+
+  copyLink() {
+    const post = this.data.post;
+    if (!post) return;
+    const link = `/pages/detail/detail?id=${post._id}`;
+    wx.setClipboardData({
+      data: link,
+      success: () => showToast('链接已复制'),
+      fail: () => showToast('复制失败')
+    });
+    this.setData({ shareSheetVisible: false });
   },
 
   onShareAppMessage() {
@@ -757,58 +815,126 @@ Page({
     } catch (e) { showToast('操作失败'); }
   },
 
-  // 更新本地评论的点赞状态（通用：处理顶层评论和回复）
-  _updateCommentLike(commentId, liked, likes, isReply = false) {
+  // 更新本地评论的点赞状态（通用：处理顶层评论和回复，不触发重新排序）
+  _updateCommentLike(commentId, liked, likes) {
     const post = this.data.post;
     if (!post || !post.comments) return;
-    if (isReply) {
-      // 在回复中找（需要知道父评论id，目前简化：直接刷新）
-      // 点击回复的点赞后直接刷新页面
-      this.loadPost();
+    // 先在顶级评论里找
+    const topComment = post.comments.find(c => c.id === commentId);
+    if (topComment) {
+      topComment.liked = liked;
+      topComment.likes = likes;
+      this.setData({ post });
       return;
     }
-    const comment = post.comments.find(c => c.id === commentId);
-    if (comment) {
-      comment.liked = liked;
-      comment.likes = likes;
-      this.setData({ post });
+    // 不在顶级里 → 在 B 级回复里找
+    for (const c of post.comments) {
+      if (c.replies) {
+        const reply = c.replies.find(r => r.id === commentId);
+        if (reply) {
+          reply.liked = liked;
+          reply.likes = likes;
+          this.setData({ post });
+          return;
+        }
+      }
     }
   },
 
   // 点击回复按钮：设置回复目标 + 预填 @xxx
   handleReplyTap(e) {
-    const { id, author } = e.currentTarget.dataset;
+    const { id, author, replyId } = e.currentTarget.dataset;
     if (!id) return;
-    this.setData({
-      replyToId: id,
-      replyToAuthor: author || '',
-      showCommentInput: true,
-      commentContent: ''
-    });
+    if (replyId) {
+      // 回复B级评论：parentId = 顶级评论id（A._id），replyTo = B._id（显示›被回复人）
+      this.setData({
+        replyToId: replyId,      // 被回复的评论ID（用于显示›被回复人）
+        replyToAuthor: author || '',
+        parentId: id,            // 顶级评论ID（云函数按此字段查子评论）
+        showCommentInput: true,
+        commentContent: ''
+      });
+    } else {
+      // 回复顶级评论A：parentId 和 replyTo 都设为 A._id
+      this.setData({
+        replyToId: id,
+        replyToAuthor: '',
+        parentId: id,
+        showCommentInput: true,
+        commentContent: ''
+      });
+    }
   },
 
   // 取消回复
+  // 空操作，阻止事件冒泡
+  noop() {},
+
   cancelReply() {
-    this.setData({ replyToId: null, replyToAuthor: '', commentContent: '' });
+    this.setData({ replyToId: null, replyToAuthor: '', parentId: null, commentContent: '' });
   },
 
-  // 展开更多回复（分批加载，每次10条）
+  // 点击 ›被回复人 滚动定位到原评论
+  scrollToComment(e) {
+    const targetId = e.currentTarget.dataset.id;
+    if (!targetId) return;
+    // 找到目标顶级评论
+    const comments = this.data.post?.comments || [];
+    const targetComment = comments.find(c => c.id === targetId);
+    if (!targetComment) return;
+
+    // 高亮目标评论（临时 yellow 背景，2s 后消退）
+    this.setData({ highlightCommentId: targetId });
+    clearTimeout(this._highlightTimer);
+    this._highlightTimer = setTimeout(() => {
+      this.setData({ highlightCommentId: null });
+    }, 2000);
+
+    // 使用 wx.createSelectorQuery 获取目标评论的位置，然后滚动
+    const query = wx.createSelectorQuery().in(this);
+    query.select('#comment-' + targetId).boundingClientRect((rect) => {
+      if (!rect) return;
+      query.select('.detail-scroll').scrollOffset((scrollRes) => {
+        const currentScrollTop = scrollRes?.scrollTop || 0;
+        // 计算目标滚动位置：当前滚动 + 目标元素顶部 - 一个小偏移量（避开紧贴顶部）
+        const targetScrollTop = currentScrollTop + rect.top - 20;
+        // 使用 scroll-view 的 scroll-top 属性（通过 data 属性驱动）
+        this.setData({ commentScrollTop: targetScrollTop });
+        // 200ms 后清除，让 scroll-top 回到自动模式
+        clearTimeout(this._commentScrollTimer);
+        this._commentScrollTimer = setTimeout(() => {
+          this.setData({ commentScrollTop: 0 });
+        }, 300);
+      }).exec();
+    }).exec();
+  },
+
+  // 展开更多回复（分批：3→10→20→全部）
   async expandReplies(e) {
     const commentId = e.currentTarget.dataset.id;
     if (!commentId) return;
     const post = this.data.post;
     const comment = post.comments.find(c => c.id === commentId);
     if (!comment) return;
-    // 标记该评论为"加载中"（禁用按钮）
     comment._repliesLoading = true;
     this.setData({ post });
     try {
-      const offset = comment.replies ? comment.replies.length : 0;
-      const res = await postApi.getCommentReplies(commentId, offset, 10);
+      const currentCount = comment.replies ? comment.replies.length : 0;
+      // 批次策略：初始3条 → 第一次展开加载7条(凑满10) → 之后每次10条
+      let limit;
+      if (currentCount === 0) {
+        limit = 3;
+      } else if (currentCount < 10) {
+        limit = 10 - currentCount; // 凑满10
+      } else {
+        limit = 10; // 之后每次10
+      }
+      const res = await postApi.getCommentReplies(commentId, currentCount, limit);
       if (res.success && res.data?.replies) {
         const newReplies = res.data.replies.map(r => ({
           ...r,
-          time: formatDateTime(r.createdAt)
+          time: formatDateTime(r.createdAt),
+          authorAvatar: r.authorAvatar || '/assets/icons/default-avatar.png'
         }));
         const thePost = this.data.post;
         const theComment = thePost.comments.find(c => c.id === commentId);
@@ -838,12 +964,15 @@ Page({
     if (!cleanContent) { showToast('请输入评论内容'); return; }
     try {
       showLoading('发送中...');
-      const parentId = this.data.replyToId || null;
-      const res = await postApi.addComment(this.postId, cleanContent, parentId);
+      const parentId = this.data.parentId || null;
+      const replyTo = this.data.replyToId || null;   // 回复目标评论ID（用于显示›被回复人）
+      const replyToAuthor = this.data.replyToAuthor || '';
+      console.log('[submitComment] postId:', this.postId, 'content:', cleanContent, 'parentId:', parentId, 'replyTo:', replyTo, 'replyToAuthor:', replyToAuthor);
+      const res = await postApi.addComment(this.postId, cleanContent, parentId, replyTo, replyToAuthor);
       hideLoading();
       if (res.success) {
         showSuccess(parentId ? '回复成功' : '评论成功');
-        this.setData({ commentContent: '', showCommentInput: false, replyToId: null, replyToAuthor: '' });
+        this.setData({ commentContent: '', showCommentInput: false, replyToId: null, replyToAuthor: '', parentId: null });
         this.loadPost();
       } else {
         showToast(res.message || '评论失败');

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "openapi": [],
+    "db": {
+      "user_signins": {
+        "read": true,
+        "write": true
+      }
+    }
+  }
+}

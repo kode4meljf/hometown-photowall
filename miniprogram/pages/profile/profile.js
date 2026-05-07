@@ -165,8 +165,10 @@ dropdownTop: 0,
 
   async loadWorks(reset = false, silentFilter = null) {
     const filter = silentFilter ?? this.data.worksFilter;
-    // hidden: true=仅隐藏帖子, false=仅可见帖子, undefined=全部帖子
-    const hidden = filter === 'hidden' ? true : false;
+    // hidden: true=仅隐藏帖子, false=仅显示帖子, undefined=不过滤（全部）
+    // 新帖子默认 hidden=false，已隐藏的帖子 hidden=true
+    // 只有点了「已隐藏」才加 hidden:true，「全部」不过滤
+    const hidden = filter === 'hidden' ? true : undefined;
 
     if (reset && !silentFilter) {
       this.setData({ works: [], worksPage: 1, worksHasMore: true });
@@ -374,6 +376,11 @@ dropdownTop: 0,
   },
 
   onSettingsTap() {
+    const userInfo = app.globalData.userInfo;
+    if (!userInfo) {
+      wx.navigateTo({ url: '/pages/login/login' });
+      return;
+    }
     wx.navigateTo({ url: '/pages/settings/settings' });
   },
 
@@ -391,7 +398,7 @@ dropdownTop: 0,
     if (func === 'comments') {
       wx.navigateTo({ url: '/pages/comments/comments' });
     } else if (func === 'signin') {
-      wx.showToast({ title: '每日签到功能开发中', icon: 'none' });
+      wx.navigateTo({ url: '/pages/signin/signin' });
     } else if (func === 'stats') {
       wx.showToast({ title: '数据统计功能开发中', icon: 'none' });
     }

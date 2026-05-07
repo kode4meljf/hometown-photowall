@@ -82,7 +82,7 @@
   </view>
 
   <!-- 点击遮罩关闭弹窗，不冒泡不导航 -->
-  <view class="works-dropdown-mask" wx:if="{{worksDropdownOpen}}" catchtap="closeWorksDropdown" catchtouchstart="noop"></view>
+  <view class="works-dropdown-mask" wx:if="{{worksDropdownOpen}}" catchtap="closeWorksDropdown"></view>
 
     <view class="works-dropdown-wrap" wx:if="{{worksDropdownOpen}}" style="top:{{dropdownTop}}px;left:{{dropdownLeft}}px;">
     <view class="dropdown-arrow" style="left:{{triangleLeft}}rpx"></view>

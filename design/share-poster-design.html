@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分享海报设计稿</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 40px;
+  }
+
+  h2 {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 400;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .phone-frame {
+    width: 375px;
+    height: 812px;
+    background: #1a1a1a;
+    border-radius: 50px;
+    padding: 20px;
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 40px 80px rgba(0,0,0,0.6);
+  }
+
+  .notch {
+    width: 150px;
+    height: 30px;
+    background: #1a1a1a;
+    border-radius: 0 0 20px 20px;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+  }
+
+  .screen {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 38px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ====== SCREEN A: Detail Page ====== */
+  .screen-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .detail-header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+    z-index: 5;
+  }
+
+  .detail-header-back {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .detail-header-title {
+    flex: 1;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 600;
+    margin-right: 32px;
+  }
+
+  .detail-header-share {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #1b1b1b;
+  }
+
+  .detail-img {
+    width: 100%;
+    height: 375px;
+    background: linear-gradient(135deg, #e8d5b7 0%, #c4a882 50%, #a08060 100%);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .detail-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .detail-location {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .detail-actions {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 20px;
+    border-bottom: 1px solid #f5f5f5;
+  }
+
+  .detail-action-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #666;
+    font-size: 13px;
+  }
+
+  .detail-action-item.liked {
+    color: #ff4444;
+  }
+
+  .detail-action-item.share {
+    margin-left: auto;
+    color: #1b1b1b;
+    font-weight: 500;
+  }
+
+  .detail-user {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .detail-user-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ddd, #bbb);
+    overflow: hidden;
+  }
+
+  .detail-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .detail-user-info { flex: 1; }
+  .detail-user-name { font-size: 14px; font-weight: 600; color: #1b1b1b; }
+  .detail-user-time { font-size: 11px; color: #999; margin-top: 1px; }
+
+  .detail-desc {
+    padding: 10px 16px;
+    font-size: 14px;
+    color: #333;
+    line-height: 1.6;
+  }
+
+  .detail-desc span { color: #576b95; }
+
+  .spacer { flex: 1; }
+
+  .detail-bottom-bar {
+    height: 84px;
+    background: #fff;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 16px 34px;
+    gap: 10px;
+  }
+
+  .detail-comment-input {
+    flex: 1;
+    height: 36px;
+    background: #f5f5f5;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    font-size: 14px;
+    color: #999;
+  }
+
+  /* ====== SCREEN B: Share Sheet ====== */
+  .screen-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-radius: 20px 20px 38px 38px;
+    padding-bottom: 34px;
+    transform: translateY(0);
+    animation: slideUp 0.3s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    margin: 12px auto 16px;
+  }
+
+  .sheet-title {
+    text-align: center;
+    font-size: 13px;
+    color: #999;
+    margin-bottom: 16px;
+  }
+
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    padding: 0 20px;
+    gap: 20px;
+  }
+
+  .sheet-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sheet-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+  }
+
+  .sheet-icon-wechat { background: #07c160; }
+  .sheet-icon-timeline { background: #07c160; }
+  .sheet-icon-poster { background: linear-gradient(135deg, #ff6b6b, #ee5a5a); }
+  .sheet-icon-qr { background: #577bed; }
+
+  .sheet-label {
+    font-size: 11px;
+    color: #666;
+  }
+
+  .sheet-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 16px 20px;
+  }
+
+  .sheet-cancel {
+    text-align: center;
+    font-size: 16px;
+    color: #1b1b1b;
+    padding: 12px;
+    margin: 0 20px;
+    border-radius: 12px;
+    background: #f5f5f5;
+  }
+
+  /* ====== SCREEN C: Poster Preview ====== */
+  .screen-poster {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 30px;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .poster-card {
+    width: 280px;
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    position: relative;
+  }
+
+  .poster-img {
+    width: 100%;
+    height: 320px;
+    background: linear-gradient(135deg, #e8d5b7 0%, #c4a882 50%, #a08060 100%);
+    overflow: hidden;
+  }
+
+  .poster-img img { width: 100%; height: 100%; object-fit: cover; }
+
+  .poster-logo {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 10px;
+    color: #1b1b1b;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .poster-content {
+    padding: 16px;
+  }
+
+  .poster-desc {
+    font-size: 13px;
+    color: #333;
+    line-height: 1.6;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .poster-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .poster-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ddd, #bbb);
+  }
+
+  .poster-username {
+    font-size: 12px;
+    color: #666;
+    flex: 1;
+  }
+
+  .poster-location {
+    font-size: 11px;
+    color: #999;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .poster-qr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .poster-qr-img {
+    width: 60px;
+    height: 60px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 4px;
+    border: 1px solid #e5e5e5;
+  }
+
+  .poster-qr-text {
+    flex: 1;
+  }
+
+  .poster-qr-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1b1b1b;
+    margin-bottom: 3px;
+  }
+
+  .poster-qr-sub {
+    font-size: 10px;
+    color: #999;
+    line-height: 1.4;
+  }
+
+  .poster-save-btn {
+    width: 100%;
+    height: 44px;
+    background: #ff4444;
+    color: #fff;
+    border-radius: 22px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    gap: 6px;
+  }
+
+  .poster-close {
+    color: rgba(255,255,255,0.7);
+    font-size: 28px;
+    margin-top: 30px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ====== LABEL ====== */
+  .label {
+    text-align: center;
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    margin-top: -10px;
+    letter-spacing: 1px;
+  }
+
+  /* SVG Icons */
+  .svg-icon { width: 20px; height: 20px; }
+</style>
+</head>
+<body>
+
+<h2>故乡照片墙 · 分享功能设计稿</h2>
+
+<!-- A: Detail Page with Share Button highlighted -->
+<div>
+  <div class="phone-frame">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="screen-detail">
+        <div class="detail-header">
+          <div class="detail-header-back">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="#1b1b1b" stroke-width="2" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <div class="detail-header-title">照片详情</div>
+          <div class="detail-header-share">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="#1b1b1b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="detail-img">
+          <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 375'><rect fill='%23e8d5b7' width='400' height='375'/><text x='50%25' y='50%25' font-size='16' fill='%23888' text-anchor='middle' dy='.3em'>故乡老屋照片</text></svg>" alt="">
+          <div class="detail-location">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            石板街
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <div class="detail-action-item liked">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff4444" stroke="#ff4444" stroke-width="1.5">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            128
+          </div>
+          <div class="detail-action-item">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="1.8">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            23
+          </div>
+          <div class="detail-action-item share">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1b1b1b" stroke-width="1.8">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            分享
+          </div>
+        </div>
+
+        <div class="detail-user">
+          <div class="detail-user-avatar">
+            <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><circle fill='%23ddd' cx='18' cy='18' r='18'/><text x='18' y='22' text-anchor='middle' font-size='14' fill='%23999'>张</text></svg>" alt="">
+          </div>
+          <div class="detail-user-info">
+            <div class="detail-user-name">张三</div>
+            <div class="detail-user-time">3小时前</div>
+          </div>
+        </div>
+
+        <div class="detail-desc">
+          这条石板街从我爷爷那辈就有了，<span>@李四</span> 你小时候也在这儿打过弹珠吧 🏮
+        </div>
+
+        <div class="spacer"></div>
+
+        <div class="detail-bottom-bar">
+          <div class="detail-comment-input">说点什么...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="label">A · 详情页 — 点击右上角分享图标</p>
+</div>
+
+<!-- B: Share Sheet -->
+<div>
+  <div class="phone-frame">
+    <div class="notch"></div>
+    <div class="screen">
+      <div style="position:absolute;inset:0;background:#f8f8f8;z-index:0;"></div>
+      <!-- Simulate page behind -->
+      <div style="position:absolute;inset:0;opacity:0.3;z-index:0;padding:60px 16px;">
+        <div style="height:200px;background:#e8d5b7;border-radius:8px;margin-bottom:8px;"></div>
+        <div style="height:12px;background:#ddd;border-radius:4px;width:60%;margin-bottom:6px;"></div>
+        <div style="height:10px;background:#eee;border-radius:4px;width:40%;"></div>
+      </div>
+
+      <div class="screen-sheet" style="z-index:1;">
+        <div class="sheet-handle"></div>
+        <div class="sheet-title">分享到</div>
+        <div class="sheet-grid">
+          <div class="sheet-item">
+            <div class="sheet-icon-wrap sheet-icon-wechat">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff">
+                <path d="M8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm7 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/>
+                <path fill="#fff" d="M9.5 14.5c4.5-2 6.5-1 7.5.5 1.3 2 .5 5-1.5 7-1 1-2 1.5-3 1.5-1.5 0-2.5-1-4-1s-2.5 1-4 1c-1 0-2-.5-3-1.5-2-2-2.5-5-1-7 1-1.5 2.5-2 4.5-2.5.5 1 1.5 1.5 2.5 1.5s2-.5 2.5-1.5z" opacity="0.5"/>
+                <path fill="#fff" d="M9 8.5C6 9.5 3 7 3 7s1-4 6-4 7 3 7 3-1 3.5-4 4.5c-1.5.5-2.5 0-2.5 0s-.2.5-.5 1z"/>
+                <path fill="#fff" d="M21 8.5c-3 1-6-2.5-6-2.5s-1-4-6-4-7 3-7 3 1 3.5 4 4.5c1.5.5 2.5 0 2.5 0s.2.5.5 1z"/>
+              </svg>
+            </div>
+            <div class="sheet-label">微信好友</div>
+          </div>
+          <div class="sheet-item">
+            <div class="sheet-icon-wrap sheet-icon-timeline">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="#fff">
+                <circle cx="12" cy="12" r="10" fill="none" stroke="#fff" stroke-width="1.5"/>
+                <path d="M12 6v6l4 2" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="sheet-label">朋友圈</div>
+          </div>
+          <div class="sheet-item">
+            <div class="sheet-icon-wrap sheet-icon-poster">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <path d="M21 15l-5-5L5 21"/>
+              </svg>
+            </div>
+            <div class="sheet-label">生成海报</div>
+          </div>
+          <div class="sheet-item">
+            <div class="sheet-icon-wrap sheet-icon-qr">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8">
+                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
+                <rect x="18" y="14" width="3" height="3"/><rect x="14" y="18" width="3" height="3"/>
+                <rect x="18" y="18" width="3" height="3"/>
+              </svg>
+            </div>
+            <div class="sheet-label">小程序码</div>
+          </div>
+        </div>
+        <div class="sheet-divider"></div>
+        <div class="sheet-cancel">取消</div>
+      </div>
+    </div>
+  </div>
+  <p class="label">B · 分享面板 — 4个分享方式</p>
+</div>
+
+<!-- C: Poster Preview -->
+<div>
+  <div class="phone-frame">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="screen-poster">
+        <div class="poster-card">
+          <div class="poster-img">
+            <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 280 320'><rect fill='%23e8d5b7' width='280' height='320'/><text x='50%25' y='50%25' font-size='14' fill='%23888' text-anchor='middle' dy='.3em'>故乡照片</text></svg>" alt="">
+            <div class="poster-logo">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="#ff4444"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              故乡照片墙
+            </div>
+          </div>
+          <div class="poster-content">
+            <div class="poster-desc">这条石板街从我爷爷那辈就有了，你小时候也在这儿打过弹珠吧 🏮</div>
+            <div class="poster-meta">
+              <div class="poster-avatar"></div>
+              <div class="poster-username">张三</div>
+              <div class="poster-location">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="#999"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                石板街
+              </div>
+            </div>
+            <div class="poster-qr">
+              <div class="poster-qr-img">
+                <svg viewBox="0 0 52 52" width="52" height="52">
+                  <rect fill="#fff" width="52" height="52"/>
+                  <rect x="4" y="4" width="18" height="18" rx="1" fill="#000"/>
+                  <rect x="30" y="4" width="18" height="18" rx="1" fill="#000"/>
+                  <rect x="4" y="30" width="18" height="18" rx="1" fill="#000"/>
+                  <rect x="8" y="8" width="10" height="10" fill="#fff"/>
+                  <rect x="34" y="8" width="10" height="10" fill="#fff"/>
+                  <rect x="8" y="34" width="10" height="10" fill="#fff"/>
+                  <rect x="10" y="10" width="6" height="6" fill="#000"/>
+                  <rect x="36" y="10" width="6" height="6" fill="#000"/>
+                  <rect x="10" y="36" width="6" height="6" fill="#000"/>
+                  <rect x="26" y="26" width="4" height="4" fill="#000"/>
+                  <rect x="30" y="30" width="4" height="4" fill="#000"/>
+                  <rect x="34" y="34" width="6" height="6" fill="#000"/>
+                  <rect x="36" y="36" width="4" height="4" fill="#fff"/>
+                </svg>
+              </div>
+              <div class="poster-qr-text">
+                <div class="poster-qr-title">故乡照片墙</div>
+                <div class="poster-qr-sub">长按识别查看照片<br>来自 @张三 的分享</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="poster-save-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          保存图片
+        </div>
+        <div class="poster-close">✕</div>
+      </div>
+    </div>
+  </div>
+  <p class="label">C · 海报预览 — 可保存到相册</p>
+</div>
+
+</body>
+</html>

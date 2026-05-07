@@ -53,6 +53,8 @@ async function handleRegister(username, password, nickname, openId) {
         password,
         nickname,
         role,
+        avatar: generateInitialAvatar(nickname),
+        credits: 0,
         createdAt: db.serverDate()
       }
     });
@@ -65,7 +67,7 @@ async function handleRegister(username, password, nickname, openId) {
           username,
           nickname,
           role,
-          avatar: ''
+          avatar: generateInitialAvatar(nickname)
         }
       }
     };
@@ -117,7 +119,7 @@ async function handleGetCurrentUser(openId) {
     }
 
     const user = result.data[0];
-    const avatar = await resolveAvatarUrl(user.avatar);
+    const avatar = user.avatar || '';
 
     return {
       success: true,
@@ -130,7 +132,8 @@ async function handleGetCurrentUser(openId) {
         gender: user.gender || 'secret',
         region: user.region || '',
         bio: user.bio || '',
-        tags: user.tags || []
+        tags: user.tags || [],
+        credits: user.credits || 0
       }
     };
   } catch (e) {
@@ -165,7 +168,7 @@ async function handleUpdateUserInfo(avatar, nickname, openId) {
 // 更新完整用户资料
 async function handleUpdateUserProfile(params, openId) {
   try {
-    const { avatar, nickname, gender, region, bio, tags } = params;
+    const { avatar, nickname, gender, region, bio } = params;
 
     const userResult = await usersCollection.where({ _openid: openId }).get();
     if (userResult.data.length === 0) {
@@ -179,8 +182,6 @@ async function handleUpdateUserProfile(params, openId) {
     if (gender !== undefined) updateData.gender = gender;
     if (region !== undefined) updateData.region = region;
     if (bio !== undefined) updateData.bio = bio;
-    if (tags !== undefined) updateData.tags = tags;
-    else updateData.tags = [];
     updateData.updatedAt = db.serverDate();
 
     try {
@@ -195,6 +196,61 @@ async function handleUpdateUserProfile(params, openId) {
     console.error('更新用户资料失败:', e);
     return { success: false, message: '更新失败' };
   }
+}
+
+// 预定义头像背景色池（6个莫兰迪色）
+const AVATAR_COLORS = [
+  '#FF6B6B', // 珊瑚红
+  '#4ECDC4', // 青绿
+  '#45B7D1', // 天蓝
+  '#96CEB4', // 薄荷绿
+  '#F7DC6F', // 暖黄
+  '#DDA0DD', // 浅紫
+];
+
+// 从昵称提取首字母（英文直接取，汉字取拼音首字母大写）
+function getInitial(nickname) {
+  if (!nickname) return '?';
+  const first = nickname.trim()[0];
+  // 英文
+  if (/[a-zA-Z]/.test(first)) return first.toUpperCase();
+  // 中文：已知常用字做拼音首字母映射
+  const pinyinMap = {
+    '啊': 'A', '阿': 'A', '爱': 'A', '安': 'A', '暗': 'A',
+    '吧': 'B', '不': 'B', '百': 'B', '白': 'B', '北': 'B',
+    '成': 'C', '从': 'C', '操': 'C', '存': 'C', '此': 'C',
+    '的': 'D', '大': 'D', '东': 'D', '到': 'D', '地': 'D',
+    '饿': 'E', '二': 'E', '而': 'E', '儿': 'E', '尔': 'E',
+    '发': 'F', '非': 'F', '风': 'F', '飞': 'F', '复': 'F',
+    '个': 'G', '过': 'G', '古': 'G', '国': 'G', '广': 'G',
+    '好': 'H', '后': 'H', '和': 'H', '胡': 'H', '黄': 'H',
+    '几': 'J', '九': 'J', '京': 'J', '加': 'J', '家': 'J',
+    '可': 'K', '开': 'K', '看': 'K', '空': 'K', '口': 'K',
+    '了': 'L', '来': 'L', '老': 'L', '六': 'L', '李': 'L',
+    '吗': 'M', '明': 'M', '没': 'M', '每': 'M', '民': 'M',
+    '你': 'N', '南': 'N', '年': 'N', '能': 'N', '呢': 'N',
+    '哦': 'O', '欧': 'O', '我': 'W', '五': 'W', '为': 'W',
+    '平': 'P', '朋': 'P', '普': 'P', '片': 'P', '配': 'P',
+    '去': 'Q', '七': 'Q', '期': 'Q', '其': 'Q', '前': 'Q',
+    '人': 'R', '日': 'R', '如': 'R', '然': 'R', '入': 'R',
+    '是': 'S', '三': 'S', '上': 'S', '说': 'S', '时': 'S',
+    '他': 'T', '天': 'T', '同': 'T', '图': 'T', '土': 'T',
+    '五': 'W', '我': 'W', '为': 'W', '无': 'W', '文': 'W',
+    '下': 'X', '小': 'X', '向': 'X', '西': 'X', '想': 'X',
+    '一': 'Y', '有': 'Y', '也': 'Y', '于': 'Y', '雨': 'Y',
+    '在': 'Z', '这': 'Z', '中': 'Z', '张': 'Z', '周': 'Z',
+  };
+  if (pinyinMap[first]) return pinyinMap[first];
+  // 未知汉字：取字符本身（部分Unicode字体可显示）
+  return first;
+}
+
+// 生成初始头像 URL（initial://协议）
+function generateInitialAvatar(nickname) {
+  const initial = getInitial(nickname);
+  const color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+  // 格式：initial://<字母>?color=<颜色>
+  return `initial://${initial}?color=${encodeURIComponent(color)}`;
 }
 
 // 转换云存储头像为临时链接

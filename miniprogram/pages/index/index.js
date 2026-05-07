@@ -299,46 +299,51 @@ Page({
     });
   },
 
-  // 点赞
-  async onLikeTap(e) {
-    e.stopPropagation();
+  // 点赞（乐观更新：立即响应，后台同步）
+  onLikeTap(e) {
+    console.log('[like] dataset:', JSON.stringify(e.currentTarget.dataset));
 
-    const { id, index, column } = e.currentTarget.dataset;
+    const { id, index: indexStr, column } = e.currentTarget.dataset;
+    const index = parseInt(indexStr, 10);
+    console.log('[like] id:', id, 'index:', index, 'column:', column);
+    const postsKey = column === 'left' ? 'leftPosts' : 'rightPosts';
+    const posts = this.data[postsKey];
+    const post = posts[index];
+    console.log('[like] post:', post ? post.id : 'NOT FOUND', 'liked before:', post && post.liked);
+    if (!post) return;
 
-    try {
-      const res = await postApi.likePost(id);
+    const wasLiked = !!post.liked;
+    const wasLikes = post.likes || 0;
+    const nowLiked = !wasLiked;
+    const nowLikes = wasLiked ? wasLikes - 1 : wasLikes + 1;
+    const nowLikesInfo = formatLikeCount(nowLikes);
+    console.log('[like] nowLiked:', nowLiked, 'nowLikes:', nowLikes);
 
-      if (res.success) {
-        // 更新本地数据
-        const postsKey = column === 'left' ? 'leftPosts' : 'rightPosts';
-        const posts = this.data[postsKey];
-        const post = posts[index];
+    // 立即更新 UI（乐观翻转）
+    const updatedPosts = posts.map(p => {
+      if (p.id === id) return { ...p, liked: nowLiked, likes: nowLikes, _likesText: nowLikesInfo.text, _likesCls: nowLikesInfo.cls };
+      return p;
+    });
+    this.setData({ [postsKey]: updatedPosts });
+    console.log('[like] setData done, checking UI...');
+    console.log('[like] leftPosts[0] after setData:', this.data.leftPosts[0] && this.data.leftPosts[0].liked);
 
-        if (post) {
-          post.liked = res.liked;
-          post.likes = res.likes;
-
-          this.setData({
-            [postsKey]: posts
-          });
-        }
-
-        // 同步更新主列表
-        const allPosts = this.data.posts.map(p => {
-          if (p.id === id) {
-            return { ...p, liked: res.liked, likes: res.likes };
-          }
-          return p;
-        });
-
-        this.setData({ posts: allPosts });
-      }
-    } catch (e) {
-      console.error('点赞失败:', e);
-      wx.showToast({
-        title: '操作失败',
-        icon: 'none'
+    // 后台调用云函数
+    postApi.likePost(id).then(res => {
+      if (!res.success) throw new Error('api failed');
+      const finalPosts = this.data[postsKey].map(p => {
+        if (p.id === id) return { ...p, liked: res.liked, likes: res.likes, _likesText: formatLikeCount(res.likes).text, _likesCls: formatLikeCount(res.likes).cls };
+        return p;
       });
-    }
+      this.setData({ [postsKey]: finalPosts });
+    }).catch(() => {
+      // 失败回滚
+      const rolledBack = this.data[postsKey].map(p => {
+        if (p.id === id) return { ...p, liked: wasLiked, likes: wasLikes, _likesText: formatLikeCount(wasLikes).text, _likesCls: formatLikeCount(wasLikes).cls };
+        return p;
+      });
+      this.setData({ [postsKey]: rolledBack });
+      wx.showToast({ title: '操作失败', icon: 'none' });
+    });
   }
 });

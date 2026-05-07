@@ -192,8 +192,8 @@ const postApi = {
   },
 
   // 添加评论
-  addComment(postId, content, parentId = null) {
-    return callFunction('posts', 'comment', { postId, content, parentId });
+  addComment(postId, content, parentId = null, replyTo = null, replyToAuthor = '') {
+    return callFunction('posts', 'comment', { postId, content, parentId, replyTo, replyToAuthor });
   },
 
   // 点赞/取消点赞评论

@@ -263,7 +263,7 @@
 
 .reply-text-btn {
   font-size: 24rpx;
-  color: #666;
+  color: #333;
 }
 
 .like-btn {
@@ -317,6 +317,22 @@
   flex-shrink: 0;
 }
 
+.reply-arrow {
+  color: #999;
+  font-size: 28rpx;
+  flex-shrink: 0;
+}
+
+.reply-target {
+  color: #1b1b1b;
+  font-size: 24rpx;
+  flex-shrink: 0;
+  max-width: 200rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 回复内容：相对于昵称缩进，与昵称左对齐 */
 .reply-content-wrap {
   padding-left: 44rpx; /* 36rpx头像 + 8rpx gap */
@@ -346,6 +362,13 @@
 
 .expand-replies.loading {
   color: #aaa;
+}
+
+/* 评论高亮（点击›跳转时，2s 黄色闪烁） */
+.comment-item.highlight {
+  background: rgba(255, 235, 59, 0.25);
+  border-radius: 12rpx;
+  transition: background 0.3s ease;
 }
 
 /* 评论输入弹窗 - 回复提示行 */
@@ -462,6 +485,12 @@
 /* 点赞时图标弹跳动画 */
 .action-item.liked .action-icon-img {
   animation: likeBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 按压效果 */
+.action-item:active .action-icon-img {
+  transform: scale(0.88);
+  transition: transform 0.1s;
 }
 
 @keyframes likeBounce {
@@ -731,10 +760,23 @@
 
 .preview-action-item:first-child {
   left: 64rpx;
+  transform: translateY(-50%);
+}
+
+.preview-action-item:nth-child(2) {
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .preview-action-item:last-child {
   right: 64rpx;
+  transform: translateY(-50%);
+}
+
+.preview-action-item:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%) scale(0.92);
+  transition: all 0.1s;
 }
 
 .preview-action-icon {
@@ -754,4 +796,154 @@
   justify-content: center;
   min-height: 100vh;
   color: #999;
+}
+
+/* ===================================
+   分享面板（Bottom Sheet）
+   =================================== */
+
+.share-sheet-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 900;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.share-sheet-mask.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.share-sheet {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: #ffffff;
+  border-radius: 24rpx 24rpx 0 0;
+  z-index: 901;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.share-sheet.visible {
+  transform: translateY(0);
+}
+
+/* 面板头部 */
+.share-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx 20rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.share-sheet-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1b1b1b;
+}
+.share-sheet-close {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  border-radius: 50%;
+  color: #999;
+  font-size: 32rpx;
+  font-weight: 300;
+}
+
+/* 预览卡片 */
+.share-sheet-preview {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 20rpx 32rpx;
+  background: #fafafa;
+}
+.share-preview-thumb {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 12rpx;
+  object-fit: cover;
+  background: #eee;
+  flex-shrink: 0;
+}
+.share-preview-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.share-preview-title {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #1b1b1b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.share-preview-sub {
+  font-size: 24rpx;
+  color: #999;
+}
+
+/* 分享网格 */
+.share-sheet-grid {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: 36rpx 16rpx 28rpx;
+  gap: 16rpx;
+}
+.share-sheet-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  flex: 1;
+}
+.share-icon-wrap {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4rpx;
+}
+.share-icon-wrap image {
+  width: 52rpx;
+  height: 52rpx;
+}
+.share-icon-wechat { background: #07c160; }
+.share-icon-moments { background: #fe5648; }
+.share-icon-poster { background: #ff6b6b; }
+.share-icon-link { background: #577aee; }
+.share-label {
+  font-size: 22rpx;
+  color: #666;
+  text-align: center;
+}
+
+/* 分享面板取消按钮 */
+.share-sheet-cancel {
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  background: #ffffff;
+  margin: 0 32rpx 24rpx;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  color: #1b1b1b;
+  border: 1rpx solid #e8e8e8;
+  transition: all 0.15s ease;
+}
+.share-sheet-cancel:active {
+  background: #f0f0f0;
+  transform: scale(0.97);
 }

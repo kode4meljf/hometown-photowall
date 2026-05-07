@@ -63,7 +63,7 @@
     </view>
 
     <!-- 退出登录 -->
-    <button class="logout-btn" bindtap="onLogout">退出登录</button>
+    <button class="logout-btn" bindtap="onLogout" wx:if="{{isLoggedIn}}">退出登录</button>
 
     <!-- 版本信息 -->
     <view class="version-bar">

@@ -31,14 +31,34 @@
   <view class="week-section">
     <view class="section-label">THIS WEEK</view>
     <view class="week-grid">
-      <view class="week-item {{weekDayStates[item.day] === 'checked' ? 'checked' : ''}} {{item.isToday ? 'today' : ''}}"
-            wx:for="{{weekDays}}" wx:key="day">
-        <view class="week-dot">{{weekDayStates[item.day] === 'checked' ? '✓' : item.day}}</view>
-        <view class="week-day-label">{{item.label}}</view>
+      <view class="week-item {{item.signed ? 'checked' : ''}} {{item.isToday ? 'today' : ''}} {{item.isFuture ? 'future' : ''}}"
+            wx:for="{{weekDays}}" wx:key="date">
+        <view class="week-dot">{{item.signed ? '✓' : item.dayNum}}</view>
+        <view class="week-day-label">{{item.dayLabel}}</view>
       </view>
     </view>
   </view>
 
+  <!-- 积分余额 -->
+  <view class="credits-section">
+    <view class="section-label">MY CREDITS</view>
+    <view class="credits-card">
+      <view class="credits-header">
+        <view class="credits-title">剩余次数</view>
+        <view class="credits-value-wrap">
+          <view class="credits-value">{{credits}}</view>
+          <view class="credits-unit">次</view>
+        </view>
+      </view>
+    </view>
+    <view class="credits-bonus-tip">
+      <text wx:if="{{streakDays >= 7}}">已解锁连续7天 +2次奖励</text>
+      <text wx:elif="{{streakDays >= 4}}">已解锁连续4天 +1次奖励</text>
+      <text wx:else>连续签到4天额外+1次，7天额外+2次</text>
+    </view>
+  </view>
+
+  <!-- 底部 -->
   <view class="footer">
     <view class="footer-note">坚持签到，让记忆更有重量</view>
     <view class="footer-note">邀请好友可获得补签卡</view>
