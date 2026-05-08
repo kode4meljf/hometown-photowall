@@ -1,6 +1,6 @@
 // pages/profile/profile.js
-const { postApi, userApi } = require('../../utils/api');
-const { showToast } = require('../../utils/util');
+const { postApi, userApi } = require('../../../utils/api');
+const { showToast } = require('../../../utils/util');
 const app = getApp();
 
 Page({

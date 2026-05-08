@@ -1,6 +1,6 @@
 // pages/edit-profile/edit-profile.js
-const { userApi } = require('../../utils/api');
-const { showToast } = require('../../utils/util');
+const { userApi } = require('../../../utils/api');
+const { showToast } = require('../../../utils/util');
 
 Page({
   data: {

@@ -124,7 +124,7 @@
               </view>
               <!-- 收起^（状态B和C：已展开时） -->
               <view class="collapse-btn" wx:if="{{item._repliesExpanded}}" catchtap="collapseReplies" data-id="{{item.id}}">
-                <text class="dash">——— </text><text class="btn-text">收起^</text>
+                <text wx:if="{{!item._repliesHasMore}}" class="dash">——— </text><text class="btn-text">收起^</text>
               </view>
             </view>
           </view>

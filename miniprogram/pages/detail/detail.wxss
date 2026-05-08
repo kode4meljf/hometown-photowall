@@ -374,7 +374,7 @@
   display: flex;
   align-items: center;
   margin-top: 8rpx;
-  gap: 24rpx;
+  gap: 80rpx;
 }
 
 /* 操作按钮行（破折号淡体 + 按钮文字灰色） */

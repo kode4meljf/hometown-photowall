@@ -1,5 +1,5 @@
 // pages/signin/signin.js
-const { callFunction } = require('../../utils/api');
+const { callFunction } = require('../../../utils/api');
 
 Page({
   data: {

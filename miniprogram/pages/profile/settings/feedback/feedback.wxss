@@ -32,6 +32,9 @@
   color: #1b1b1b;
   box-sizing: border-box;
   line-height: 1.8;
+  border: none;
+  outline: none;
+  caret-color: #1b1b1b;
 }
 
 .placeholder {
@@ -54,6 +57,9 @@
   font-size: 28rpx;
   color: #1b1b1b;
   box-sizing: border-box;
+  border: none;
+  outline: none;
+  caret-color: #1b1b1b;
 }
 
 .submit-btn {
@@ -65,6 +71,9 @@
   font-size: 30rpx;
   border-radius: 44rpx;
   margin-top: 16rpx;
+  text-align: center;
+  border: none;
+  padding: 0;
 }
 
 .submit-btn:active {

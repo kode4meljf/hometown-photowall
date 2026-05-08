@@ -1,5 +1,5 @@
 // pages/comments/comments.js
-const { postApi } = require('../../utils/api.js');
+const { postApi } = require('../../../utils/api.js');
 
 Page({
   data: {
