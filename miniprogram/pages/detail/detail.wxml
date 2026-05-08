@@ -113,18 +113,18 @@
 
             <!-- 操作按钮行 -->
             <view class="replies-actions">
-              <!-- 展开更多：当前展开中 && 还能继续加载 -->
-              <view class="expand-more-btn" wx:if="{{item._hasReplies && item._repliesExpanded && item._repliesHasMore}}" catchtap="expandReplies" data-id="{{item.id}}">
-                <text>展开更多</text>
-              </view>
-              <!-- 收起^：当前展开中 -->
-              <view class="collapse-btn" wx:if="{{item._repliesExpanded}}" catchtap="collapseReplies" data-id="{{item.id}}">
-                <text>收起^</text>
-              </view>
-              <!-- 展开N条回复：初始状态或收起后 -->
+              <!-- 展开N条回复 / 重新展开（状态A：未展开或已收起） -->
               <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item._hasReplies && !item._repliesExpanded}}" catchtap="expandReplies" data-id="{{item.id}}">
-                <text wx:if="{{item._repliesLoading}}">加载中...</text>
-                <text wx:else>展开{{item.repliesCount}}条回复 ›</text>
+                <text class="btn-text" wx:if="{{item._repliesLoading}}">加载中...</text>
+                <text class="btn-text" wx:else>展开{{item.repliesCount}}条回复 ›</text>
+              </view>
+              <!-- 展开更多（状态B：已展开且还有更多） -->
+              <view class="expand-more-btn" wx:if="{{item._repliesExpanded && item._repliesHasMore}}" catchtap="expandReplies" data-id="{{item.id}}">
+                <text class="dash">——— </text><text class="btn-text">展开更多</text>
+              </view>
+              <!-- 收起^（状态B和C：已展开时） -->
+              <view class="collapse-btn" wx:if="{{item._repliesExpanded}}" catchtap="collapseReplies" data-id="{{item.id}}">
+                <text class="dash">——— </text><text class="btn-text">收起^</text>
               </view>
             </view>
           </view>
@@ -180,7 +180,7 @@
   <view class="comment-modal-mask" bindtap="hideCommentInput"></view>
   <view class="comment-modal-content">
     <!-- 第一行：textarea（两行高度） -->
-    <view class="comment-input-row">
+    <view class="comment-input-row" style="padding-bottom: {{inputRowBottom}}px;">
       <textarea
         class="comment-textarea"
         placeholder="{{replyToAuthor ? '回复 @' + replyToAuthor : '说点什么...'}}"
@@ -189,6 +189,7 @@
         focus="{{showCommentInput}}"
 auto-height
         adjust-position
+        bindkeyboardheightchange="_onKeyboardHeightChange"
         show-confirm-bar="{{false}}"
         max-rows="4"
       />

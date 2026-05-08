@@ -37,7 +37,8 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
     canGoNext: false,
     currentPhotoIndex: 0,
     indexBadgeVisible: false,
-    shareSheetVisible: false
+    shareSheetVisible: false,
+    inputRowBottom: 0,  // 键盘高度动态调整
   },
 
   // 私有状态
@@ -672,7 +673,13 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       replyToAuthor: '',
       parentId: null,
       commentContent: '',
+      inputRowBottom: 0,
     });
+  },
+
+  // 监听键盘高度变化，动态调整输入区底部padding
+  _onKeyboardHeightChange(e) {
+    this.setData({ inputRowBottom: e.detail.height });
   },
   toggleEmojiPanel() { this.setData({ showEmojiPanel: !this.data.showEmojiPanel }); },
 
@@ -1120,11 +1127,9 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   // 展开/收起更多回复（分批：3→10→10）
   async expandReplies(e) {
     const commentId = e.currentTarget.dataset.id;
-    console.log('[expandReplies] commentId:', commentId);
     if (!commentId) return;
     const post = this.data.post;
     const comment = post.comments.find(c => c.id === commentId);
-    console.log('[expandReplies] found comment:', comment?.id, 'repliesCount:', comment?.repliesCount, '_everExpandedOnce:', comment?._everExpandedOnce, '_hasReplies:', comment?._hasReplies);
     if (!comment) return;
 
     // 「展开N条回复」按钮（收起后恢复）：恢复收起前的已加载内容，不调接口
@@ -1163,9 +1168,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
           theComment._repliesHasMore = res.data.hasMore;
           theComment._repliesExpanded = true;
           theComment._everExpandedOnce = true;
-          console.log('[expandReplies] set _repliesExpanded=true, _everExpandedOnce=true, replies:', theComment.replies?.length);
           this.setData({ post: thePost });
-          console.log('[expandReplies] setData done, _repliesExpanded:', theComment._repliesExpanded, '_everExpandedOnce:', theComment._everExpandedOnce);
         }
       }
     } catch (e) {
@@ -1179,7 +1182,6 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   // 收起全部回复（仅在全部加载完毕后可点击）
   collapseReplies(e) {
     const commentId = e.currentTarget.dataset.id;
-    console.log('[collapseReplies] commentId:', commentId);
     if (!commentId) return;
     const post = this.data.post;
     const comment = post.comments.find(c => c.id === commentId);
@@ -1205,7 +1207,6 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       const parentId = this.data.parentId || null;
       const replyTo = this.data.replyToId || null;   // 回复目标评论ID（用于显示›被回复人）
       const replyToAuthor = this.data.replyToAuthor || '';
-      console.log('[submitComment] postId:', this.postId, 'content:', cleanContent, 'parentId:', parentId, 'replyTo:', replyTo, 'replyToAuthor:', replyToAuthor);
       const res = await postApi.addComment(this.postId, cleanContent, parentId, replyTo, replyToAuthor);
       hideLoading();
       if (res.success) {

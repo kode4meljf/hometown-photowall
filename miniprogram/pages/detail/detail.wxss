@@ -361,23 +361,12 @@
   padding-left: 0;
 }
 
-/* 长破折号前缀，20%透明度 */
-.replies-actions .expand-more-btn::before,
-.replies-actions .collapse-btn::before {
-  content: '——— ';
-  opacity: 0.2;
-  font-weight: 300;
-  margin-right: 4rpx;
-}
+
 
 .expand-replies::before {
   content: '——— ';
   opacity: 0.2;
   font-weight: 300;
-}
-
-.expand-replies.loading {
-  color: #aaa;
 }
 
 /* 操作按钮行：展开更多在左，收起^在右 */
@@ -388,21 +377,35 @@
   gap: 24rpx;
 }
 
+/* 操作按钮行（破折号淡体 + 按钮文字灰色） */
+.replies-actions .dash {
+  opacity: 0.2;
+  font-weight: 300;
+  color: #888;
+}
+
+.replies-actions .btn-text {
+  font-weight: 500;
+  color: #888;
+}
+
 /* 展开更多按钮（还有更多可加载时） */
 .expand-more-btn {
   display: inline-block;
-  margin-right: 32rpx;
   font-size: 26rpx;
-  color: #1b1b1b;
-  font-weight: 500;
 }
 
 /* 收起按钮（全部加载完毕后） */
 .collapse-btn {
   display: inline-block;
   font-size: 26rpx;
-  color: #1b1b1b;
-  font-weight: 500;
+}
+
+/* 文字样式（可继承） */
+.expand-more-btn text, .collapse-btn text {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 /* 评论高亮（点击›跳转时，2s 黄色闪烁） */
