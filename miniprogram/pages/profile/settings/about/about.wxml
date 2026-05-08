@@ -1,0 +1,24 @@
+<view class="about-page">
+  <view class="page-body">
+    <view class="about-header">
+      <image class="app-icon" src="/assets/icons/logo.png" mode="aspectFit" />
+      <text class="app-name">故乡照片墙</text>
+      <text class="app-version">v1.0.0</text>
+    </view>
+    <view class="about-content">
+      <view class="about-section">
+        <text class="about-desc">故乡照片墙是一款记录家乡变迁的小程序，让每一位离家的游子都能在这里分享和回味故乡的美好瞬间。</text>
+      </view>
+      <view class="about-section">
+        <view class="about-item">
+          <text class="item-label">开发者</text>
+          <text class="item-value">故乡照片墙团队</text>
+        </view>
+        <view class="about-item">
+          <text class="item-label">联系我们</text>
+          <text class="item-value">hometown@example.com</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

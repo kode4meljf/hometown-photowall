@@ -358,10 +358,51 @@
   font-size: 26rpx;
   color: #1b1b1b;
   font-weight: 500;
+  padding-left: 0;
+}
+
+/* 长破折号前缀，20%透明度 */
+.replies-actions .expand-more-btn::before,
+.replies-actions .collapse-btn::before {
+  content: '——— ';
+  opacity: 0.2;
+  font-weight: 300;
+  margin-right: 4rpx;
+}
+
+.expand-replies::before {
+  content: '——— ';
+  opacity: 0.2;
+  font-weight: 300;
 }
 
 .expand-replies.loading {
   color: #aaa;
+}
+
+/* 操作按钮行：展开更多在左，收起^在右 */
+.replies-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 8rpx;
+  gap: 24rpx;
+}
+
+/* 展开更多按钮（还有更多可加载时） */
+.expand-more-btn {
+  display: inline-block;
+  margin-right: 32rpx;
+  font-size: 26rpx;
+  color: #1b1b1b;
+  font-weight: 500;
+}
+
+/* 收起按钮（全部加载完毕后） */
+.collapse-btn {
+  display: inline-block;
+  font-size: 26rpx;
+  color: #1b1b1b;
+  font-weight: 500;
 }
 
 /* 评论高亮（点击›跳转时，2s 黄色闪烁） */
@@ -524,41 +565,93 @@
 
 .comment-modal-mask {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.5);
 }
 
 .comment-modal-content {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
   background: #ffffff;
-  padding: 24rpx;
+  padding: 0;
+  padding-bottom: calc(0rpx + env(safe-area-inset-bottom));
+  border-radius: 24rpx 24rpx 0 0;
+  overflow: hidden;
+  box-shadow: 0 -4rpx 20rpx rgba(0,0,0,0.08);
+}
+
+/* 第一行：textarea */
+.comment-input-row {
+  padding: 20rpx 24rpx 0;
+  width: 100%;
+}
+
+.comment-textarea {
+  width: 100%;
+  min-height: 76rpx;
+  max-height: 200rpx;
+  background: #f5f5f5;
+  border-radius: 20rpx;
+  border: none;
+  outline: none;
+  font-size: 30rpx;
+  font-family: inherit;
+  color: #1b1b1b;
+  line-height: 38rpx;
+  padding: 14rpx 20rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 第二行：emoji | spacer | send */
+.comment-toolbar-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  padding: 10rpx 24rpx 20rpx;
+  gap: 12rpx;
 }
 
-.comment-input-field {
-  flex: 1;
-  padding: 20rpx 24rpx;
-  background: #f8f8f8;
-  border-radius: 40rpx;
-  font-size: 28rpx;
+.emoji-btn {
+  width: 48rpx;
+  height: 48rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8rpx;
+  transition: background 0.15s;
 }
+
+.emoji-btn:active { background: #f0f0f0; }
+
+.emoji-btn image {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.toolbar-spacer { flex: 1; }
 
 .comment-send-btn {
-  padding: 16rpx 32rpx;
+  padding: 0 32rpx;
+  height: 64rpx;
   background: #00ff99;
-  border-radius: 40rpx;
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 28rpx;
   color: #1b1b1b;
-  font-weight: 500;
+  font-weight: 600;
+  transition: transform 0.1s, opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.comment-send-btn:active { transform: scale(0.94); }
+
+.comment-send-btn.disabled {
+  background: #e8e8e8;
+  color: #aaa;
+  pointer-events: none;
 }
 
 /* ========== 全屏预览层（FLIP动画 + 背景渐变） ========== */
@@ -758,22 +851,18 @@
   border-radius: 16rpx;
 }
 
-.preview-action-item:first-child {
+.preview-close-btn {
   left: 64rpx;
-  transform: translateY(-50%);
+  right: auto;
 }
 
-.preview-action-item:nth-child(2) {
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.preview-action-item:last-child {
+.preview-download-btn {
   right: 64rpx;
-  transform: translateY(-50%);
+  left: auto;
 }
 
-.preview-action-item:active {
+.preview-close-btn:active,
+.preview-download-btn:active {
   background: rgba(255, 255, 255, 0.3);
   transform: translateY(-50%) scale(0.92);
   transition: all 0.1s;
@@ -910,7 +999,7 @@
 .share-icon-wrap {
   width: 96rpx;
   height: 96rpx;
-  border-radius: 2px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -946,4 +1035,14 @@
 .share-sheet-cancel:active {
   background: #f0f0f0;
   transform: scale(0.97);
+}
+
+/* 海报绘制 Canvas（隐藏但需保持真实尺寸） */
+.poster-canvas {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 405px;
+  height: 720px;
+  pointer-events: none;
 }

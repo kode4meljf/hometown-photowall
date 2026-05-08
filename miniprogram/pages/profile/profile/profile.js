@@ -372,7 +372,7 @@ dropdownTop: 0,
   },
 
   goToEditProfile() {
-    wx.navigateTo({ url: '/pages/edit-profile/edit-profile' });
+    wx.navigateTo({ url: '/pages/profile/edit-profile/edit-profile' });
   },
 
   onSettingsTap() {
@@ -381,7 +381,7 @@ dropdownTop: 0,
       wx.navigateTo({ url: '/pages/login/login' });
       return;
     }
-    wx.navigateTo({ url: '/pages/settings/settings' });
+    wx.navigateTo({ url: '/pages/profile/settings/settings' });
   },
 
   buyPoints() {
@@ -396,9 +396,9 @@ dropdownTop: 0,
   onFuncTap(e) {
     const func = e.currentTarget.dataset.func;
     if (func === 'comments') {
-      wx.navigateTo({ url: '/pages/comments/comments' });
+      wx.navigateTo({ url: '/pages/profile/comments/comments' });
     } else if (func === 'signin') {
-      wx.navigateTo({ url: '/pages/signin/signin' });
+      wx.navigateTo({ url: '/pages/profile/signin/signin' });
     } else if (func === 'stats') {
       wx.showToast({ title: '数据统计功能开发中', icon: 'none' });
     }

@@ -51,16 +51,16 @@ Page({
         wx.showToast({ title: '账号安全', icon: 'none' });
         break;
       case 'about':
-        wx.navigateTo({ url: '/pages/about/about' });
+        wx.navigateTo({ url: '/pages/profile/settings/about/about' });
         break;
       case 'agreement':
-        wx.navigateTo({ url: '/pages/agreement/agreement' });
+        wx.navigateTo({ url: '/pages/profile/settings/agreement/agreement' });
         break;
       case 'privacy':
-        wx.navigateTo({ url: '/pages/privacy/privacy' });
+        wx.navigateTo({ url: '/pages/profile/settings/privacy/privacy' });
         break;
       case 'feedback':
-        wx.navigateTo({ url: '/pages/feedback/feedback' });
+        wx.navigateTo({ url: '/pages/profile/settings/feedback/feedback' });
         break;
       case 'clear':
         this.clearCache();

@@ -1,0 +1,24 @@
+<view class="feedback-page">
+  <view class="page-body">
+    <view class="feedback-tip">请描述您遇到的问题或建议，我们会认真处理每一条反馈。</view>
+    <view class="feedback-form">
+      <view class="form-item">
+        <textarea class="feedback-textarea"
+          placeholder="请输入反馈内容..."
+          placeholder-class="placeholder"
+          maxlength="500"
+          bindinput="onContentInput"
+          value="{{content}}" />
+        <text class="char-count">{{content.length || 0}}/500</text>
+      </view>
+      <view class="form-item">
+        <input class="feedback-input"
+          type="text"
+          placeholder="联系方式（选填）"
+          bindinput="onContactInput"
+          value="{{contact}}" />
+      </view>
+      <button class="submit-btn" bindtap="onSubmit">提交反馈</button>
+    </view>
+  </view>
+</view>

@@ -20,7 +20,7 @@ Component({
         text: '我的',
         iconPath: '/assets/icons/profile.png',
         selectedIconPath: '/assets/icons/profile-active.png',
-        pagePath: '/pages/profile/profile'
+        pagePath: '/pages/profile/profile/profile'
       }
     ]
   },

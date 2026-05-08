@@ -83,7 +83,7 @@
             </view>
 
             <!-- 回复列表（默认显示前3条） -->
-            <view class="reply-list" wx:if="{{item.replies && item.replies.length > 0}}">
+            <view class="reply-list" wx:if="{{item._repliesExpanded && item.replies && item.replies.length > 0}}">
               <!-- 每条回复：纵向排列，头像+昵称 | 内容 | footer -->
               <view class="reply-item" wx:for="{{item.replies}}" wx:for-item="reply" wx:key="id" catchtap="noop">
                 <!-- 头像 + 昵称（单行） -->
@@ -111,11 +111,21 @@
               </view>
             </view>
 
-            <!-- 展开更多回复（B级有回复时才显示，在A下方独立一行） -->
-            <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item._hasReplies}}" catchtap="expandReplies" data-id="{{item.id}}">
-              <text wx:if="{{item._repliesLoading}}">加载中...</text>
-              <text wx:elif="{{item._repliesHasMore === false}}">已展开全部 {{item.repliesCount}} 条回复</text>
-              <text wx:else>展开更多回复 ›</text>
+            <!-- 操作按钮行 -->
+            <view class="replies-actions">
+              <!-- 展开更多：当前展开中 && 还能继续加载 -->
+              <view class="expand-more-btn" wx:if="{{item._hasReplies && item._repliesExpanded && item._repliesHasMore}}" catchtap="expandReplies" data-id="{{item.id}}">
+                <text>展开更多</text>
+              </view>
+              <!-- 收起^：当前展开中 -->
+              <view class="collapse-btn" wx:if="{{item._repliesExpanded}}" catchtap="collapseReplies" data-id="{{item.id}}">
+                <text>收起^</text>
+              </view>
+              <!-- 展开N条回复：初始状态或收起后 -->
+              <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item._hasReplies && !item._repliesExpanded}}" catchtap="expandReplies" data-id="{{item.id}}">
+                <text wx:if="{{item._repliesLoading}}">加载中...</text>
+                <text wx:else>展开{{item.repliesCount}}条回复 ›</text>
+              </view>
             </view>
           </view>
         </view>
@@ -169,11 +179,28 @@
 <view class="comment-modal" wx:if="{{showCommentInput}}">
   <view class="comment-modal-mask" bindtap="hideCommentInput"></view>
   <view class="comment-modal-content">
-    <!-- 输入行：@提示(placeholder) + 输入框 -->
+    <!-- 第一行：textarea（两行高度） -->
     <view class="comment-input-row">
-      <input class="comment-input-field" placeholder="{{replyToId ? '回复 ' + replyToAuthor : '说点什么...'}}" value="{{commentContent}}" bindinput="onCommentInput" focus="{{showCommentInput}}" confirm-type="send" bindconfirm="submitComment" />
+      <textarea
+        class="comment-textarea"
+        placeholder="{{replyToAuthor ? '回复 @' + replyToAuthor : '说点什么...'}}"
+        value="{{commentContent}}"
+        bindinput="onCommentInput"
+        focus="{{showCommentInput}}"
+auto-height
+        adjust-position
+        show-confirm-bar="{{false}}"
+        max-rows="4"
+      />
     </view>
-    <view class="comment-send-btn" catchtap="submitComment">发送</view>
+    <!-- 第二行：emoji | spacer | send（靠右） -->
+    <view class="comment-toolbar-row">
+      <view class="emoji-btn" catchtap="toggleEmojiPanel">
+        <image src="/assets/icons/emoji.svg" mode="aspectFit" />
+      </view>
+      <view class="toolbar-spacer"></view>
+      <view class="comment-send-btn {{sendDisabled ? 'disabled' : ''}}" catchtap="submitComment">发送</view>
+    </view>
   </view>
 </view>
 
@@ -228,13 +255,10 @@
   <!-- 底部固定黑色操作栏 -->
   <view class="preview-bottom-bar">
     <view class="preview-actions {{bottomBarVisible ? 'fade-in' : ''}}">
-      <view class="preview-action-item" catchtap="exitPreview">
+      <view class="preview-action-item preview-close-btn" catchtap="exitPreview">
         <text class="preview-action-icon">×</text>
       </view>
-      <view class="preview-action-item" catchtap="showShareSheet">
-        <text class="preview-action-icon">↗</text>
-      </view>
-      <view class="preview-action-item" catchtap="downloadImage">
+      <view class="preview-action-item preview-download-btn" catchtap="downloadImage">
         <text class="preview-action-icon">↓</text>
       </view>
     </view>
@@ -286,3 +310,6 @@
 
 <!-- 加载状态 -->
 <view class="loading-page" wx:if="{{loading}}"><text>加载中...</text></view>
+
+<!-- 海报绘制用隐藏 Canvas -->
+<canvas canvas-id="poster-canvas" id="poster-canvas" class="poster-canvas"></canvas>

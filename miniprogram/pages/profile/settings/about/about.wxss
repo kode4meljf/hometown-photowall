@@ -1,0 +1,71 @@
+.about-page {
+  min-height: 100vh;
+  background: #f8f8f8;
+}
+
+.about-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 0 60rpx;
+  background: #fff;
+}
+
+.app-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+  background: #f0f0f0;
+}
+
+.app-name {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1b1b1b;
+  margin-bottom: 8rpx;
+}
+
+.app-version {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.about-content {
+  padding: 24rpx;
+}
+
+.about-section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.about-desc {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.8;
+}
+
+.about-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.about-item:last-child {
+  border-bottom: none;
+}
+
+.item-label {
+  font-size: 28rpx;
+  color: #1b1b1b;
+}
+
+.item-value {
+  font-size: 28rpx;
+  color: #999;
+}

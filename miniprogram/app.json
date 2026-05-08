@@ -1,15 +1,19 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/profile/profile",
-    "pages/comments/comments",
-    "pages/edit-profile/edit-profile",
-    "pages/settings/settings",
+    "pages/profile/profile/profile",
+    "pages/profile/comments/comments",
+    "pages/profile/edit-profile/edit-profile",
+    "pages/profile/settings/settings",
+    "pages/profile/settings/about/about",
+    "pages/profile/settings/agreement/agreement",
+    "pages/profile/settings/privacy/privacy",
+    "pages/profile/settings/feedback/feedback",
     "pages/detail/detail",
     "pages/upload/upload",
     "pages/admin/admin",
     "pages/login/login",
-    "pages/signin/signin"
+    "pages/profile/signin/signin"
   ],
   "window": {
     "backgroundTextStyle": "dark",
@@ -29,7 +33,7 @@
         "text": "首页"
       },
       {
-        "pagePath": "pages/profile/profile",
+        "pagePath": "pages/profile/profile/profile",
         "text": "我的"
       }
     ]

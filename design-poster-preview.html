@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分享海报设计稿 - 9:16</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d1a; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; }
+  h1 { color: #fff; font-size: 16px; margin-bottom: 30px; font-weight: 400; letter-spacing: 3px; }
+
+  .poster-wrap { position: relative; width: 405px; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.7); }
+
+  .poster-photo { width: 100%; display: block; }
+
+  /* 渐变从底部白色向上透明 */
+  .poster-gradient {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 380px;
+    background: linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.92) 30%, rgba(255,255,255,0) 100%);
+  }
+
+  /* 内容层 */
+  .poster-content {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 0 32px 40px;
+  }
+
+  /* 地点角标 */
+  .poster-location {
+    display: inline-flex;
+    align-items: center;
+    background: #ff4444;
+    color: #fff;
+    font-size: 20px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  /* 标题文字 */
+  .poster-title {
+    font-size: 28px;
+    color: #1b1b1b;
+    line-height: 1.45;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* 底部信息栏 */
+  .poster-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 18px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+  }
+
+  /* 小程序码 */
+  .poster-qr {
+    width: 100px;
+    height: 100px;
+    background: #fff;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+    flex-shrink: 0;
+  }
+  .qr-icon { font-size: 40px; }
+  .qr-text { font-size: 16px; color: #888; margin-top: 2px; }
+
+  /* 来源 */
+  .poster-source { text-align: right; }
+  .poster-appname { font-size: 20px; color: #1b1b1b; font-weight: 600; }
+  .poster-tagline { font-size: 18px; color: #999; margin-top: 4px; }
+
+  /* 操作提示 */
+  .poster-tip {
+    text-align: center;
+    font-size: 16px;
+    color: #888;
+    margin-top: 10px;
+    letter-spacing: 1px;
+  }
+
+  /* 顶部装饰线 */
+  .poster-topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(to right, #ff4444, #ff6b6b, #ff9a3c);
+  }
+
+  /* 右上角点赞数装饰 */
+  .poster-likes {
+    position: absolute;
+    top: 22px;
+    right: 22px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 6px 16px;
+    font-size: 18px;
+    color: #ff4444;
+    font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+
+  .desc { color: #666; font-size: 13px; margin-top: 30px; text-align: center; max-width: 405px; line-height: 1.8; }
+  .gen-btn { margin-top: 18px; background: linear-gradient(135deg, #ff4444, #ff6b6b); color: #fff; border: none; padding: 12px 44px; border-radius: 36px; font-size: 15px; cursor: pointer; box-shadow: 0 8px 24px rgba(255,68,68,0.35); letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+<h1>分享海报 · 9:16 竖版</h1>
+
+<div class="poster-wrap">
+  <!-- 顶部渐变条 -->
+  <div class="poster-topbar"></div>
+
+  <!-- 照片 -->
+  <img class="poster-photo" src="https://picsum.photos/405/720?random=1" alt="照片" style="aspect-ratio: 9/16; object-fit: cover;">
+
+  <!-- 底部白色渐变 -->
+  <div class="poster-gradient"></div>
+
+  <!-- 点赞数角标 -->
+  <div class="poster-likes">❤️ 128</div>
+
+  <!-- 内容区 -->
+  <div class="poster-content">
+    <div class="poster-location">📍 老根茶</div>
+    <div class="poster-title">老家的老茶树，几十年了，每年清明前后家里人都上山采茶</div>
+    <div class="poster-footer">
+      <div class="poster-qr">
+        <div class="qr-icon">⬡</div>
+        <div class="qr-text">扫码查看</div>
+      </div>
+      <div class="poster-source">
+        <div class="poster-appname">故乡照片墙</div>
+        <div class="poster-tagline">记录家乡的美好瞬间</div>
+      </div>
+    </div>
+    <div class="poster-tip">长按图片 → 保存到相册</div>
+  </div>
+</div>
+
+<p class="desc">
+  尺寸：405×720px（9:16 竖版）<br>
+  顶部落日红渐变条 · 照片底部柔和渐变 · 右下角小程序码
+</p>
+
+<button class="gen-btn" onclick="this.textContent='生成中...'">生成分享海报</button>
+
+</body>
+</html>
