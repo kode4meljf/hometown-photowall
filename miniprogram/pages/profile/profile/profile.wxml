@@ -10,7 +10,7 @@
     <text class="nickname">{{userInfo.nickname || '未登录'}}</text>
     <view class="profile-region-group" wx:if="{{userInfo.regionDisplay || userInfo.genderDisplay}}">
       <text class="profile-region-tag" wx:if="{{userInfo.regionDisplay}}">{{userInfo.regionDisplay}}</text>
-      <text class="profile-region-tag" wx:if="{{userInfo.genderDisplay}}">{{userInfo.genderDisplay}}</text>
+      <text class="profile-region-tag gender-tag" wx:if="{{userInfo.genderDisplay}}">{{userInfo.genderDisplay}}</text>
     </view>
     <!-- bio + 标签 -->
     <view class="profile-bio-tags" wx:if="{{userInfo.bio || (userInfo.tags && userInfo.tags.length > 0)}}">

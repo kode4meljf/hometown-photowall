@@ -746,6 +746,9 @@ async function getStats() {
 
 // 获取我的作品（读 posts 集合）
 async function getMyWorks(openId, params = {}) {
+  if (!openId) {
+    return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
+  }
   const { page = 1, pageSize = 20, hidden } = params;
   // hidden: true=仅隐藏, false=仅显示, undefined=全部
   const whereCond = { authorId: openId };
@@ -778,6 +781,9 @@ async function getMyWorks(openId, params = {}) {
 
 // 获取我赞过的照片（读 posts 集合）
 async function getMyLiked(openId, params = {}) {
+  if (!openId) {
+    return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
+  }
   const { page = 1, pageSize = 20 } = params;
   try {
     const countResult = await postsCollection
@@ -887,6 +893,9 @@ async function incrementShares(data, openId) {
 
 // 获取我发出的评论
 async function getMyComments(openId, params = {}) {
+  if (!openId) {
+    return { success: false, message: '未登录', data: { comments: [], hasMore: false, total: 0 } };
+  }
   const { offset = 0, limit = 20 } = params;
   try {
     const query = { authorId: openId };
@@ -957,6 +966,9 @@ async function getMyComments(openId, params = {}) {
 
 // 获取我收到的评论（别人在我的帖子下的评论）
 async function getReceivedComments(openId, params = {}) {
+  if (!openId) {
+    return { success: false, message: '未登录', data: { comments: [], hasMore: false, total: 0, newCount: 0 } };
+  }
   const { offset = 0, limit = 20 } = params;
   try {
     // 先查我发的所有帖子 ID

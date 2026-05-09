@@ -73,12 +73,17 @@
 
 /* 单个标签 */
 .profile-region-tag {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #888;
   line-height: 1;
   background: #f0f0f0;
   padding: 6rpx 16rpx;
   border-radius: 8rpx;
+}
+
+/* 性别标签（与地区标签共用 .profile-region-tag） */
+.gender-tag {
+  display: inline;
 }
 
 /* bio + 标签区块（方案C极简） */
@@ -92,7 +97,7 @@
 }
 
 .profile-bio {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #888;
   text-align: center;
   line-height: 1.5;

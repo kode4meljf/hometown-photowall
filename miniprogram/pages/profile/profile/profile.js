@@ -91,7 +91,20 @@ dropdownTop: 0,
     if (isLoggedIn) {
       this._fetchUserInfoWithAvatar();
     } else {
-      this.setData({ userInfo: null });
+      // 退出登录时清空所有用户相关数据，防止数据残留泄露
+      this.setData({
+        userInfo: null,
+        works: [],
+        liked: [],
+        worksCount: 0,
+        likedCount: 0,
+        hiddenCount: 0,
+        worksPage: 1,
+        likedPage: 1,
+        worksHasMore: true,
+        likedHasMore: true,
+        _loaded: false
+      });
     }
   },
   
@@ -108,11 +121,11 @@ dropdownTop: 0,
         if (userInfo.region && userInfo.region.length >= 2) {
           userInfo.regionDisplay = userInfo.region[0].slice(0, -1) + '·' + userInfo.region[1];
         }
-        // 格式化性别显示：♂ 男 / ♀ 女
+        // 格式化性别显示：♂ 男 / ♀ 女（符号由 WXML 渲染）
         if (userInfo.gender === 'male') {
-          userInfo.genderDisplay = '♂ 男';
+          userInfo.genderDisplay = '男';
         } else if (userInfo.gender === 'female') {
-          userInfo.genderDisplay = '♀ 女';
+          userInfo.genderDisplay = '女';
         }
         app.globalData.userInfo = userInfo;
         wx.setStorageSync('userInfo', userInfo);
