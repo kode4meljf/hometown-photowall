@@ -1,114 +1,121 @@
 <!-- pages/comments/comments.wxml -->
 <view class="page">
 
-  <!-- Tab bar -->
-  <view class="tab-bar">
-    <view class="tab-item {{activeTab === 'sent' ? 'active' : ''}}" bindtap="switchTab" data-tab="sent">
-      我发出的
-    </view>
-    <view class="tab-item {{activeTab === 'received' ? 'active' : ''}}" bindtap="switchTab" data-tab="received">
-      我收到的
+  <!-- 固定头部：标题 + Tab bar -->
+  <view class="header-fixed">
+    <view class="tab-bar">
+      <view class="tab-item {{activeTab === 'sent' ? 'active' : ''}}" bindtap="switchTab" data-tab="sent">
+        我发出的
+      </view>
+      <view class="tab-item {{activeTab === 'received' ? 'active' : ''}}" bindtap="switchTab" data-tab="received">
+        我收到的
+      </view>
     </view>
   </view>
 
-  <!-- Tab content with swipe -->
+  <!-- Swiper 左右滑动切换 -->
   <swiper class="tab-swiper" current="{{currentIndex}}" bindchange="onSwiperChange">
-    <!-- 我发出的 Tab (index 0) -->
+    
+    <!-- 我发出的 Tab -->
     <swiper-item>
-      <view class="tab-content">
+      <scroll-view class="tab-scroll" scroll-y refresher-enabled refresher-triggered="{{sentRefreshing}}" bindrefresherrefresh="onSentRefresh" bindscrolltolower="onReachBottom">
+        <view class="tab-content">
 
-        <!-- 发出评论列表 -->
-        <view wx:for="{{sentList}}" wx:key="id" class="sent-card" bindtap="goToDetail" data-postid="{{item.postId}}">
-          <view class="sent-thumb-wrap">
-            <image class="sent-thumb" src="{{item.postThumb || '/assets/icons/default-img.png'}}" mode="aspectFill" />
-          </view>
-          <view class="sent-body">
-            <text class="sent-title">{{item.postTitle || '帖子'}}</text>
-            <view class="sent-comment-bubble">
-              <text class="sent-comment-text">{{item.content}}</text>
+          <!-- 发出评论列表 -->
+          <view wx:for="{{sentList}}" wx:key="id" class="sent-card" bindtap="goToDetail" data-postid="{{item.postId}}">
+            <view class="sent-thumb-wrap">
+              <image class="sent-thumb" src="{{item.postThumb || '/assets/icons/default-img.png'}}" mode="aspectFill" />
             </view>
-            <view class="sent-meta">
-              <text class="sent-time">{{item.time}}</text>
-              <view class="sent-stats">
-                <view class="sent-stat">
+            <view class="sent-body">
+              <text class="sent-title">{{item.postTitle || '帖子'}}</text>
+              <view class="sent-comment-bubble">
+                <text class="sent-comment-text">{{item.content}}</text>
+              </view>
+              <view class="sent-meta">
+                <text class="sent-time">{{item.time}}</text>
+                <view class="sent-stats">
+                  <view class="sent-stat">
+                    <image src="/assets/icons/like.png" mode="aspectFit" />
+                    <text>{{item.likes || 0}}</text>
+                  </view>
+                  <view class="sent-stat">
+                    <image src="/assets/icons/comment.png" mode="aspectFit" />
+                    <text>{{item.replies || 0}}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 空状态 -->
+          <view class="empty-state" wx:if="{{!sentLoading && sentList.length === 0}}">
+            <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
+            <text class="empty-text">暂无发出评论</text>
+          </view>
+          <view class="load-more" wx:if="{{sentLoading}}">加载中...</view>
+          <view class="load-more done" wx:if="{{!sentLoading && !sentHasMore && sentList.length > 0}}">没有更多了</view>
+
+        </view>
+      </scroll-view>
+    </swiper-item>
+
+    <!-- 我收到的 Tab -->
+    <swiper-item>
+      <scroll-view class="tab-scroll" scroll-y refresher-enabled refresher-triggered="{{receivedRefreshing}}" bindrefresherrefresh="onReceivedRefresh" bindscrolltolower="onReachBottom">
+        <view class="tab-content">
+
+          <!-- Summary card -->
+          <view class="summary-card" wx:if="{{receivedTotal > 0 || receivedNew > 0}}">
+            <view class="summary-icon">
+              <image src="/assets/icons/comment.png" mode="aspectFit" />
+            </view>
+            <view class="summary-nums">
+              <view class="summary-num-item">
+                <text class="summary-num">{{receivedTotal || 0}}</text>
+                <text class="summary-num-label">收到评论</text>
+              </view>
+              <view class="summary-num-item">
+                <text class="summary-num">{{receivedNew || 0}}</text>
+                <text class="summary-num-label">新回复</text>
+              </view>
+            </view>
+          </view>
+
+          <!-- 收到评论列表 -->
+          <view wx:for="{{receivedList}}" wx:key="id" class="comment-item" bindtap="goToDetail" data-postid="{{item.postId}}">
+            <view class="comment-avatar-wrap">
+              <image class="comment-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
+            </view>
+            <view class="comment-body">
+              <view class="comment-author-row">
+                <text class="comment-author">{{item.author || '匿名'}}</text>
+                <text class="comment-time">{{item.time}}</text>
+              </view>
+              <text class="comment-text">{{item.content}}</text>
+              <view class="post-ref" catchtap="goToDetail" data-postid="{{item.postId}}">
+                <image class="post-thumb" src="{{item.postThumb || '/assets/icons/default-img.png'}}" mode="aspectFill" />
+                <text class="post-title">{{item.postTitle || '帖子'}}</text>
+                <text class="post-arrow">›</text>
+              </view>
+              <view class="comment-actions">
+                <view class="action-btn">
                   <image src="/assets/icons/like.png" mode="aspectFit" />
                   <text>{{item.likes || 0}}</text>
                 </view>
-                <view class="sent-stat">
-                  <image src="/assets/icons/comment.png" mode="aspectFit" />
-                  <text>{{item.replies || 0}}</text>
-                </view>
               </view>
             </view>
           </view>
-        </view>
 
-        <!-- 空状态 -->
-        <view class="empty-state" wx:if="{{!sentLoading && sentList.length === 0}}">
-          <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
-          <text class="empty-text">暂无发出评论</text>
-        </view>
-        <view class="load-more" wx:if="{{sentLoading}}">加载中...</view>
-        <view class="load-more done" wx:if="{{!sentLoading && !sentHasMore && sentList.length > 0}}">没有更多了</view>
-
-      </view>
-    </swiper-item>
-
-    <!-- 我收到的 Tab (index 1) -->
-    <swiper-item>
-      <view class="tab-content">
-
-        <!-- Summary card -->
-        <view class="summary-card" wx:if="{{receivedTotal > 0 || receivedNew > 0}}">
-          <view class="summary-icon">
-            <image src="/assets/icons/comment.png" mode="aspectFit" />
+          <!-- 空状态 -->
+          <view class="empty-state" wx:if="{{!receivedLoading && receivedList.length === 0}}">
+            <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
+            <text class="empty-text">暂无收到评论</text>
           </view>
-          <view class="summary-nums">
-            <view class="summary-num-item">
-              <text class="summary-num">{{receivedTotal || 0}}</text>
-              <text class="summary-num-label">收到评论</text>
-            </view>
-            <view class="summary-num-item">
-              <text class="summary-num">{{receivedNew || 0}}</text>
-              <text class="summary-num-label">新回复</text>
-            </view>
-          </view>
-        </view>
+          <view class="load-more" wx:if="{{receivedLoading}}">加载中...</view>
+          <view class="load-more done" wx:if="{{!receivedLoading && !receivedHasMore && receivedList.length > 0}}">没有更多了</view>
 
-        <!-- 收到评论列表 -->
-        <view wx:for="{{receivedList}}" wx:key="id" class="comment-item" bindtap="goToDetail" data-postid="{{item.postId}}">
-          <view class="comment-avatar-wrap">
-            <image class="comment-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
-          </view>
-          <view class="comment-body">
-            <view class="comment-author-row">
-              <text class="comment-author">{{item.author || '匿名'}}</text>
-              <text class="comment-time">{{item.time}}</text>
-            </view>
-            <text class="comment-text">{{item.content}}</text>
-            <view class="post-ref" catchtap="goToDetail" data-postid="{{item.postId}}">
-              <image class="post-thumb" src="{{item.postThumb || '/assets/icons/default-img.png'}}" mode="aspectFill" />
-              <text class="post-title">{{item.postTitle || '帖子'}}</text>
-              <text class="post-arrow">›</text>
-            </view>
-            <view class="comment-actions">
-              <view class="action-btn">
-                <image src="/assets/icons/like.png" mode="aspectFit" />
-                <text>{{item.likes || 0}}</text>
-              </view>
-            </view>
-          </view>
         </view>
-
-        <!-- 空状态 -->
-        <view class="empty-state" wx:if="{{!receivedLoading && receivedList.length === 0}}">
-          <image class="empty-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
-          <text class="empty-text">暂无收到评论</text>
-        </view>
-        <view class="load-more" wx:if="{{receivedLoading}}">加载中...</view>
-        <view class="load-more done" wx:if="{{!receivedLoading && !receivedHasMore && receivedList.length > 0}}">没有更多了</view>
-
-      </view>
+      </scroll-view>
     </swiper-item>
   </swiper>
 

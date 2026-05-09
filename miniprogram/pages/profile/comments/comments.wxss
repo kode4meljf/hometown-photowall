@@ -1,24 +1,37 @@
 /* pages/comments/comments.wxss */
 .page {
-  min-height: 100vh;
+  height: 100vh;
   background: var(--bg, #f8f8f8);
   display: flex;
   flex-direction: column;
 }
 
-/* Tab swiper fills remaining space */
-.tab-swiper {
-  height: calc(100vh - 96rpx);
+/* 固定头部：标题 + Tab bar */
+.header-fixed {
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
 }
 
 /* Tab bar */
 .tab-bar {
   display: flex;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+}
+
+/* Swiper 区域 */
+.tab-swiper {
+  flex: 1;
+  height: calc(100vh - 96rpx);  /* 减去 tab-bar 高度 */
+}
+
+.tab-swiper swiper-item {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Tab content scroll area */
+.tab-scroll {
+  height: 100%;
 }
 
 .tab-item {

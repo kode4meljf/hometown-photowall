@@ -99,10 +99,8 @@ dropdownTop: 0,
   async _fetchUserInfoWithAvatar() {
     try {
       const res = await userApi.getCurrentUser();
-      console.log('[DEBUG] getCurrentUser result:', JSON.stringify(res));
       if (res.success && res.data) {
         let userInfo = res.data;
-        console.log('[DEBUG] userInfo from cloud:', JSON.stringify(userInfo));
         if (!userInfo.avatar) {
           userInfo = { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
         }
@@ -110,14 +108,15 @@ dropdownTop: 0,
         if (userInfo.region && userInfo.region.length >= 2) {
           userInfo.regionDisplay = userInfo.region[0].slice(0, -1) + '·' + userInfo.region[1];
         }
-        console.log('[DEBUG] userInfo after format:', JSON.stringify(userInfo));
-        console.log('[DEBUG] bio:', userInfo.bio, '| tags:', JSON.stringify(userInfo.tags));
+        // 格式化性别显示：♂ 男 / ♀ 女
+        if (userInfo.gender === 'male') {
+          userInfo.genderDisplay = '♂ 男';
+        } else if (userInfo.gender === 'female') {
+          userInfo.genderDisplay = '♀ 女';
+        }
         app.globalData.userInfo = userInfo;
         wx.setStorageSync('userInfo', userInfo);
         this.setData({ userInfo });
-        console.log('[DEBUG] setData done, userInfo.nickname:', userInfo.nickname, 'regionDisplay:', userInfo.regionDisplay);
-      } else {
-        console.log('[DEBUG] getCurrentUser failed or no data:', res);
       }
     } catch (e) {
       console.error('获取用户信息失败:', e);

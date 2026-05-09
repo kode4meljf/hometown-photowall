@@ -6,8 +6,13 @@ const callFunction = (name, action, data = {}) => {
     wx.cloud.callFunction({
       name,
       data: { action, data },
-      success: (res) => resolve(res.result),
-      fail: reject
+      success: (res) => {
+        resolve(res.result);
+      },
+      fail: (err) => {
+        console.error('[API] callFunction fail:', name, action, err);
+        reject(err);
+      }
     });
   });
 };
@@ -160,7 +165,7 @@ const userApi = {
 
   // 更新完整用户资料（头像、昵称、性别、地区、简介、标签）
   updateUserProfile(params = {}) {
-    return callFunction('auth', 'updateUserProfile', { data: params });
+    return callFunction('auth', 'updateUserProfile', params);
   }
 };
 

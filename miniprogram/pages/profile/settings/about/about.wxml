@@ -12,11 +12,11 @@
       <view class="about-section">
         <view class="about-item">
           <text class="item-label">开发者</text>
-          <text class="item-value">故乡照片墙团队</text>
+          <text class="item-value">BsRKode4meljf</text>
         </view>
         <view class="about-item">
           <text class="item-label">联系我们</text>
-          <text class="item-value">hometown@example.com</text>
+          <text class="item-value">1334637216@qq.com</text>
         </view>
       </view>
     </view>

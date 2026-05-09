@@ -26,17 +26,48 @@ Page({
   },
 
   /**
-   * 计算本地缓存大小
+   * 计算本地缓存大小（Storage + 文件系统）
    */
   calculateCacheSize() {
+    let totalKB = 0;
+    let hasError = false;
+
+    const trySetSize = () => {
+      if (totalKB >= 0 && !hasError) {
+        let display;
+        if (totalKB >= 1024) {
+          display = `${(totalKB / 1024).toFixed(1)} MB`;
+        } else {
+          display = `${Math.round(totalKB)} KB`;
+        }
+        this.setData({ cacheSize: display });
+      }
+    };
+
+    // 1. Storage 大小
     wx.getStorageInfo({
       success: (res) => {
-        // res.currentSize 单位是 KB
-        const mb = (res.currentSize / 1024).toFixed(1);
-        this.setData({ cacheSize: `${mb} MB` });
+        totalKB += res.currentSize || 0;
+        trySetSize();
       },
       fail: () => {
-        this.setData({ cacheSize: '0 MB' });
+        // Storage 获取失败不阻塞，文件大小照常算
+        trySetSize();
+      },
+    });
+
+    // 2. 临时文件缓存大小（wx.env.USER_DATA_PATH 下的已保存文件）
+    wx.getSavedFileList({
+      success: (fileRes) => {
+        const files = fileRes.fileList || [];
+        files.forEach((f) => {
+          totalKB += (f.size || 0) / 1024; // size 单位是字节，转 KB
+        });
+        trySetSize();
+      },
+      fail: () => {
+        // 文件列表获取失败，不阻塞
+        trySetSize();
       },
     });
   },

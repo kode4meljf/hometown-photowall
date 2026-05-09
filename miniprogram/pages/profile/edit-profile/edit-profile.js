@@ -69,7 +69,7 @@ Page({
     this._uploadAvatar(avatarUrl);
   },
 
-  // 上传头像
+  // 上传头像（选完即生效）
   async _uploadAvatar(filePath) {
     wx.showLoading({ title: '上传中...', mask: true });
     try {
@@ -80,16 +80,21 @@ Page({
         showToast('上传失败');
         return;
       }
-      // 更新本地显示
-      this.setData({
-        'formData.avatar': uploadRes.fileID,
-        avatarVersion: '?v=' + Date.now()
-      });
+      // 立即持久化到数据库
+      await userApi.updateUserProfile({ avatar: uploadRes.fileID });
+      // 重新拉取用户信息（含解析后的 avatar URL）
+      const fresh = await userApi.getCurrentUser();
+      if (fresh.success && fresh.data) {
+        this.setData({ 'formData.avatar': fresh.data.avatar || uploadRes.fileID });
+      } else {
+        // 兜底：用 fileID 本地更新
+        this.setData({ 'formData.avatar': uploadRes.fileID });
+      }
       wx.hideLoading();
       showToast('头像已更新');
     } catch (e) {
       wx.hideLoading();
-      showToast('上传失败');
+      showToast('头像保存失败');
       console.error('上传头像失败:', e);
     }
   },
@@ -140,7 +145,7 @@ Page({
     if (this.data.saving) return;
     this.setData({ saving: true });
 
-    const { avatar, nickname, gender, region, bio } = this.data.formData;
+    const { nickname, gender, region, bio } = this.data.formData;
 
     // 简单校验
     if (!nickname || !nickname.trim()) {
@@ -151,17 +156,14 @@ Page({
 
     wx.showLoading({ title: '保存中...', mask: true });
     try {
-      // 调用更新接口（avatar 单独处理）
+      // avatar 已通过 _uploadAvatar 单独存库，此处只更新文字类内容
       const payload = {
-        avatar,
         nickname: nickname.trim(),
         gender,
         region,
         bio
       };
-      console.log('[DEBUG] onSave payload:', JSON.stringify(payload));
       const res = await userApi.updateUserProfile(payload);
-      console.log('[DEBUG] onSave result:', JSON.stringify(res));
 
       wx.hideLoading();
       this.setData({ saving: false });

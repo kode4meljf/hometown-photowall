@@ -61,12 +61,24 @@
   margin-bottom: 4rpx;
 }
 
-/* 地区（广东·深圳） */
-.profile-region {
-  font-size: 24rpx;
-  color: #aaa;
-  text-align: center;
+/* 地区+性别标签组 - 分开显示 */
+.profile-region-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
   margin-bottom: 16rpx;
+}
+
+/* 单个标签 */
+.profile-region-tag {
+  font-size: 24rpx;
+  color: #888;
+  line-height: 1;
+  background: #f0f0f0;
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
 }
 
 /* bio + 标签区块（方案C极简） */

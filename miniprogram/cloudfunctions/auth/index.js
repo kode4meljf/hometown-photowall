@@ -119,6 +119,7 @@ async function handleGetCurrentUser(openId) {
     }
 
     const user = result.data[0];
+
     const avatar = user.avatar || '';
 
     return {
@@ -176,6 +177,7 @@ async function handleUpdateUserProfile(params, openId) {
     }
 
     const userId = userResult.data[0]._id;
+
     const updateData = {};
     if (avatar !== undefined) updateData.avatar = avatar;
     if (nickname !== undefined) updateData.nickname = nickname;
@@ -184,14 +186,9 @@ async function handleUpdateUserProfile(params, openId) {
     if (bio !== undefined) updateData.bio = bio;
     updateData.updatedAt = db.serverDate();
 
-    try {
-      await usersCollection.doc(userId).update({ data: updateData });
-    } catch (e) {
-      console.error('更新用户资料失败:', e);
-      return { success: false, message: '更新失败，请重试' };
-    }
+    const updateRes = await usersCollection.doc(userId).update({ data: updateData });
 
-    return { success: true, message: '更新成功' };
+    return { success: true, message: '更新成功', updateStats: updateRes.stats };
   } catch (e) {
     console.error('更新用户资料失败:', e);
     return { success: false, message: '更新失败' };

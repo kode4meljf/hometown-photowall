@@ -37,7 +37,6 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
     canGoNext: false,
     currentPhotoIndex: 0,
     indexBadgeVisible: false,
-    shareSheetVisible: false,
     inputRowBottom: 0,  // 键盘高度动态调整
   },
 
@@ -98,6 +97,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
             authorAvatar: r.authorAvatar || '/assets/icons/default-avatar.png'
           })),
           // 如果有更多回复未加载完，标记 hasMore
+          _hasReplies: (c.repliesCount || 0) > 0 || (c.replies && c.replies.length > 0),
           _repliesHasMore: (c.repliesCount || 0) > (c.replies || []).length
         }));
         post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
@@ -615,6 +615,11 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
     }
   },
 
+  // 标准触底加载（兜底方案，scroll-view 滚动失效时启用）
+  onReachBottom() {
+    this._tryLoadMore();
+  },
+
   _tryLoadMore() {
     if (this.data.commentsLoading || !this.data.hasMoreComments) return;
     this.loadMoreComments();
@@ -684,43 +689,11 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   toggleEmojiPanel() { this.setData({ showEmojiPanel: !this.data.showEmojiPanel }); },
 
   handleShare() {
+    // 触发分享菜单（原生右上角三点菜单，含「分享给朋友」「分享到朋友圈」）
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
   },
 
-  showShareSheet() {
-    this.setData({ shareSheetVisible: true });
-  },
-
-  hideShareSheet() {
-    this.setData({ shareSheetVisible: false });
-  },
-
-  shareToFriend() {
-    this.setData({ shareSheetVisible: false });
-    setTimeout(() => {
-      wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage'] });
-      const post = this.data.post;
-      if (post) {
-        this.setData({ 'post.shares': (post.shares || 0) + 1 });
-        wx.cloud.callFunction({ name: 'posts', data: { action: 'incrementShares', id: post._id } }).catch(() => {});
-      }
-    }, 300);
-  },
-
-  shareToMoments() {
-    this.setData({ shareSheetVisible: false });
-    setTimeout(() => {
-      wx.showShareMenu({ withShareTicket: true, menus: ['shareTimeline'] });
-      const post = this.data.post;
-      if (post) {
-        this.setData({ 'post.shares': (post.shares || 0) + 1 });
-        wx.cloud.callFunction({ name: 'posts', data: { action: 'incrementShares', id: post._id } }).catch(() => {});
-      }
-    }, 300);
-  },
-
   async generatePoster() {
-    this.setData({ shareSheetVisible: false });
     const post = this.data.post;
     if (!post) return;
     showLoading('生成海报中…');
@@ -910,18 +883,6 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       hideLoading();
       showToast('生成失败');
     }
-  },
-
-  copyLink() {
-    const post = this.data.post;
-    if (!post) return;
-    const link = `/pages/detail/detail?id=${post._id}`;
-    wx.setClipboardData({
-      data: link,
-      success: () => showToast('链接已复制'),
-      fail: () => showToast('复制失败')
-    });
-    this.setData({ shareSheetVisible: false });
   },
 
   onShareAppMessage() {

@@ -166,7 +166,7 @@
       </view>
 
       <!-- 分享 -->
-      <view class="action-item" catchtap="showShareSheet">
+      <view class="action-item" catchtap="generatePoster">
         <image class="action-icon-img" src="/assets/icons/icon-share.svg" mode="aspectFit" />
         <text class="action-num">{{f.formatCount(post.shares || 0)}}</text>
       </view>
@@ -264,49 +264,6 @@ auto-height
       </view>
     </view>
   </view>
-</view>
-
-<!-- 分享面板 -->
-<view class="share-sheet-mask {{shareSheetVisible ? 'visible' : ''}}" bindtap="hideShareSheet"></view>
-<view class="share-sheet {{shareSheetVisible ? 'visible' : ''}}">
-  <view class="share-sheet-header">
-    <text class="share-sheet-title">分享到</text>
-    <view class="share-sheet-close" catchtap="hideShareSheet">×</view>
-  </view>
-  <view class="share-sheet-preview" wx:if="{{post}}">
-    <image class="share-preview-thumb" src="{{post.coverUrl || (post.photos && post.photos[0] && post.photos[0].imageUrl) || '/assets/icons/default-avatar.png'}}" mode="aspectFill" />
-    <view class="share-preview-info">
-      <text class="share-preview-title">{{post.title || '故乡照片墙'}}</text>
-      <text class="share-preview-sub">来自「故乡照片墙」</text>
-    </view>
-  </view>
-  <view class="share-sheet-grid">
-    <view class="share-sheet-item" catchtap="shareToFriend">
-      <view class="share-icon-wrap share-icon-wechat">
-        <image src="/assets/icons/icon-wechat.svg" mode="aspectFit" />
-      </view>
-      <text class="share-label">微信好友</text>
-    </view>
-    <view class="share-sheet-item" catchtap="shareToMoments">
-      <view class="share-icon-wrap share-icon-moments">
-        <image src="/assets/icons/icon-moments.svg" mode="aspectFit" />
-      </view>
-      <text class="share-label">朋友圈</text>
-    </view>
-    <view class="share-sheet-item" catchtap="generatePoster">
-      <view class="share-icon-wrap share-icon-poster">
-        <image src="/assets/icons/icon-poster.svg" mode="aspectFit" />
-      </view>
-      <text class="share-label">生成海报</text>
-    </view>
-    <view class="share-sheet-item" catchtap="copyLink">
-      <view class="share-icon-wrap share-icon-link">
-        <image src="/assets/icons/icon-link.svg" mode="aspectFit" />
-      </view>
-      <text class="share-label">复制链接</text>
-    </view>
-  </view>
-  <view class="share-sheet-cancel" catchtap="hideShareSheet">取消</view>
 </view>
 
 <!-- 加载状态 -->
