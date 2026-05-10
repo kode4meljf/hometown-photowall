@@ -294,9 +294,21 @@ Page({
   // 跳转到详情
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages/detail/detail?id=${id}`
-    });
+    const post = e.currentTarget.dataset.post;
+    if (!post) {
+      wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
+      return;
+    }
+    // 捕获卡片图片的 boundingClientRect，传给详情页用于 FLIP 动画
+    const query = wx.createSelectorQuery().in(this);
+    query.select('#card-img-' + id).boundingClientRect(rect => {
+      if (rect) {
+        const app = getApp();
+        app.globalData._indexCardRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+        app.globalData._indexCardUrl = post.coverUrl || (post.photos && post.photos[0] && post.photos[0].imageUrl) || '';
+      }
+      wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
+    }).exec();
   },
 
   // 点赞（乐观更新：立即响应，后台同步）

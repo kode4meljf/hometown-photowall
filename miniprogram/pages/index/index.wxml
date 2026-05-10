@@ -84,9 +84,11 @@
           class="photo-card"
           bindtap="goToDetail"
           data-id="{{item.id}}"
+          data-post="{{item}}"
         >
           <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
-            <image 
+            <image
+              id="card-img-{{item.id}}"
               class="card-image" 
               src="{{item.imageUrl}}" 
               mode="aspectFill"
@@ -124,9 +126,11 @@
           class="photo-card"
           bindtap="goToDetail"
           data-id="{{item.id}}"
+          data-post="{{item}}"
         >
           <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
-            <image 
+            <image
+              id="card-img-{{item.id}}"
               class="card-image" 
               src="{{item.imageUrl}}" 
               mode="aspectFill"

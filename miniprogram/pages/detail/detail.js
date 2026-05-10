@@ -29,6 +29,15 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
     bottomBarVisible: false,
     previewAnimating: false,
     previewOpacity: 1,
+    // 进入动画（首页→详情 FLIP）
+    enterAnimImageUrl: '',   // FLIP 使用的图片 URL（来自首页传递）
+    enterAnimActive: false,  // 是否显示进入动画层
+    enterAnimTransform: 'translate(0px,0px) scale(1,1)',
+    enterAnimClass: '',
+    enterAnimOpacity: 1,
+    // 骨架屏
+    showSkeleton: true,
+    skeletonReady: false,
     previewAnimClass: '',   // 控制 transition 曲线：'animating-enter' | 'animating-exit' | ''
     overlayOpacity: 0,
     yPageVisible: true,
@@ -45,6 +54,8 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   _flipParams: null,   // 进入动画参数，供退出动画反向使用
   _imgNaturalW: 0,     // 图片原始宽度（onPhotoLoad 获取）
   _imgNaturalH: 0,     // 图片原始高度
+  _indexCardRect: null, // 首页→详情 FLIP 起点 rect（由首页传入）
+  _indexCardUrl: '',    // 首页卡片图片 URL
 
   onLoad(options) {
     this.postId = options.id;
@@ -60,6 +71,12 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       }
     });
     if (this.postId) {
+      // 接收首页传来的卡片 rect 数据（通过 globalData）
+      const app = getApp();
+      this._indexCardRect = app.globalData._indexCardRect || null;
+      this._indexCardUrl = app.globalData._indexCardUrl || '';
+      app.globalData._indexCardRect = null;
+      app.globalData._indexCardUrl = '';
       this.loadPost();
       this._loadPhotoList();
     } else {
@@ -109,6 +126,8 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
         const commentsCountText = formatLikeCount(post.commentsCount || 0).text;
         this.setData({ post, canDelete, loading: false, hasMoreComments, commentsCountText, currentPhotoIndex: 0 });
         this._updateNavState();
+        // loadPost 完成，触发首页→详情 FLIP 动画
+        this._playEnterAnim();
       } else {
         showToast(res.message || '加载失败');
         this.setData({ loading: false });
@@ -136,6 +155,115 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       canGoPrev: this._currentIndex > 0,
       canGoNext: this._currentIndex < this._postList.length - 1
     });
+  },
+
+  // ========== 首页→详情 FLIP 动画 ==========
+  // 时序：
+  //   1. loadPost 完成后，检查是否有 _indexCardRect
+  //   2. 有则显示进入动画层（opacity=0，在卡片位置），加载图片
+  //   3. 图片加载后（onImageLoad），计算 Y 起点 aspectFit 布局 + Q 终点 aspectFit 布局
+  //   4. nextTick opacity=1 显示，然后设终点触发 350ms 弹簧 transition
+  //   5. 动画结束后隐藏动画层，显示真实页面
+  _playEnterAnim() {
+    var self = this;
+    if (!this._indexCardRect || !this.data.post) return;
+
+    var rect = this._indexCardRect;  // { left, top, width, height }
+    var post = this.data.post;
+    var firstPhoto = post.photos && post.photos[0];
+    if (!firstPhoto) return;
+
+    // 图片 URL：优先用传入的 URL（与首页一致），否则 fallback
+    var imgUrl = this._indexCardUrl || firstPhoto.imageUrl || post.imageUrl || post.coverUrl;
+    if (!imgUrl) return;
+
+    // aspectRatio：服务器返回的原始比例，用于计算 aspectFit 布局
+    var imgAR = post.aspectRatio || 1;
+    if (imgAR <= 0) imgAR = 1;
+
+    // Phase 1: 显示动画层，opacity=0（在正确位置之前先隐藏）
+    this.setData({
+      enterAnimImageUrl: imgUrl,
+      enterAnimActive: true,
+      enterAnimTransform: 'translate(0px,0px) scale(1,1)',
+      enterAnimClass: '',
+      enterAnimOpacity: 0,
+      // 隐藏真实页面内容，直到动画完成
+      yPageVisible: false,
+      // 同时显示骨架屏（方案A）
+      showSkeleton: true
+    });
+
+    // 等 DOM 更新后计算坐标并执行动画
+    wx.nextTick(function() {
+      // 读取动画层 image 的实际 boundingClientRect（它的宽是屏幕宽，Y起点从这里算）
+      self._measureAnimImage(function(animImgRect) {
+        if (!animImgRect) {
+          // 兜底：无法测量，直接显示页面
+          self.setData({ enterAnimActive: false, yPageVisible: true, showSkeleton: false });
+          return;
+        }
+
+        // 计算 Y 起点布局（卡片 rect 在首页的 aspectFill 效果 → 等效 aspectFit 中心点）
+        // 卡片 rect 是 aspectFill 容器（已知宽高），图片在里面等比填充
+        // 由于 aspectFill 裁切，容器的中心 = 图片可见区域的中心（容器的中心对齐图片可见区域中心）
+        // 所以直接用 rect 的中心点作为 Y 的 aspectFit 中心
+        var yLayout = self._aspectFitLayout(rect.width, rect.height, imgAR);
+        var yVisW = yLayout.visW, yVisH = yLayout.visH;
+        var yCenterX = rect.left + yLayout.offsetX + yVisW / 2;
+        var yCenterY = rect.top + yLayout.offsetY + yVisH / 2;
+
+        // 计算 Q 终点布局（屏幕宽，图片等比缩放居中）
+        var screenW = self._windowWidth || wx.getSystemInfoSync().windowWidth;
+        var screenH = self._windowHeight || wx.getSystemInfoSync().windowHeight;
+        var qLayout = self._aspectFitLayout(screenW, screenH, imgAR);
+        var qVisW = qLayout.visW, qVisH = qLayout.visH;
+        var qCenterX = qLayout.offsetX + qVisW / 2;
+        var qCenterY = qLayout.offsetY + qVisH / 2;
+
+        // 起点 transform：以动画层容器（screenW×screenH）的左上角为原点，scale+translate 使图片中心对齐 Y
+        var startSx = yVisW / qVisW;
+        var startSy = yVisH / qVisH;
+        var startTx = yCenterX - qCenterX * startSx;
+        var startTy = yCenterY - qCenterY * startSy;
+
+        // Phase 2: 设 transform 为 Y 起点（opacity 仍为 0，看不见）
+        self._currentTx = startTx; self._currentTy = startTy;
+        self._currentScale = startSx; self._currentSy = startSy;
+        self.setData({
+          enterAnimTransform: 'translate(' + startTx.toFixed(2) + 'px, ' + startTy.toFixed(2) + 'px) scale(' + startSx.toFixed(4) + ', ' + startSy.toFixed(4) + ')'
+        });
+
+        // Phase 3: nextTick opacity=1（在 Y 位置可见），然后触发弹簧动画到终点
+        wx.nextTick(function() {
+          self.setData({ enterAnimOpacity: 1 });
+          setTimeout(function() {
+            self._currentTx = 0; self._currentTy = 0;
+            self._currentScale = 1; self._currentSy = 1;
+            self.setData({
+              enterAnimTransform: 'translate(0px, 0px) scale(1, 1)',
+              enterAnimClass: 'animating-enter'
+            });
+
+            // 350ms 弹簧 + buffer 后收尾
+            setTimeout(function() {
+              self.setData({ enterAnimActive: false, yPageVisible: true, enterAnimClass: '' });
+              // 骨架屏随真实内容一起显示（setData loading:false 时已消失）
+            }, 380);
+          }, 16);
+        });
+      });
+    });
+  },
+
+  _measureAnimImage(callback) {
+    // 动画 image 填满屏幕，计算它相对于屏幕的 aspectFit 区域
+    // 实际上 image 填满了 screenW×H，我们想要图片实际显示的边界
+    // 但 image 是 cover 模式（填满），我们的 FLIP 用的是 image element 本身
+    // 这里 measure 动画层 image 的 boundingClientRect 即可
+    wx.createSelectorQuery().in(this).select('.enter-anim-image').boundingClientRect(function(rect) {
+      callback(rect);
+    }).exec();
   },
 
   // 图片加载完成：存储真实宽高，用于 FLIP 计算
