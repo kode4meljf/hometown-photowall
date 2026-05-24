@@ -323,7 +323,7 @@ async function createPost(data, openId) {
     }));
 
     const addData = {
-      title: data.title,
+      title: (data.title || '').trim(),
       description: data.description || '',
       location: data.location || '',
       photos,

@@ -5,6 +5,7 @@ Page({
   data: {
     cacheSize: '12.4 MB',
     isLoggedIn: false,
+    securitySummary: '',
   },
 
   onLoad() {
@@ -14,8 +15,19 @@ Page({
   },
 
   checkLogin() {
-    const userInfo = app.globalData.userInfo;
-    this.setData({ isLoggedIn: !!userInfo });
+    this.updateLoginState();
+  },
+
+  updateLoginState() {
+    const user = app.globalData.userInfo;
+    const isLoggedIn = app.checkLogin();
+    let securitySummary = '';
+    if (isLoggedIn && user) {
+      securitySummary = user.hasPhone || user.phone
+        ? (user.phone || '已绑定手机')
+        : '未绑定手机';
+    }
+    this.setData({ isLoggedIn, securitySummary });
   },
 
   onShow() {
@@ -24,10 +36,10 @@ Page({
     }
     if (app.globalData.isLoggedIn) {
       app.syncSession().then(() => {
-        this.setData({ isLoggedIn: app.checkLogin() });
+        this.updateLoginState();
       });
     } else {
-      this.checkLogin();
+      this.updateLoginState();
     }
   },
 

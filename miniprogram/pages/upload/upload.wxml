@@ -82,7 +82,7 @@
       <view class="form-item">
         <input
           class="title-input {{highlightTitle ? 'highlight' : ''}}"
-          placeholder="添加标题"
+          placeholder="添加标题（选填）"
           placeholder-class="placeholder"
           value="{{form.title}}"
           bindinput="onTitleInput"

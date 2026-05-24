@@ -9,6 +9,18 @@ const formatDate = (dateStr) => {
   return `${year}-${month}-${day}`;
 };
 
+// 格式化注册时间（年月日时）
+const formatRegisterTime = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  return `${year}年${month}月${day}日 ${hour}时`;
+};
+
 // 格式化日期时间
 const formatDateTime = (dateStr) => {
   const date = new Date(dateStr);
@@ -114,6 +126,7 @@ const formatLikeCount = (num) => {
 module.exports = {
   formatDate,
   formatDateTime,
+  formatRegisterTime,
   timeAgo,
   getSeasonTheme,
   showToast,

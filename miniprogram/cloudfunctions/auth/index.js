@@ -203,7 +203,8 @@ async function handleWechatLogin(openId) {
       return {
         success: true,
         data: {
-          user: formatUserForClient(user, avatar)
+          user: formatUserForClient(user, avatar),
+          isNewUser: false
         }
       };
     }
@@ -229,7 +230,8 @@ async function handleWechatLogin(openId) {
     return {
       success: true,
       data: {
-        user: formatUserForClient(newUser || { _id: result._id, nickname, avatar, role: 'user' }, avatar)
+        user: formatUserForClient(newUser || { _id: result._id, nickname, avatar, role: 'user' }, avatar),
+        isNewUser: true
       }
     };
   } catch (e) {
@@ -430,7 +432,8 @@ function formatUserForClient(user, avatar) {
     region: user.region || '',
     bio: user.bio || '',
     tags: user.tags || [],
-    credits: user.credits || 0
+    credits: user.credits || 0,
+    createdAt: user.createdAt || ''
   };
 }
 

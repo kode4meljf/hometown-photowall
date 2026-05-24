@@ -2,7 +2,8 @@
 App({
   globalData: {
     userInfo: null,
-    isLoggedIn: false
+    isLoggedIn: false,
+    homeNeedRefresh: false
   },
 
   onLaunch() {

@@ -1,3 +1,4 @@
+const { userApi } = require('../../utils/api');
 const app = getApp();
 
 Component({
@@ -24,25 +25,82 @@ Component({
     }
   },
 
+  data: {
+    step: 'login',
+    nicknameDraft: ''
+  },
+
+  observers: {
+    visible(val) {
+      if (val) {
+        this.setData({ step: 'login', nicknameDraft: '' });
+      }
+    }
+  },
+
   methods: {
     onClose() {
       this.triggerEvent('close');
     },
 
     onWechatLogin() {
-      this.triggerEvent('close');
       wx.showLoading({ title: '登录中...', mask: true });
 
       app.wechatLogin()
-        .then(() => {
+        .then((result) => {
           wx.hideLoading();
+          if (result.data && result.data.isNewUser) {
+            this.setData({ step: 'nickname', nicknameDraft: '' });
+            return;
+          }
           wx.showToast({ title: '登录成功', icon: 'success' });
-          this.triggerEvent('success');
+          this.finishLogin();
         })
         .catch((err) => {
           wx.hideLoading();
           wx.showToast({ title: err.message || '登录失败', icon: 'none' });
         });
+    },
+
+    onNicknameInput(e) {
+      this.setData({ nicknameDraft: e.detail.value });
+    },
+
+    onSkipNickname() {
+      wx.showToast({ title: '登录成功', icon: 'success' });
+      this.finishLogin();
+    },
+
+    async onConfirmNickname() {
+      const nickname = (this.data.nicknameDraft || '').trim();
+      if (!nickname) {
+        this.onSkipNickname();
+        return;
+      }
+
+      wx.showLoading({ title: '保存中...', mask: true });
+      try {
+        const res = await userApi.updateUserProfile({ nickname });
+        wx.hideLoading();
+        if (res.success) {
+          const user = { ...app.globalData.userInfo, nickname };
+          app.globalData.userInfo = user;
+          wx.setStorageSync('userInfo', user);
+          wx.showToast({ title: '设置成功', icon: 'success' });
+          this.finishLogin();
+        } else {
+          wx.showToast({ title: res.message || '保存失败', icon: 'none' });
+        }
+      } catch (e) {
+        wx.hideLoading();
+        wx.showToast({ title: '保存失败', icon: 'none' });
+      }
+    },
+
+    finishLogin() {
+      this.setData({ step: 'login', nicknameDraft: '' });
+      this.triggerEvent('close');
+      this.triggerEvent('success');
     },
 
     preventTouchMove() {}

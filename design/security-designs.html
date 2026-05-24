@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>账号安全 · 设计方案</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #ececec;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  color: #1b1b1b;
+  padding: 24px 16px 48px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-head { max-width: 420px; margin: 0 auto 28px; }
+.page-head h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.page-head p { font-size: 13px; color: #666; line-height: 1.65; }
+
+.plan-block { max-width: 420px; margin: 0 auto 48px; }
+.plan-label { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.plan-rec {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #07c160;
+  background: #e8f8ee;
+  padding: 2px 8px;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+.plan-note {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 12px;
+  line-height: 1.55;
+}
+.state-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.state-tab {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: #fff;
+  color: #666;
+  border: 1px solid #e0e0e0;
+}
+.state-tab.on {
+  background: #1b1b1b;
+  color: #fff;
+  border-color: #1b1b1b;
+}
+
+.phone-row {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+@media (min-width: 720px) {
+  .phone-row.two-col {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 16px;
+  }
+  .phone-row.two-col .phone-wrap { flex: 1; max-width: 390px; }
+}
+
+.phone-wrap-label {
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.phone {
+  width: 100%;
+  max-width: 390px;
+  aspect-ratio: 390 / 844;
+  margin: 0 auto;
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.6);
+  background: #f8f8f8;
+}
+
+/* 导航栏 + 胶囊 */
+.nav-bar {
+  height: 88px;
+  padding: 48px 16px 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+.nav-back {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  font-size: 28px;
+  color: #1b1b1b;
+  line-height: 1;
+}
+.nav-title {
+  font-size: 17px;
+  font-weight: 600;
+  padding-bottom: 10px;
+}
+.capsule {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: 87px;
+  height: 32px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.08);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 24px;
+}
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f8f8f8;
+  font-size: 12px;
+}
+
+/* ── 方案 1：分组列表（当前结构优化） ── */
+.v1 .profile-card {
+  margin: 12px 12px 4px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.v1 .avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #c4b5a0, #8a7d6e);
+  flex-shrink: 0;
+}
+.v1 .profile-name { font-size: 16px; font-weight: 500; display: block; }
+.v1 .profile-uid { font-size: 12px; color: #999; margin-top: 4px; display: block; }
+
+.v1 .sec-title {
+  font-size: 13px;
+  color: #bbb;
+  padding: 16px 16px 8px;
+}
+.v1 .card {
+  margin: 0 12px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.v1 .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  min-height: 50px;
+  border-bottom: 1px solid #f2f2f2;
+}
+.v1 .row:last-child { border-bottom: none; }
+.v1 .row-label { font-size: 15px; color: #1b1b1b; }
+.v1 .val-ok { font-size: 14px; color: #07c160; }
+.v1 .val-muted { font-size: 14px; color: #bbb; }
+.v1 .val-mask { font-size: 14px; color: #1b1b1b; }
+
+.v1 .bind-zone {
+  padding: 4px 16px 16px;
+  border-top: 1px solid #f2f2f2;
+}
+.v1 .bind-hint {
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: block;
+}
+.v1 .btn-bind {
+  width: 100%;
+  height: 44px;
+  border: none;
+  border-radius: 22px;
+  background: #1b1b1b;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.v1 .tip {
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.55;
+}
+.v1 .tip-plain {
+  background: transparent;
+  padding: 8px 16px 0;
+}
+.v1 .tip-warn {
+  background: #fff8f8;
+  border: 1px solid #ffe8e8;
+  color: #b85c5c;
+}
+.v1 .row-danger .row-label { color: #e02020; }
+.v1 .arrow { color: #ccc; font-size: 18px; font-weight: 300; }
+
+/* ── 方案 2：大标题 + 通栏列表（设置风） ── */
+.v2 .screen-scroll { padding-top: 8px; }
+.v2 .hero {
+  padding: 20px 20px 24px;
+  background: #fff;
+  margin-bottom: 8px;
+}
+.v2 .hero-title {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.v2 .hero-sub {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.5;
+}
+.v2 .user-strip {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #f5f5f5;
+}
+.v2 .avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #a8c4b8, #6e8a7d); }
+.v2 .card { margin: 0; background: #fff; }
+.v2 .group-label {
+  font-size: 12px;
+  color: #999;
+  padding: 20px 20px 8px;
+  text-transform: none;
+}
+.v2 .row {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 12px;
+}
+.v2 .row-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.v2 .icon-wx { background: #e8f8ee; }
+.v2 .icon-phone { background: #eef4ff; }
+.v2 .row-body { flex: 1; min-width: 0; }
+.v2 .row-title { font-size: 15px; font-weight: 500; display: block; }
+.v2 .row-desc { font-size: 12px; color: #999; margin-top: 2px; display: block; }
+.v2 .row-right { font-size: 13px; color: #07c160; flex-shrink: 0; }
+.v2 .row-right-muted { color: #bbb; }
+.v2 .btn-inline {
+  font-size: 13px;
+  color: #1b1b1b;
+  background: #f5f5f5;
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: none;
+  flex-shrink: 0;
+}
+.v2 .danger-block {
+  margin: 24px 12px 0;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.v2 .danger-row {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.v2 .danger-label { color: #e02020; font-size: 15px; }
+.v2 .danger-note {
+  padding: 0 20px 16px;
+  font-size: 12px;
+  color: #999;
+  line-height: 1.5;
+}
+
+/* ── 方案 3：卡片分区 + 状态徽章 ── */
+.v3 .screen-scroll { padding: 12px; }
+.v3 .identity-card {
+  background: linear-gradient(145deg, #2a2a2a 0%, #1b1b1b 100%);
+  border-radius: 16px;
+  padding: 20px;
+  color: #fff;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.v3 .avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.25);
+  background: linear-gradient(135deg, #8a7d6e, #5c5348);
+}
+.v3 .identity-name { font-size: 17px; font-weight: 600; }
+.v3 .identity-uid {
+  font-size: 11px;
+  color: rgba(255,255,255,.55);
+  margin-top: 4px;
+  font-family: ui-monospace, monospace;
+}
+.v3 .badge-secure {
+  margin-left: auto;
+  font-size: 11px;
+  background: rgba(7,193,96,.2);
+  color: #6ee7a0;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+.v3 .badge-warn {
+  background: rgba(255,180,0,.15);
+  color: #ffc857;
+}
+
+.v3 .panel {
+  background: #fff;
+  border-radius: 14px;
+  padding: 4px 0;
+  margin-bottom: 12px;
+}
+.v3 .panel-head {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b1b1b;
+  padding: 14px 16px 8px;
+}
+.v3 .item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 10px;
+}
+.v3 .item + .item { border-top: 1px solid #f5f5f5; }
+.v3 .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.v3 .dot-ok { background: #07c160; }
+.v3 .dot-off { background: #ddd; }
+.v3 .item-main { flex: 1; }
+.v3 .item-label { font-size: 14px; display: block; }
+.v3 .item-sub { font-size: 11px; color: #999; margin-top: 2px; display: block; }
+.v3 .item-action {
+  font-size: 13px;
+  color: #1b1b1b;
+  font-weight: 500;
+}
+.v3 .item-action-muted { color: #bbb; font-weight: 400; }
+
+.v3 .cta-bind {
+  margin: 0 16px 14px;
+  display: block;
+  text-align: center;
+  height: 42px;
+  line-height: 42px;
+  background: #1b1b1b;
+  color: #fff;
+  border-radius: 21px;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.v3 .info-strip {
+  font-size: 11px;
+  color: #999;
+  line-height: 1.55;
+  padding: 0 16px 14px;
+}
+
+.v3 .panel-danger {
+  border: 1px solid #ffe0e0;
+  background: #fffafa;
+}
+.v3 .panel-danger .panel-head { color: #c62828; }
+.v3 .danger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  color: #e02020;
+  font-size: 15px;
+  font-weight: 500;
+}
+.v3 .danger-foot {
+  font-size: 11px;
+  color: #b85c5c;
+  padding: 0 16px 14px;
+  line-height: 1.5;
+}
+
+.compare-table {
+  max-width: 420px;
+  margin: 0 auto 32px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.compare-table h2 { font-size: 14px; margin-bottom: 12px; }
+.compare-table table { width: 100%; border-collapse: collapse; }
+.compare-table th, .compare-table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+}
+.compare-table th { color: #888; font-weight: 500; font-size: 11px; }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>账号安全 · 设计方案</h1>
+  <p>对应页面：<code>pages/profile/settings/security</code>。功能：微信登录态、手机号绑定/找回说明、注销账号。每套方案展示「未绑定手机」与「已绑定手机」两种状态。</p>
+</div>
+
+<div class="compare-table">
+  <h2>方案对比</h2>
+  <table>
+    <tr>
+      <th>方案</th>
+      <th>风格</th>
+      <th>特点</th>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>分组白卡片</td>
+      <td>与现版接近，改动小；信息层级清楚</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>大标题 + 图标行</td>
+      <td>更像系统设置；每行带副标题说明</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>深色身份卡 + 状态点</td>
+      <td>安全感强；未绑定时顶部显示「待完善」</td>
+    </tr>
+  </table>
+</div>
+
+<!-- 方案 1 -->
+<div class="plan-block v1">
+  <div class="plan-label">方案 1 · 分组列表（现结构优化）<span class="plan-rec">推荐</span></div>
+  <p class="plan-note">顶部账号卡 +「登录与绑定」+「危险操作」。未绑定时卡片内嵌说明与黑底按钮；已绑定时底部灰字提示。</p>
+
+  <div class="phone-row two-col">
+    <div class="phone-wrap">
+      <div class="phone-wrap-label">未绑定手机</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="nav-bar">
+            <span class="nav-back">‹</span>
+            <span class="nav-title">账号安全</span>
+            <div class="capsule"></div>
+          </div>
+          <div class="screen-scroll">
+            <div class="profile-card">
+              <div class="avatar"></div>
+              <div>
+                <span class="profile-name">故乡旅人</span>
+                <span class="profile-uid">UID a3f82c91e04b</span>
+              </div>
+            </div>
+            <div class="sec-title">登录与绑定</div>
+            <div class="card">
+              <div class="row">
+                <span class="row-label">微信</span>
+                <span class="val-ok">已登录</span>
+              </div>
+              <div class="row">
+                <span class="row-label">手机号</span>
+                <span class="val-muted">未绑定</span>
+              </div>
+              <div class="bind-zone">
+                <span class="bind-hint">绑定后，换微信号可用「手机号找回」恢复作品</span>
+                <button type="button" class="btn-bind">绑定手机号</button>
+              </div>
+            </div>
+            <div class="sec-title">危险操作</div>
+            <div class="card">
+              <div class="row row-danger">
+                <span class="row-label">注销账号</span>
+                <span class="arrow">›</span>
+              </div>
+            </div>
+            <div class="tip tip-plain">注销后将删除账号及全部作品，且不可恢复。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone-wrap-label">已绑定手机</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="nav-bar">
+            <span class="nav-back">‹</span>
+            <span class="nav-title">账号安全</span>
+            <div class="capsule"></div>
+          </div>
+          <div class="screen-scroll">
+            <div class="profile-card">
+              <div class="avatar"></div>
+              <div>
+                <span class="profile-name">故乡旅人</span>
+                <span class="profile-uid">UID a3f82c91e04b</span>
+              </div>
+            </div>
+            <div class="sec-title">登录与绑定</div>
+            <div class="card">
+              <div class="row">
+                <span class="row-label">微信</span>
+                <span class="val-ok">已登录</span>
+              </div>
+              <div class="row">
+                <span class="row-label">手机号</span>
+                <span class="val-mask">138****5678</span>
+              </div>
+            </div>
+            <div class="tip">换微信号时，在登录页选择「手机号找回」即可回到当前账号。暂不支持在线更换手机号。</div>
+            <div class="sec-title">危险操作</div>
+            <div class="card">
+              <div class="row row-danger">
+                <span class="row-label">注销账号</span>
+                <span class="arrow">›</span>
+              </div>
+            </div>
+            <div class="tip tip-plain">注销后将删除账号及全部作品，且不可恢复。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 2 -->
+<div class="plan-block v2">
+  <div class="plan-label">方案 2 · 大标题 + 图标列表</div>
+  <p class="plan-note">首屏说明账号安全用途；微信/手机各占一行并带副文案。未绑定：右侧「去绑定」按钮；已绑定：显示脱敏号 + 底部说明。</p>
+
+  <div class="phone-row two-col">
+    <div class="phone-wrap">
+      <div class="phone-wrap-label">未绑定手机</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="nav-bar">
+            <span class="nav-back">‹</span>
+            <span class="nav-title">账号安全</span>
+            <div class="capsule"></div>
+          </div>
+          <div class="screen-scroll">
+            <div class="hero">
+              <div class="hero-title">账号安全</div>
+              <div class="hero-sub">管理登录方式，保障作品与数据可找回。</div>
+              <div class="user-strip">
+                <div class="avatar"></div>
+                <div>
+                  <span class="profile-name" style="font-size:15px;font-weight:500;">故乡旅人</span>
+                  <span class="profile-uid" style="font-size:11px;color:#999;display:block;margin-top:2px;">UID a3f82c91e04b</span>
+                </div>
+              </div>
+            </div>
+            <div class="group-label">登录与绑定</div>
+            <div class="card">
+              <div class="row">
+                <div class="row-icon icon-wx">微</div>
+                <div class="row-body">
+                  <span class="row-title">微信</span>
+                  <span class="row-desc">当前小程序登录方式</span>
+                </div>
+                <span class="row-right">已登录</span>
+              </div>
+              <div class="row">
+                <div class="row-icon icon-phone">机</div>
+                <div class="row-body">
+                  <span class="row-title">手机号</span>
+                  <span class="row-desc">用于换机后找回账号</span>
+                </div>
+                <button type="button" class="btn-inline">去绑定</button>
+              </div>
+            </div>
+            <div class="group-label">危险操作</div>
+            <div class="danger-block">
+              <div class="danger-row">
+                <span class="danger-label">注销账号</span>
+                <span class="arrow" style="color:#ccc;">›</span>
+              </div>
+              <div class="danger-note">永久删除账号与全部作品，不可恢复。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone-wrap-label">已绑定手机</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="nav-bar">
+            <span class="nav-back">‹</span>
+            <span class="nav-title">账号安全</span>
+            <div class="capsule"></div>
+          </div>
+          <div class="screen-scroll">
+            <div class="hero">
+              <div class="hero-title">账号安全</div>
+              <div class="hero-sub">管理登录方式，保障作品与数据可找回。</div>
+              <div class="user-strip">
+                <div class="avatar"></div>
+                <div>
+                  <span style="font-size:15px;font-weight:500;">故乡旅人</span>
+                  <span style="font-size:11px;color:#999;display:block;margin-top:2px;">UID a3f82c91e04b</span>
+                </div>
+              </div>
+            </div>
+            <div class="group-label">登录与绑定</div>
+            <div class="card">
+              <div class="row">
+                <div class="row-icon icon-wx">微</div>
+                <div class="row-body">
+                  <span class="row-title">微信</span>
+                  <span class="row-desc">当前小程序登录方式</span>
+                </div>
+                <span class="row-right">已登录</span>
+              </div>
+              <div class="row">
+                <div class="row-icon icon-phone">机</div>
+                <div class="row-body">
+                  <span class="row-title">手机号</span>
+                  <span class="row-desc">138****5678</span>
+                </div>
+                <span class="row-right row-right-muted">已绑定</span>
+              </div>
+            </div>
+            <div class="tip" style="margin:12px 20px;font-size:12px;color:#999;line-height:1.55;">换微信号时，登录页使用「手机号找回」即可回到本账号。</div>
+            <div class="group-label">危险操作</div>
+            <div class="danger-block">
+              <div class="danger-row">
+                <span class="danger-label">注销账号</span>
+                <span style="color:#ccc;">›</span>
+              </div>
+              <div class="danger-note">永久删除账号与全部作品，不可恢复。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 3 -->
+<div class="plan-block v3">
+  <div class="plan-label">方案 3 · 深色身份卡 + 安全状态</div>
+  <p class="plan-note">顶部深色卡展示昵称/UID；右侧徽章「已保护」或「待完善」。绑定项用绿/灰状态点；危险区独立浅红底卡片。</p>
+
+  <div class="phone-row two-col">
+    <div class="phone-wrap">
+      <div class="phone-wrap-label">未绑定 · 待完善</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="nav-bar">
+            <span class="nav-back">‹</span>
+            <span class="nav-title">账号安全</span>
+            <div class="capsule"></div>
+          </div>
+          <div class="screen-scroll">
+            <div class="identity-card">
+              <div class="avatar"></div>
+              <div>
+                <div class="identity-name">故乡旅人</div>
+                <div class="identity-uid">UID a3f82c91e04b</div>
+              </div>
+              <span class="badge-secure badge-warn">待完善</span>
+            </div>
+            <div class="panel">
+              <div class="panel-head">登录与绑定</div>
+              <div class="item">
+                <span class="dot dot-ok"></span>
+                <div class="item-main">
+                  <span class="item-label">微信</span>
+                  <span class="item-sub">已作为当前登录方式</span>
+                </div>
+                <span class="item-action">已登录</span>
+              </div>
+              <div class="item">
+                <span class="dot dot-off"></span>
+                <div class="item-main">
+                  <span class="item-label">手机号</span>
+                  <span class="item-sub">未绑定，换号后难以找回作品</span>
+                </div>
+                <span class="item-action-muted">未绑定</span>
+              </div>
+              <span class="info-strip">绑定后可在登录页通过「手机号找回」恢复账号。</span>
+              <a class="cta-bind" href="#">绑定手机号</a>
+            </div>
+            <div class="panel panel-danger">
+              <div class="panel-head">危险操作</div>
+              <div class="danger-btn">
+                <span>注销账号</span>
+                <span style="color:#e8a0a0;">›</span>
+              </div>
+              <div class="danger-foot">注销后删除全部数据，不可恢复。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone-wrap-label">已绑定 · 已保护</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="nav-bar">
+            <span class="nav-back">‹</span>
+            <span class="nav-title">账号安全</span>
+            <div class="capsule"></div>
+          </div>
+          <div class="screen-scroll">
+            <div class="identity-card">
+              <div class="avatar"></div>
+              <div>
+                <div class="identity-name">故乡旅人</div>
+                <div class="identity-uid">UID a3f82c91e04b</div>
+              </div>
+              <span class="badge-secure">已保护</span>
+            </div>
+            <div class="panel">
+              <div class="panel-head">登录与绑定</div>
+              <div class="item">
+                <span class="dot dot-ok"></span>
+                <div class="item-main">
+                  <span class="item-label">微信</span>
+                  <span class="item-sub">已作为当前登录方式</span>
+                </div>
+                <span class="item-action">已登录</span>
+              </div>
+              <div class="item">
+                <span class="dot dot-ok"></span>
+                <div class="item-main">
+                  <span class="item-label">手机号</span>
+                  <span class="item-sub">138****5678</span>
+                </div>
+                <span class="item-action">已绑定</span>
+              </div>
+              <div class="info-strip">换微信号时，请使用登录页「手机号找回」。暂不支持在线换绑。</div>
+            </div>
+            <div class="panel panel-danger">
+              <div class="panel-head">危险操作</div>
+              <div class="danger-btn">
+                <span>注销账号</span>
+                <span style="color:#e8a0a0;">›</span>
+              </div>
+              <div class="danger-foot">注销后删除全部数据，不可恢复。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page-head">
+  <p><strong>交互说明：</strong></p>
+  <p style="margin-top:8px;font-size:13px;color:#666;line-height:1.6;">
+    · 绑定手机号：微信 <code>open-type="getPhoneNumber"</code><br>
+    · 注销：二次确认 Modal，红色确认按钮<br>
+    · 字号参考：标题 30–32rpx，列表 28–30rpx，说明 24rpx
+  </p>
+  <p style="margin-top:12px;font-size:13px;color:#666;">
+    预览路径：<code>design/security-designs.html</code>
+  </p>
+</div>
+
+</body>
+</html>

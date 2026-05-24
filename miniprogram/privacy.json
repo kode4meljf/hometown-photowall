@@ -20,11 +20,6 @@
       "type": "camera",
       "name": "摄像头",
       "desc": "用于拍摄照片上传"
-    },
-    {
-      "type": "phoneNumber",
-      "name": "手机号",
-      "desc": "用于账号绑定与换微信后找回作品"
     }
   ]
 }

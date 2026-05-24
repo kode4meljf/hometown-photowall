@@ -1,11 +1,12 @@
 // pages/profile/settings/security/security.js
 const { userApi } = require('../../../../utils/api');
+const { formatRegisterTime } = require('../../../../utils/util');
 const app = getApp();
 
 Page({
   data: {
     nickname: '加载中…',
-    uid: '',
+    registerTime: '',
     hasPhone: false,
     phoneDisplay: '',
     avatar: '/assets/icons/default-avatar.png',
@@ -28,50 +29,14 @@ Page({
   },
 
   applyUser(user) {
+    const registerTime = formatRegisterTime(user.createdAt) || '未知';
     this.setData({
       nickname: user.nickname || user.name || '未设置昵称',
-      uid: user.id || user._id || '',
+      registerTime,
       hasPhone: !!user.hasPhone || !!user.phone,
       phoneDisplay: user.phone || '',
       avatar: user.avatar || '/assets/icons/default-avatar.png',
     });
-  },
-
-  onGetPhoneNumber(e) {
-    if (e.detail.errMsg && e.detail.errMsg !== 'getPhoneNumber:ok') {
-      if (!e.detail.errMsg.includes('deny') && !e.detail.errMsg.includes('cancel')) {
-        wx.showToast({ title: '获取手机号失败', icon: 'none' });
-      }
-      return;
-    }
-    if (!e.detail.code) {
-      wx.showToast({ title: '需要授权手机号', icon: 'none' });
-      return;
-    }
-    if (!app.checkLogin()) {
-      wx.showToast({ title: '请先登录', icon: 'none' });
-      return;
-    }
-
-    wx.showLoading({ title: '绑定中...', mask: true });
-    app.bindPhone(e.detail.code)
-      .then((res) => {
-        wx.hideLoading();
-        wx.showToast({ title: res.message || '绑定成功', icon: 'success' });
-        if (res.data && res.data.user) {
-          this.applyUser(res.data.user);
-        } else {
-          this.loadUser();
-        }
-      })
-      .catch((err) => {
-        wx.hideLoading();
-        wx.showToast({ title: err.message || '绑定失败', icon: 'none' });
-      });
-  },
-
-  onChangePhone() {
-    wx.showToast({ title: '请先解绑后再绑定新号码（功能完善中）', icon: 'none' });
   },
 
   onDeleteAccount() {

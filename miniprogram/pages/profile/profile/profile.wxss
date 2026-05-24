@@ -483,7 +483,7 @@
 
 .modal-option {
   text-align: center;
-  padding: 36rpx 0;
+  padding: 30rpx 0;
   font-size: 34rpx;
   color: #1b1b1b;
   font-weight: 400;
@@ -531,16 +531,17 @@
   font-weight: 500;
 }
 
-/* 取消按钮 - 独立白色圆角卡片（下方全圆角） */
+/* 取消按钮 - 与选项组同一卡片，浅色分割线与「删除」区分 */
 .modal-cancel {
   text-align: center;
   font-size: 34rpx;
   color: #1b1b1b;
-  padding: 32rpx 0 calc(32rpx + env(safe-area-inset-bottom));
+  padding: 30rpx 0 calc(30rpx + env(safe-area-inset-bottom));
   background: #ffffff;
   border-radius: 0 0 24rpx 24rpx;
+  border-top: 1rpx solid #f2f2f2;
   font-weight: 500;
-  margin-top: 6rpx;
+  margin-top: 0;
 }
 
 /* 危险选项（删除）红色文字 */

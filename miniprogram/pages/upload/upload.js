@@ -205,13 +205,6 @@ Page({
       return;
     }
 
-    if (!form.title.trim()) {
-      showToast('请输入标题');
-      this.setData({ highlightTitle: true, focusTitle: true });
-      setTimeout(() => this.setData({ highlightTitle: false }), 2000);
-      return;
-    }
-
     this.setData({ submitting: true });
     showLoading('发布中...');
 
@@ -241,8 +234,9 @@ Page({
 
       if (res.success) {
         showSuccess('发布成功');
+        getApp().globalData.homeNeedRefresh = true;
         setTimeout(() => {
-          wx.navigateBack();
+          wx.switchTab({ url: '/pages/index/index' });
         }, 1500);
       } else {
         showToast(res.message || '发布失败');
