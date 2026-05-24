@@ -121,29 +121,6 @@ const photoApi = {
   }
 };
 
-// 管理员 API
-const adminApi = {
-  // 获取所有照片
-  getPhotos(params = {}) {
-    return callFunction('admin', 'getPhotos', params);
-  },
-
-  // 获取用户列表
-  getUsers() {
-    return callFunction('admin', 'getUsers');
-  },
-
-  // 删除帖子
-  deletePost(id) {
-    return callFunction('admin', 'deletePost', { id });
-  },
-
-  // 获取管理员统计数据
-  getStats() {
-    return callFunction('admin', 'getStats');
-  }
-};
-
 // 初始化数据 API（仅调试用）
 const seedApi = {
   initData() {
@@ -166,6 +143,21 @@ const userApi = {
   // 更新完整用户资料（头像、昵称、性别、地区、简介、标签）
   updateUserProfile(params = {}) {
     return callFunction('auth', 'updateUserProfile', params);
+  },
+
+  // 注销账号
+  deleteAccount() {
+    return callFunction('auth', 'deleteAccount');
+  },
+
+  // 绑定手机号（需先微信登录）
+  bindPhone(phoneCode) {
+    return callFunction('auth', 'bindPhone', { phoneCode });
+  },
+
+  // 手机号找回登录（换微信后）
+  phoneLogin(phoneCode) {
+    return callFunction('auth', 'phoneLogin', { phoneCode });
   }
 };
 
@@ -266,7 +258,6 @@ module.exports = {
   callFunction,
   uploadImage,
   photoApi,
-  adminApi,
   seedApi,
   userApi,
   postApi

@@ -1,0 +1,18 @@
+<view class="login-modal-overlay {{visible ? 'show' : ''}}" bindtap="onClose" catchtouchmove="preventTouchMove">
+  <view class="login-modal-card" catchtap="preventTouchMove">
+    <view class="login-modal-icon-wrap">
+      <view class="login-modal-icon-inner">
+        <image class="login-modal-icon-lg" src="/assets/icons/icon-wechat.svg" mode="aspectFit"/>
+      </view>
+    </view>
+    <view class="login-modal-title">{{title}}</view>
+    <view class="login-modal-desc" wx:if="{{subtitle}}">{{subtitle}}</view>
+    <view class="login-modal-btn" bindtap="onWechatLogin" hover-class="login-modal-btn-hover">
+      <view class="login-modal-btn-dot">
+        <image class="login-modal-icon-sm" src="/assets/icons/icon-wechat.svg" mode="aspectFit"/>
+      </view>
+      <text class="login-modal-btn-text">{{loginText}}</text>
+    </view>
+    <view class="login-modal-cancel" bindtap="onClose">{{cancelText}}</view>
+  </view>
+</view>

@@ -1,0 +1,128 @@
+/* 方案 2 · 居中浮层卡片 */
+.login-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: rgba(0, 0, 0, 0);
+  pointer-events: none;
+  transition: background 0.3s ease;
+}
+
+.login-modal-overlay.show {
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  backdrop-filter: blur(12rpx);
+  -webkit-backdrop-filter: blur(12rpx);
+}
+
+.login-modal-card {
+  width: 100%;
+  max-width: 600rpx;
+  background: #fff;
+  border-radius: 48rpx;
+  padding: 56rpx 48rpx 40rpx;
+  text-align: center;
+  box-shadow: 0 48rpx 160rpx rgba(0, 0, 0, 0.22);
+  transform: scale(0.88);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.login-modal-overlay.show .login-modal-card {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.login-modal-icon-wrap {
+  width: 112rpx;
+  height: 112rpx;
+  margin: 0 auto 32rpx;
+  border-radius: 32rpx;
+  background: linear-gradient(135deg, #e8f8ee, #d4f0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-modal-icon-inner {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #07c160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-modal-icon-lg {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.login-modal-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #1b1b1b;
+  margin-bottom: 16rpx;
+  line-height: 1.3;
+}
+
+.login-modal-desc {
+  font-size: 26rpx;
+  color: #888;
+  line-height: 1.55;
+  margin-bottom: 44rpx;
+  padding: 0 8rpx;
+}
+
+.login-modal-btn {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 28rpx;
+  background: #1b1b1b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+
+.login-modal-btn-hover {
+  opacity: 0.88;
+}
+
+.login-modal-btn-dot {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: #07c160;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.login-modal-icon-sm {
+  width: 24rpx;
+  height: 24rpx;
+}
+
+.login-modal-btn-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #fff;
+}
+
+.login-modal-cancel {
+  margin-top: 28rpx;
+  font-size: 28rpx;
+  color: #aaa;
+  padding: 8rpx 0;
+}

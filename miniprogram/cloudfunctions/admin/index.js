@@ -94,11 +94,11 @@ async function getUsers() {
 
     const users = await Promise.all(usersResult.data.map(async user => {
       const photoCount = await db.collection('posts')
-        .where({ authorId: user._openid })
+        .where({ authorId: user._id })
         .count();
 
       const commentCount = await db.collection('post_comments')
-        .where({ authorId: user._openid })
+        .where({ authorId: user._id })
         .count();
 
       return {

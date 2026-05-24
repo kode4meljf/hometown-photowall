@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>登录弹窗 · 5 套设计方案</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #ececec;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  color: #1b1b1b;
+  padding: 24px 16px 48px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-head {
+  max-width: 420px;
+  margin: 0 auto 28px;
+}
+.page-head h1 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.page-head p {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.plan-block {
+  max-width: 420px;
+  margin: 0 auto 40px;
+}
+.plan-label {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.plan-note {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.phone {
+  width: 100%;
+  max-width: 390px;
+  aspect-ratio: 390 / 844;
+  margin: 0 auto;
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.6);
+  background: #fff;
+}
+
+.mock-detail {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.mock-nav {
+  height: 88px;
+  padding: 52px 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.mock-back { color: #1b1b1b; font-size: 20px; }
+.mock-photo {
+  flex: 1;
+  background: linear-gradient(180deg, #d4cfc7 0%, #b8b0a4 100%);
+  position: relative;
+}
+.mock-photo::after {
+  content: '';
+  position: absolute;
+  inset: 20% 15%;
+  border: 2px dashed rgba(255,255,255,.35);
+  border-radius: 8px;
+}
+.mock-meta { padding: 16px; }
+.mock-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.mock-desc { font-size: 12px; color: #888; line-height: 1.5; }
+.mock-bar {
+  height: 52px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 20px;
+  font-size: 12px;
+  color: #999;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* 方案 1 */
+.v1 .overlay { background: rgba(0,0,0,.38); }
+.v1 .sheet {
+  width: 100%;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 8px 20px 24px;
+}
+.v1 .handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 6px auto 20px; }
+.v1 .title { font-size: 17px; font-weight: 600; text-align: center; margin-bottom: 6px; }
+.v1 .sub { font-size: 13px; color: #999; text-align: center; margin-bottom: 24px; }
+.v1 .btn-wechat {
+  width: 100%; height: 50px; border: none; border-radius: 25px;
+  background: #07c160; color: #fff; font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 8px 24px rgba(7,193,96,.28); cursor: pointer;
+}
+.v1 .btn-wechat svg { width: 22px; height: 22px; }
+.v1 .btn-cancel { width: 100%; margin-top: 12px; height: 44px; border: none; background: transparent; color: #999; font-size: 15px; cursor: pointer; }
+
+/* 方案 2 */
+.v2 .overlay {
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  align-items: center;
+  padding: 24px;
+}
+.v2 .sheet {
+  width: 100%; max-width: 300px; background: #fff; border-radius: 24px;
+  padding: 28px 24px 20px; text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,.22);
+}
+.v2 .icon-wrap {
+  width: 56px; height: 56px; margin: 0 auto 16px; border-radius: 16px;
+  background: linear-gradient(135deg, #e8f8ee, #d4f0e0);
+  display: flex; align-items: center; justify-content: center;
+}
+.v2 .icon-wrap svg { width: 28px; height: 28px; }
+.v2 .title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.v2 .sub { font-size: 13px; color: #888; line-height: 1.55; margin-bottom: 22px; }
+.v2 .btn-wechat {
+  width: 100%; height: 48px; border: none; border-radius: 14px;
+  background: #1b1b1b; color: #fff; font-size: 15px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
+}
+.v2 .btn-wechat .dot {
+  width: 20px; height: 20px; border-radius: 50%; background: #07c160;
+  display: flex; align-items: center; justify-content: center;
+}
+.v2 .btn-wechat .dot svg { width: 12px; height: 12px; }
+.v2 .btn-cancel { margin-top: 14px; border: none; background: none; color: #aaa; font-size: 14px; cursor: pointer; }
+
+/* 方案 3 */
+.v3 .overlay { background: rgba(20,16,12,.52); }
+.v3 .sheet { width: 100%; background: #fff; border-radius: 24px 24px 0 0; overflow: hidden; }
+.v3 .hero {
+  height: 120px;
+  background: linear-gradient(135deg, #f5e6d3 0%, #e8d5bc 40%, #d4c4a8 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+}
+.v3 .hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E");
+}
+.v3 .hero-logo { font-size: 32px; position: relative; z-index: 1; margin-bottom: 4px; }
+.v3 .hero-title { font-size: 16px; font-weight: 700; color: #5c4a32; position: relative; z-index: 1; }
+.v3 .body { padding: 20px 24px 24px; }
+.v3 .sub { font-size: 13px; color: #888; text-align: center; margin-bottom: 20px; line-height: 1.55; }
+.v3 .btn-wechat {
+  width: 100%; height: 52px; border: none; border-radius: 16px;
+  background: linear-gradient(135deg, #07c160, #06ad56);
+  color: #fff; font-size: 16px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  box-shadow: 0 6px 20px rgba(7,193,96,.25); cursor: pointer;
+}
+.v3 .btn-wechat svg { width: 22px; height: 22px; }
+.v3 .trust { margin-top: 16px; display: flex; justify-content: center; gap: 16px; font-size: 11px; color: #bbb; }
+.v3 .trust span::before { content: '✓ '; color: #07c160; }
+.v3 .btn-cancel { display: block; width: 100%; margin-top: 14px; border: none; background: none; color: #aaa; font-size: 14px; cursor: pointer; text-align: center; }
+
+/* 方案 4 */
+.v4 .overlay { background: rgba(0,0,0,.4); }
+.v4 .sheet {
+  width: 100%; background: #fafafa; border-radius: 22px 22px 0 0;
+  padding: 12px 20px 20px;
+}
+.v4 .handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 18px; }
+.v4 .title { font-size: 16px; font-weight: 700; text-align: center; margin-bottom: 16px; }
+.v4 .benefits { display: flex; gap: 10px; margin-bottom: 18px; }
+.v4 .benefit {
+  flex: 1; background: #fff; border-radius: 14px; padding: 14px 8px;
+  text-align: center; border: 1px solid #f0f0f0;
+}
+.v4 .benefit-icon { font-size: 22px; margin-bottom: 6px; color: #1b1b1b; }
+.v4 .benefit-text { font-size: 11px; color: #666; line-height: 1.35; }
+.v4 .btn-wechat {
+  width: 100%; height: 54px; border: none; border-radius: 16px;
+  background: #07c160; color: #fff; font-size: 17px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer;
+}
+.v4 .btn-wechat svg { width: 24px; height: 24px; }
+.v4 .btn-cancel { width: 100%; margin-top: 10px; height: 42px; border: none; background: transparent; color: #999; font-size: 14px; cursor: pointer; }
+
+/* 方案 5 */
+.v5 .overlay {
+  background: rgba(0,0,0,.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  align-items: flex-end;
+  padding: 0 12px 12px;
+}
+.v5 .sheet {
+  width: 100%;
+  background: rgba(255,255,255,.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 28px;
+  border: 1px solid rgba(255,255,255,.65);
+  padding: 24px 20px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.12);
+}
+.v5 .row-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.v5 .title { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.v5 .sub { font-size: 12px; color: #888; margin-top: 4px; max-width: 240px; line-height: 1.45; }
+.v5 .close-x {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(0,0,0,.06); border: none;
+  color: #666; font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.v5 .login-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,.7);
+  border-radius: 18px; border: 1px solid rgba(0,0,0,.06); cursor: pointer;
+}
+.v5 .wx-icon {
+  width: 44px; height: 44px; border-radius: 12px; background: #07c160;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.v5 .wx-icon svg { width: 24px; height: 24px; }
+.v5 .login-info { flex: 1; }
+.v5 .login-name { font-size: 15px; font-weight: 600; }
+.v5 .login-desc { font-size: 12px; color: #999; margin-top: 2px; }
+.v5 .arrow { color: #ccc; font-size: 20px; font-weight: 300; }
+.v5 .btn-cancel { display: block; width: 100%; margin-top: 14px; text-align: center; border: none; background: none; color: #aaa; font-size: 13px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>登录弹窗 · 5 套设计方案</h1>
+  <p>场景：详情页点赞/评论时，未登录用户在当前页弹出遮罩。手机端预览，纵向滚动对比。</p>
+</div>
+
+<!-- 方案 1 -->
+<div class="plan-block">
+  <div class="plan-label">方案 1 · 极简底部抽屉</div>
+  <div class="plan-note">iOS 风格。大圆角绿色主按钮，信息层级清晰，适合快速决策。</div>
+  <div class="phone v1">
+    <div class="mock-detail">
+      <div class="mock-nav"><span class="mock-back">‹</span> 照片详情</div>
+      <div class="mock-photo"></div>
+      <div class="mock-meta">
+        <div class="mock-title">村口的老槐树</div>
+        <div class="mock-desc">每年春天都开满了花，是家乡最熟悉的风景。</div>
+      </div>
+      <div class="mock-bar"><span>128 赞</span><span>24 评论</span></div>
+    </div>
+    <div class="overlay">
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="title">登录后继续</div>
+        <div class="sub">登录即可点赞、评论和发布作品</div>
+        <button class="btn-wechat" type="button">
+          <svg viewBox="0 0 24 24"><path d="M8.5 5C5.5 5 3 7 3 9.5c0 1.5.8 2.8 2 3.7-.2.7-.6 2.1-.6 2.2 0 .2.1.3.3.3.1 0 .2 0 2.8-1.5.7.2 1.4.3 2.2.3 3 0 5.5-2 5.5-4.5S11.5 5 8.5 5zm10 4c2.5 0 4.5 1.7 4.5 3.8 0 2.1-2 3.7-4.5 3.7-.6 0-1.2-.1-1.8-.3-2.1 1.1-2.4 1.2-2.5 1.2-.2 0-.3-.1-.3-.3 0-.1.3-1.3.5-1.9-1-.6-1.6-1.6-1.6-2.7 0-2.1 2-3.8 4.5-3.8z" fill="#fff"/></svg>
+          微信一键登录
+        </button>
+        <button class="btn-cancel" type="button">稍后再说</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 2 -->
+<div class="plan-block">
+  <div class="plan-label">方案 2 · 居中浮层卡片</div>
+  <div class="plan-note">打断感更强但聚焦。适合强调「这是一次必要操作」，背景模糊突出卡片。</div>
+  <div class="phone v2">
+    <div class="mock-detail">
+      <div class="mock-nav"><span class="mock-back">‹</span> 照片详情</div>
+      <div class="mock-photo"></div>
+      <div class="mock-meta">
+        <div class="mock-title">村口的老槐树</div>
+        <div class="mock-desc">每年春天都开满了花，是家乡最熟悉的风景。</div>
+      </div>
+      <div class="mock-bar"><span>128 赞</span><span>24 评论</span></div>
+    </div>
+    <div class="overlay">
+      <div class="sheet">
+        <div class="icon-wrap">
+          <svg viewBox="0 0 24 24"><path d="M8.5 5C5.5 5 3 7 3 9.5c0 1.5.8 2.8 2 3.7-.2.7-.6 2.1-.6 2.2 0 .2.1.3.3.3.1 0 .2 0 2.8-1.5.7.2 1.4.3 2.2.3 3 0 5.5-2 5.5-4.5S11.5 5 8.5 5z" fill="#07c160"/></svg>
+        </div>
+        <div class="title">需要登录</div>
+        <div class="sub">登录后可以点赞、发表评论，<br>记录你与家乡的故事</div>
+        <button class="btn-wechat" type="button">
+          <span class="dot"><svg viewBox="0 0 24 24"><path d="M8.5 5C5.5 5 3 7 3 9.5c0 1.5.8 2.8 2 3.7-.2.7-.6 2.1-.6 2.2 0 .2.1.3.3.3.1 0 .2 0 2.8-1.5.7.2 1.4.3 2.2.3 3 0 5.5-2 5.5-4.5S11.5 5 8.5 5z" fill="#fff"/></svg></span>
+          微信授权登录
+        </button>
+        <button class="btn-cancel" type="button">继续浏览</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 3 -->
+<div class="plan-block">
+  <div class="plan-label">方案 3 · 故乡品牌感</div>
+  <div class="plan-note">暖色渐变头图 + 品牌露出，强化「家乡照片墙」归属感，适合社区类产品。</div>
+  <div class="phone v3">
+    <div class="mock-detail">
+      <div class="mock-nav"><span class="mock-back">‹</span> 照片详情</div>
+      <div class="mock-photo"></div>
+      <div class="mock-meta">
+        <div class="mock-title">村口的老槐树</div>
+        <div class="mock-desc">每年春天都开满了花，是家乡最熟悉的风景。</div>
+      </div>
+      <div class="mock-bar"><span>128 赞</span><span>24 评论</span></div>
+    </div>
+    <div class="overlay">
+      <div class="sheet">
+        <div class="hero">
+          <div class="hero-logo">家</div>
+          <div class="hero-title">故乡照片墙</div>
+        </div>
+        <div class="body">
+          <div class="sub">登录后加入家乡相册，<br>为熟悉的风景留一句评论</div>
+          <button class="btn-wechat" type="button">
+            <svg viewBox="0 0 24 24"><path d="M8.5 5C5.5 5 3 7 3 9.5c0 1.5.8 2.8 2 3.7-.2.7-.6 2.1-.6 2.2 0 .2.1.3.3.3.1 0 .2 0 2.8-1.5.7.2 1.4.3 2.2.3 3 0 5.5-2 5.5-4.5S11.5 5 8.5 5zm10 4c2.5 0 4.5 1.7 4.5 3.8 0 2.1-2 3.7-4.5 3.7-.6 0-1.2-.1-1.8-.3-2.1 1.1-2.4 1.2-2.5 1.2-.2 0-.3-.1-.3-.3 0-.1.3-1.3.5-1.9-1-.6-1.6-1.6-1.6-2.7 0-2.1 2-3.8 4.5-3.8z" fill="#fff"/></svg>
+            微信授权登录
+          </button>
+          <div class="trust">
+            <span>安全授权</span>
+            <span>不获取密码</span>
+          </div>
+          <button class="btn-cancel" type="button">稍后再说</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 4 -->
+<div class="plan-block">
+  <div class="plan-label">方案 4 · 权益说明 + 大按钮</div>
+  <div class="plan-note">三个小卡片说明登录价值，转化导向，适合拉新。</div>
+  <div class="phone v4">
+    <div class="mock-detail">
+      <div class="mock-nav"><span class="mock-back">‹</span> 照片详情</div>
+      <div class="mock-photo"></div>
+      <div class="mock-meta">
+        <div class="mock-title">村口的老槐树</div>
+        <div class="mock-desc">每年春天都开满了花，是家乡最熟悉的风景。</div>
+      </div>
+      <div class="mock-bar"><span>128 赞</span><span>24 评论</span></div>
+    </div>
+    <div class="overlay">
+      <div class="sheet">
+        <div class="handle"></div>
+        <div class="title">登录解锁更多互动</div>
+        <div class="benefits">
+          <div class="benefit"><div class="benefit-icon">赞</div><div class="benefit-text">点赞<br>收藏心动</div></div>
+          <div class="benefit"><div class="benefit-icon">评</div><div class="benefit-text">评论<br>留下故事</div></div>
+          <div class="benefit"><div class="benefit-icon">发</div><div class="benefit-text">发布<br>分享家乡</div></div>
+        </div>
+        <button class="btn-wechat" type="button">
+          <svg viewBox="0 0 24 24"><path d="M8.5 5C5.5 5 3 7 3 9.5c0 1.5.8 2.8 2 3.7-.2.7-.6 2.1-.6 2.2 0 .2.1.3.3.3.1 0 .2 0 2.8-1.5.7.2 1.4.3 2.2.3 3 0 5.5-2 5.5-4.5S11.5 5 8.5 5zm10 4c2.5 0 4.5 1.7 4.5 3.8 0 2.1-2 3.7-4.5 3.7-.6 0-1.2-.1-1.8-.3-2.1 1.1-2.4 1.2-2.5 1.2-.2 0-.3-.1-.3-.3 0-.1.3-1.3.5-1.9-1-.6-1.6-1.6-1.6-2.7 0-2.1 2-3.8 4.5-3.8z" fill="#fff"/></svg>
+          微信一键登录
+        </button>
+        <button class="btn-cancel" type="button">稍后再说</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 方案 5 -->
+<div class="plan-block">
+  <div class="plan-label">方案 5 · 毛玻璃悬浮卡片</div>
+  <div class="plan-note">半透明磨砂质感，与详情页融合度高，视觉最轻、最不打扰浏览。</div>
+  <div class="phone v5">
+    <div class="mock-detail">
+      <div class="mock-nav"><span class="mock-back">‹</span> 照片详情</div>
+      <div class="mock-photo"></div>
+      <div class="mock-meta">
+        <div class="mock-title">村口的老槐树</div>
+        <div class="mock-desc">每年春天都开满了花，是家乡最熟悉的风景。</div>
+      </div>
+      <div class="mock-bar"><span>128 赞</span><span>24 评论</span></div>
+    </div>
+    <div class="overlay">
+      <div class="sheet">
+        <div class="row-top">
+          <div>
+            <div class="title">登录后继续</div>
+            <div class="sub">点赞、评论和发布，都需要先登录哦</div>
+          </div>
+          <button class="close-x" type="button">×</button>
+        </div>
+        <div class="login-row">
+          <div class="wx-icon">
+            <svg viewBox="0 0 24 24"><path d="M8.5 5C5.5 5 3 7 3 9.5c0 1.5.8 2.8 2 3.7-.2.7-.6 2.1-.6 2.2 0 .2.1.3.3.3.1 0 .2 0 2.8-1.5.7.2 1.4.3 2.2.3 3 0 5.5-2 5.5-4.5S11.5 5 8.5 5z" fill="#fff"/></svg>
+          </div>
+          <div class="login-info">
+            <div class="login-name">微信授权登录</div>
+            <div class="login-desc">使用微信账号快速登录</div>
+          </div>
+          <span class="arrow">›</span>
+        </div>
+        <button class="btn-cancel" type="button">稍后再说</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

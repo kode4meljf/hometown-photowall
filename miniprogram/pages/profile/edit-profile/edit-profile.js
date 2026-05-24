@@ -38,22 +38,26 @@ Page({
   async loadUserInfo() {
     wx.showLoading({ title: '加载中...', mask: true });
     try {
-      const res = await userApi.getCurrentUser();
+      const app = getApp();
+      const valid = await app.syncSession({ toast: true });
       wx.hideLoading();
-      if (res.success && res.data) {
-        const u = res.data;
-        this.setData({
-          formData: {
-            avatar: u.avatar || '',
-            nickname: u.nickname || '',
-            gender: u.gender || 'secret',
-            region: u.region || [],
-            regionDisplay: this._formatRegionForEdit(u.region || []),
-            bio: u.bio || ''
-          },
-          bioLength: (u.bio || '').length
-        });
+      if (!valid) {
+        setTimeout(() => wx.navigateBack(), 500);
+        return;
       }
+      const u = app.globalData.userInfo;
+      if (!u) return;
+      this.setData({
+        formData: {
+          avatar: u.avatar || '',
+          nickname: u.nickname || '',
+          gender: u.gender || 'secret',
+          region: u.region || [],
+          regionDisplay: this._formatRegionForEdit(u.region || []),
+          bio: u.bio || ''
+        },
+        bioLength: (u.bio || '').length
+      });
     } catch (e) {
       wx.hideLoading();
       console.error('加载用户信息失败:', e);

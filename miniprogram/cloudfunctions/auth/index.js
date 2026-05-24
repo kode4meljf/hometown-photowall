@@ -4,6 +4,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const usersCollection = db.collection('users');
+const identity = require('./common/identity');
 
 // 云函数入口
 exports.main = async (event, context) => {
@@ -19,13 +20,21 @@ exports.main = async (event, context) => {
     case 'register':
       return await handleRegister(username, password, nickname, wxContext.OPENID);
     case 'login':
-      return await handleLogin(username, password);
+      return await handleLogin(username, password, wxContext.OPENID);
     case 'getCurrentUser':
       return await handleGetCurrentUser(wxContext.OPENID);
     case 'updateUserInfo':
       return await handleUpdateUserInfo(avatar, nickname, wxContext.OPENID);
     case 'updateUserProfile':
       return await handleUpdateUserProfile(event.data || event, wxContext.OPENID);
+    case 'wechatLogin':
+      return await handleWechatLogin(wxContext.OPENID);
+    case 'bindPhone':
+      return await handleBindPhone(data.phoneCode, wxContext.OPENID);
+    case 'phoneLogin':
+      return await handlePhoneLogin(data.phoneCode, wxContext.OPENID);
+    case 'deleteAccount':
+      return await handleDeleteAccount(wxContext.OPENID);
     default:
       return { success: false, message: '未知操作' };
   }
@@ -43,16 +52,13 @@ async function handleRegister(username, password, nickname, openId) {
       return { success: false, message: '用户名已存在' };
     }
 
-    const userCount = await usersCollection.count();
-    const role = userCount.total === 0 ? 'admin' : 'user';
-
     const result = await usersCollection.add({
       data: {
         _openid: openId,
         username,
         password,
         nickname,
-        role,
+        role: 'user',
         avatar: generateInitialAvatar(nickname),
         credits: 0,
         createdAt: db.serverDate()
@@ -66,7 +72,7 @@ async function handleRegister(username, password, nickname, openId) {
           id: result._id,
           username,
           nickname,
-          role,
+          role: 'user',
           avatar: generateInitialAvatar(nickname)
         }
       }
@@ -77,8 +83,8 @@ async function handleRegister(username, password, nickname, openId) {
   }
 }
 
-// 登录
-async function handleLogin(username, password) {
+// 登录（用户名密码：同步绑定当前微信 OPENID）
+async function handleLogin(username, password, openId) {
   if (!username || !password) {
     return { success: false, message: '参数不完整' };
   }
@@ -90,18 +96,18 @@ async function handleLogin(username, password) {
     }
 
     const user = result.data[0];
+    if (openId && user._openid !== openId) {
+      await usersCollection.doc(user._id).update({
+        data: { _openid: openId, updatedAt: db.serverDate() }
+      });
+      user._openid = openId;
+    }
     const avatar = await resolveAvatarUrl(user.avatar);
 
     return {
       success: true,
       data: {
-        user: {
-          id: user._id,
-          username: user.username,
-          nickname: user.nickname,
-          role: user.role,
-          avatar
-        }
+        user: formatUserForClient(user, avatar)
       }
     };
   } catch (e) {
@@ -119,23 +125,11 @@ async function handleGetCurrentUser(openId) {
     }
 
     const user = result.data[0];
-
-    const avatar = user.avatar || '';
+    const avatar = await resolveAvatarUrl(user.avatar || '');
 
     return {
       success: true,
-      data: {
-        id: user._id,
-        username: user.username,
-        nickname: user.nickname,
-        role: user.role,
-        avatar,
-        gender: user.gender || 'secret',
-        region: user.region || '',
-        bio: user.bio || '',
-        tags: user.tags || [],
-        credits: user.credits || 0
-      }
+      data: formatUserForClient(user, avatar)
     };
   } catch (e) {
     console.error('获取用户失败:', e);
@@ -195,6 +189,177 @@ async function handleUpdateUserProfile(params, openId) {
   }
 }
 
+// 微信授权登录（云函数上下文已含 OPENID，无需 code 换 openid）
+async function handleWechatLogin(openId) {
+  if (!openId) {
+    return { success: false, message: '无法获取用户身份' };
+  }
+
+  try {
+    const existUser = await usersCollection.where({ _openid: openId }).get();
+    if (existUser.data.length > 0) {
+      const user = existUser.data[0];
+      const avatar = await resolveAvatarUrl(user.avatar);
+      return {
+        success: true,
+        data: {
+          user: formatUserForClient(user, avatar)
+        }
+      };
+    }
+
+    // 不存在 → 自动创建新账号
+    const nickname = '微信用户' + openId.slice(-6);
+    const avatar = generateInitialAvatar(nickname);
+    const result = await usersCollection.add({
+      data: {
+        _openid: openId,
+        username: '',
+        nickname,
+        avatar,
+        role: 'user',
+        credits: 0,
+        loginSource: 'wechat',
+        email: '',
+        createdAt: db.serverDate()
+      }
+    });
+
+    const newUser = await identity.findUserById(db, result._id);
+    return {
+      success: true,
+      data: {
+        user: formatUserForClient(newUser || { _id: result._id, nickname, avatar, role: 'user' }, avatar)
+      }
+    };
+  } catch (e) {
+    console.error('微信登录失败:', e);
+    return { success: false, message: '微信登录失败' };
+  }
+}
+
+// 绑定手机号（换微信后可在原账号上绑定；若手机号已属其他账号则合并到原账号）
+async function handleBindPhone(phoneCode, openId) {
+  if (!openId) {
+    return { success: false, message: '未登录' };
+  }
+  try {
+    const phone = await identity.getPhoneFromCode(cloud, phoneCode);
+    const currentUser = await identity.findUserByOpenId(db, openId);
+    if (!currentUser) {
+      return { success: false, message: '请先登录' };
+    }
+
+    const existingByPhone = await identity.findUserByPhone(db, phone);
+    let finalUser = currentUser;
+
+    if (existingByPhone && existingByPhone._id !== currentUser._id) {
+      finalUser = await identity.mergeUserAccounts(db, existingByPhone, currentUser, openId);
+      if (!finalUser.phone) {
+        await usersCollection.doc(finalUser._id).update({
+          data: { phone, phoneBoundAt: db.serverDate(), updatedAt: db.serverDate() }
+        });
+        finalUser.phone = phone;
+      }
+    } else if (!currentUser.phone) {
+      await usersCollection.doc(currentUser._id).update({
+        data: { phone, phoneBoundAt: db.serverDate(), updatedAt: db.serverDate() }
+      });
+      finalUser = { ...currentUser, phone };
+    }
+
+    const avatar = await resolveAvatarUrl(finalUser.avatar);
+    return {
+      success: true,
+      message: '手机号绑定成功',
+      data: { user: formatUserForClient(finalUser, avatar) }
+    };
+  } catch (e) {
+    console.error('绑定手机失败:', e);
+    return { success: false, message: e.message || '绑定失败' };
+  }
+}
+
+// 手机号登录（换微信后找回原账号）
+async function handlePhoneLogin(phoneCode, openId) {
+  if (!openId) {
+    return { success: false, message: '无法获取用户身份' };
+  }
+  try {
+    const phone = await identity.getPhoneFromCode(cloud, phoneCode);
+    const user = await identity.findUserByPhone(db, phone);
+    if (!user) {
+      return {
+        success: false,
+        message: '该手机号尚未绑定。请先用原微信登录，在「账号安全」中绑定手机号'
+      };
+    }
+
+    const currentByOpenId = await identity.findUserByOpenId(db, openId);
+    if (currentByOpenId && currentByOpenId._id !== user._id) {
+      await identity.mergeUserAccounts(db, user, currentByOpenId, openId);
+    } else if (user._openid !== openId) {
+      await usersCollection.doc(user._id).update({
+        data: { _openid: openId, updatedAt: db.serverDate() }
+      });
+      user._openid = openId;
+    }
+
+    const freshUser = await identity.findUserById(db, user._id);
+    const avatar = await resolveAvatarUrl(freshUser.avatar);
+    return {
+      success: true,
+      data: { user: formatUserForClient(freshUser, avatar) }
+    };
+  } catch (e) {
+    console.error('手机号登录失败:', e);
+    return { success: false, message: e.message || '登录失败' };
+  }
+}
+
+// 注销账号：删除用户记录及其帖子、评论
+async function handleDeleteAccount(openId) {
+  if (!openId) {
+    return { success: false, message: '未登录' };
+  }
+
+  try {
+    const userResult = await usersCollection.where({ _openid: openId }).get();
+    if (userResult.data.length === 0) {
+      return { success: false, message: '用户不存在' };
+    }
+
+    const user = userResult.data[0];
+    const userId = user._id;
+    const postsCollection = db.collection('posts');
+    const commentsCollection = db.collection('post_comments');
+
+    const posts = await postsCollection.where({ authorId: userId }).get();
+    for (const post of posts.data) {
+      await commentsCollection.where({ postId: post._id }).remove();
+      await postsCollection.doc(post._id).remove();
+    }
+
+    await commentsCollection.where({ authorId: userId }).remove();
+
+    const avatar = user.avatar;
+    if (avatar && avatar.startsWith('cloud://')) {
+      try {
+        await cloud.deleteFile({ fileList: [avatar] });
+      } catch (e) {
+        console.error('删除头像文件失败:', e);
+      }
+    }
+
+    await usersCollection.doc(user._id).remove();
+
+    return { success: true };
+  } catch (e) {
+    console.error('注销账号失败:', e);
+    return { success: false, message: '注销失败' };
+  }
+}
+
 // 预定义头像背景色池（6个莫兰迪色）
 const AVATAR_COLORS = [
   '#FF6B6B', // 珊瑚红
@@ -248,6 +413,25 @@ function generateInitialAvatar(nickname) {
   const color = AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
   // 格式：initial://<字母>?color=<颜色>
   return `initial://${initial}?color=${encodeURIComponent(color)}`;
+}
+
+function formatUserForClient(user, avatar) {
+  if (!user) return null;
+  return {
+    id: user._id,
+    username: user.username || '',
+    nickname: user.nickname,
+    role: user.role,
+    avatar: avatar || user.avatar || '',
+    phone: user.phone ? identity.maskPhone(user.phone) : '',
+    hasPhone: !!user.phone,
+    loginSource: user.loginSource || 'wechat',
+    gender: user.gender || 'secret',
+    region: user.region || '',
+    bio: user.bio || '',
+    tags: user.tags || [],
+    credits: user.credits || 0
+  };
 }
 
 // 转换云存储头像为临时链接

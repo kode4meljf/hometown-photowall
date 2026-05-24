@@ -7,11 +7,12 @@ Page({
   data: {
     isLoggedIn: false,
     userInfo: null,
+    loginModalShow: false,
     activeTab: 'works',
-    currentTabIndex: 0,  // 0=作品, 1=赞过
-    worksFilter: 'all',  // 'all' | 'hidden'
-    worksDropdownOpen: false,  // 下拉弹窗是否展开
-dropdownTop: 0,
+    currentTabIndex: 0,
+    worksFilter: 'all',
+    worksDropdownOpen: false,
+    dropdownTop: 0,
     dropdownLeft: 0,
     triangleLeft: 0,
     works: [],
@@ -19,12 +20,10 @@ dropdownTop: 0,
     worksCount: 0,
     likedCount: 0,
     loading: false,
-    hiddenCount: 0,       // 隐藏作品数量
-
+    hiddenCount: 0,
     showPhotoAction: false,
     currentPhotoHidden: false,
     _postId: null,
-    // 分页
     worksPage: 1,
     likedPage: 1,
     worksHasMore: true,
@@ -39,25 +38,19 @@ dropdownTop: 0,
   },
 
   onShow() {
-    // 更新自定义 tabBar 选中状态
     setTimeout(() => {
       const tabBar = this.getTabBar && this.getTabBar();
-      if (tabBar) {
-        tabBar.setData({ selected: 2 });
-      }
+      if (tabBar) tabBar.setData({ selected: 2 });
     }, 0);
     this.updateUserStatus();
-    // 只在首次加载时获取数据，不在每次 onShow 都刷新
     if (this.data.isLoggedIn && !this._loaded) {
       this.loadData();
     }
-    // 从编辑页返回时，刷新用户信息（昵称/头像/标签等）
     if (this.data.isLoggedIn && this._loaded) {
       this._fetchUserInfoWithAvatar();
     }
   },
 
-  // 触底加载更多
   onReachBottom() {
     if (this.data.activeTab === 'liked') {
       this.loadMoreLiked();
@@ -66,18 +59,20 @@ dropdownTop: 0,
     }
   },
 
-  // 下拉刷新
   onPullDownRefresh() {
+    // 下拉刷新时显示 loading，防止未登录状态下空态闪现
+    if (!this.data.isLoggedIn) {
+      wx.stopPullDownRefresh();
+      return;
+    }
     this.refreshData();
   },
 
   async refreshData() {
-    // 先从数据库获取最新用户信息
-    if (this.data.isLoggedIn) {
+    if (app.checkLogin()) {
       await this.fetchLatestUserInfo();
     }
-    // 再加载其他数据
-    if (this.data.isLoggedIn) {
+    if (app.checkLogin()) {
       await this.loadData();
     }
     wx.stopPullDownRefresh();
@@ -86,12 +81,9 @@ dropdownTop: 0,
   updateUserStatus() {
     const isLoggedIn = app.checkLogin();
     this.setData({ isLoggedIn });
-    
-    // 已登录时，主动获取完整用户信息（含转换后的头像 URL）
     if (isLoggedIn) {
       this._fetchUserInfoWithAvatar();
     } else {
-      // 退出登录时清空所有用户相关数据，防止数据残留泄露
       this.setData({
         userInfo: null,
         works: [],
@@ -107,33 +99,37 @@ dropdownTop: 0,
       });
     }
   },
-  
-  // 获取用户信息
+
   async _fetchUserInfoWithAvatar() {
+    const wasLoggedIn = app.checkLogin();
     try {
-      const res = await userApi.getCurrentUser();
-      if (res.success && res.data) {
-        let userInfo = res.data;
-        if (!userInfo.avatar) {
-          userInfo = { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
-        }
-        // 格式化地区显示：广东·深圳
-        if (userInfo.region && userInfo.region.length >= 2) {
-          userInfo.regionDisplay = userInfo.region[0].slice(0, -1) + '·' + userInfo.region[1];
-        }
-        // 格式化性别显示：♂ 男 / ♀ 女（符号由 WXML 渲染）
-        if (userInfo.gender === 'male') {
-          userInfo.genderDisplay = '男';
-        } else if (userInfo.gender === 'female') {
-          userInfo.genderDisplay = '女';
-        }
-        app.globalData.userInfo = userInfo;
-        wx.setStorageSync('userInfo', userInfo);
-        this.setData({ userInfo });
+      const valid = await app.syncSession({ toast: wasLoggedIn });
+      if (!valid) {
+        this.updateUserStatus();
+        return;
       }
+      let userInfo = app.globalData.userInfo;
+      if (!userInfo) return;
+      if (!userInfo.avatar) {
+        userInfo = { ...userInfo, avatar: '/assets/icons/default-avatar.png' };
+      }
+      if (userInfo.region && userInfo.region.length >= 2) {
+        userInfo.regionDisplay = userInfo.region[0].slice(0, -1) + '·' + userInfo.region[1];
+      }
+      if (userInfo.gender === 'male') {
+        userInfo.genderDisplay = '男';
+      } else if (userInfo.gender === 'female') {
+        userInfo.genderDisplay = '女';
+      }
+      app.globalData.userInfo = userInfo;
+      wx.setStorageSync('userInfo', userInfo);
+      this.setData({ userInfo });
     } catch (e) {
       console.error('获取用户信息失败:', e);
-      // 降级：使用本地缓存
+      if (!app.checkLogin()) {
+        this.updateUserStatus();
+        return;
+      }
       const userInfo = app.globalData.userInfo;
       if (userInfo) {
         if (!userInfo.avatar) {
@@ -147,14 +143,12 @@ dropdownTop: 0,
     }
   },
 
-  // 获取最新用户信息
   async fetchLatestUserInfo() {
     await this._fetchUserInfoWithAvatar();
   },
 
   async loadData() {
     this.setData({ loading: true });
-    // 重置分页状态
     this.setData({
       works: [],
       liked: [],
@@ -166,7 +160,7 @@ dropdownTop: 0,
     try {
       await Promise.all([
         this.loadWorks(true),
-        this.loadWorks(true, 'hidden'),  // 预取 hiddenCount，不重置列表
+        this.loadWorks(true, 'hidden'),
         this.loadLiked(true)
       ]);
     } finally {
@@ -177,9 +171,6 @@ dropdownTop: 0,
 
   async loadWorks(reset = false, silentFilter = null) {
     const filter = silentFilter ?? this.data.worksFilter;
-    // hidden: true=仅隐藏帖子, false=仅显示帖子, undefined=不过滤（全部）
-    // 新帖子默认 hidden=false，已隐藏的帖子 hidden=true
-    // 只有点了「已隐藏」才加 hidden:true，「全部」不过滤
     const hidden = filter === 'hidden' ? true : undefined;
 
     if (reset && !silentFilter) {
@@ -198,13 +189,11 @@ dropdownTop: 0,
         }));
         const works = reset ? photos : [...this.data.works, ...photos];
         const setData = {};
-        // silent 模式（预取计数）不更新列表，只更新计数
         if (!silentFilter) {
           setData.works = works;
           setData.worksPage = page + 1;
           setData.worksHasMore = res.data.hasMore !== false;
         }
-        // 分别维护三个计数，切换筛选时互不覆盖
         if (filter === 'hidden') {
           setData.hiddenCount = res.data.total || photos.length;
         } else {
@@ -217,16 +206,13 @@ dropdownTop: 0,
     }
   },
 
-  // 点击作品 Tab：已选中则弹窗，未选中则切换过来
   onWorksFilterTap(e) {
     const tab = e.currentTarget.dataset.tab;
     if (this.data.activeTab === tab) {
       if (this.data.worksDropdownOpen) {
-        // 已展开 → 关闭
         this.setData({ worksDropdownOpen: false });
         return;
       } else {
-        // 要展开 → 先查 Tab 坐标，再定位弹窗
         this._openWorksDropdown();
       }
     } else {
@@ -235,46 +221,39 @@ dropdownTop: 0,
     }
   },
 
-  // 查询作品 Tab 坐标，动态定位弹窗居中于 Tab 正下方
   _openWorksDropdown() {
     const query = wx.createSelectorQuery().in(this);
     query.select('#works-tab').boundingClientRect(tabRect => {
       if (!tabRect) return;
       const top = tabRect.bottom;
       const tabCenter = tabRect.left + tabRect.width / 2;
-      // dropdown 与屏幕左右各留 24rpx 边距，弹窗水平居中于 Tab
       const screenWidth = wx.getSystemInfoSync().windowWidth;
       const dropdownWidthRpx = 300;
-      const dropdownWidthPx = dropdownWidthRpx / (750 / screenWidth); // rpx → px
-      const sideMarginPx = 24 / (750 / screenWidth);                  // 24rpx → px
+      const dropdownWidthPx = dropdownWidthRpx / (750 / screenWidth);
+      const sideMarginPx = 24 / (750 / screenWidth);
       const rawLeft = tabCenter - dropdownWidthPx / 2;
       const dropdownLeft = Math.max(sideMarginPx, Math.min(rawLeft, screenWidth - dropdownWidthPx - sideMarginPx));
-      // 三角尖端（宽36rpx的一半 = 18rpx）要对准 Tab 中心
       const pxPerRpx = screenWidth / 750;
       const triangleLeftRpx = (tabCenter - dropdownLeft) / pxPerRpx - 18;
       this.setData({ dropdownTop: top, dropdownLeft: dropdownLeft, triangleLeft: triangleLeftRpx, worksDropdownOpen: true });
     }).exec();
   },
 
-  // 关闭筛选弹窗
   closeWorksDropdown() {
     this.setData({ worksDropdownOpen: false });
   },
 
-  // 页面滚动时关闭弹窗（iOS 弹性滚动时 onPageScroll 可能不触发，用 touchstart 兜底）
   onPageScroll() {
     if (this.data.worksDropdownOpen) {
       this.setData({ worksDropdownOpen: false });
     }
   },
 
-  // 空操作，用于遮罩层阻止 touchstart 冒泡
   noop() {},
 
   onWorksFilterChange(e) {
     const filter = e.currentTarget.dataset.filter;
     if (filter === this.data.worksFilter && this.data.worksDropdownOpen) {
-      // 相同选项点击 → 收起弹窗
       this.setData({ worksDropdownOpen: false });
       return;
     }
@@ -310,7 +289,6 @@ dropdownTop: 0,
     }
   },
 
-  // 加载更多作品
   async loadMoreWorks() {
     if (this.data.worksLoadingMore || !this.data.worksHasMore) return;
     this.setData({ worksLoadingMore: true });
@@ -321,7 +299,6 @@ dropdownTop: 0,
     }
   },
 
-  // 加载更多赞过
   async loadMoreLiked() {
     if (this.data.likedLoadingMore || !this.data.likedHasMore) return;
     this.setData({ likedLoadingMore: true });
@@ -339,7 +316,6 @@ dropdownTop: 0,
     this._checkLikedRefresh(tab);
   },
 
-  // Swiper 左右滑动切换
   onSwiperChange(e) {
     const index = e.detail.current;
     const tab = index === 0 ? 'works' : 'liked';
@@ -347,7 +323,6 @@ dropdownTop: 0,
     this._checkLikedRefresh(tab);
   },
 
-  // 检查赞过列表是否需要刷新
   _checkLikedRefresh(tab) {
     if (tab === 'liked' && this._likedNeedsRefresh) {
       this._likedNeedsRefresh = false;
@@ -355,21 +330,18 @@ dropdownTop: 0,
     }
   },
 
-  // detail 页点赞后回调（onUnload → prevPage.onNeedRefresh）
   onNeedRefresh() {
     this._likedNeedsRefresh = true;
   },
 
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({
-      url: `/pages/detail/detail?id=${id}`
-    });
+    wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
   },
 
   goToUpload() {
     if (!this.data.isLoggedIn) {
-      this.goToLogin();
+      this.showLoginModal();
       return;
     }
     wx.navigateTo({ url: '/pages/upload/upload' });
@@ -380,32 +352,54 @@ dropdownTop: 0,
   },
 
   goToLogin() {
-    wx.navigateTo({ url: '/pages/login/login' });
+    this.showLoginModal();
+  },
+
+  // ── 登录弹窗 ──
+  showLoginModal() {
+    this.setData({ loginModalShow: true });
+  },
+
+  onLoginModalClose() {
+    this.setData({ loginModalShow: false });
+  },
+
+  onLoginSuccess() {
+    this.updateUserStatus();
+  },
+
+  // ── 入口操作 ──
+  onAvatarTap() {
+    if (!this.data.isLoggedIn) {
+      this.showLoginModal();
+      return;
+    }
+    const avatar = this.data.userInfo && this.data.userInfo.avatar;
+    if (!avatar || avatar.includes('default-avatar')) return;
+    wx.previewImage({ urls: [avatar], current: avatar });
   },
 
   goToEditProfile() {
+    if (!this.data.isLoggedIn) {
+      this.showLoginModal();
+      return;
+    }
     wx.navigateTo({ url: '/pages/profile/edit-profile/edit-profile' });
   },
 
   onSettingsTap() {
-    const userInfo = app.globalData.userInfo;
-    if (!userInfo) {
-      wx.navigateTo({ url: '/pages/login/login' });
+    if (!this.data.isLoggedIn) {
+      this.showLoginModal();
       return;
     }
     wx.navigateTo({ url: '/pages/profile/settings/settings' });
   },
 
-  buyPoints() {
-    showToast('购买积分功能开发中');
-  },
-
-  freePoints() {
-    showToast('免费领积分功能开发中');
-  },
-
-  // 常用功能3宫格点击
   onFuncTap(e) {
+    if (!this.data.isLoggedIn) {
+      this.showLoginModal();
+      return;
+    }
     const func = e.currentTarget.dataset.func;
     if (func === 'comments') {
       wx.navigateTo({ url: '/pages/profile/comments/comments' });
@@ -416,37 +410,31 @@ dropdownTop: 0,
     }
   },
 
-  // 点击头像查看大图
-  onAvatarTap() {
-    const avatar = this.data.userInfo.avatar;
-    if (!avatar || avatar.includes('default-avatar')) return;
-    wx.previewImage({
-      urls: [avatar],
-      current: avatar,
-    });
+  buyPoints() {
+    showToast('购买积分功能开发中');
   },
 
-  // 打开作品操作弹窗
+  freePoints() {
+    showToast('免费领积分功能开发中');
+  },
+
+  // ── 作品操作弹窗 ──
   openPhotoAction(e) {
     const { id, title, hidden } = e.currentTarget.dataset;
     this._postId = id;
     this._currentPhotoTitle = title || '';
-    // 隐藏 TabBar
     const tabBar = this.getTabBar && this.getTabBar();
     if (tabBar) tabBar.setData({ hidden: true });
     this.setData({ showPhotoAction: true, currentPhotoHidden: !!hidden });
   },
 
-  // 关闭作品操作弹窗
   hidePhotoAction() {
-    // 恢复 TabBar
     const tabBar = this.getTabBar && this.getTabBar();
     if (tabBar) tabBar.setData({ hidden: false });
     this.setData({ showPhotoAction: false });
     this._postId = null;
   },
 
-  // 编辑标题
   editPhotoTitle() {
     const id = this._postId;
     const currentTitle = this._currentPhotoTitle || '';
@@ -466,7 +454,6 @@ dropdownTop: 0,
             const result = await postApi.updatePost(id, { title: newTitle });
             wx.hideLoading();
             if (result.success) {
-              // 更新本地数据
               const works = this.data.works.map(item =>
                 item.id === id ? { ...item, title: newTitle } : item
               );
@@ -485,7 +472,6 @@ dropdownTop: 0,
     });
   },
 
-  // 切换隐藏/显示作品
   toggleHidePost() {
     console.log('[toggleHidePost] _postId:', this._postId, 'currentPhotoHidden:', this.data.currentPhotoHidden);
     const id = this._postId;
@@ -505,28 +491,22 @@ dropdownTop: 0,
     }).then(res => {
       wx.hideLoading();
       if (res.result && res.result.success) {
-        // 乐观更新
         const filter = this.data.worksFilter;
         const setData = {};
         if (filter === 'all') {
-          // 隐藏操作：从全部列表中移除该帖子（全部作品不过滤hidden，只靠列表本身）
           if (!currentlyHidden) {
             setData.works = this.data.works.filter(item => item.id !== id);
             setData.worksCount = Math.max(0, this.data.worksCount - 1);
             setData.hiddenCount = (this.data.hiddenCount || 0) + 1;
           } else {
-            // 显示操作：帖子的 hidden 被云函数改成 false，但它不在列表里（被移除了），
-            // 重新加载时自然会出现，这里只更新计数
             setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
           }
         } else if (filter === 'hidden') {
-          // 在"已隐藏"列表里，显示帖子：移除 + hiddenCount -1
           if (currentlyHidden) {
             setData.works = this.data.works.filter(item => item.id !== id);
             setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
           }
         }
-        // liked 列表里同样移除（已隐藏的帖子不该出现在"赞过"列表）
         setData.liked = this.data.liked.filter(item => item.id !== id);
         this.setData(setData);
         showToast(currentlyHidden ? '已显示' : '已隐藏');
@@ -540,7 +520,6 @@ dropdownTop: 0,
     });
   },
 
-  // 删除帖子
   deletePost() {
     const id = this._postId;
     this.hidePhotoAction();
@@ -557,10 +536,9 @@ dropdownTop: 0,
             const result = await postApi.deletePost(id);
             wx.hideLoading();
             if (result.success) {
-              // 从列表中移除
               const works = this.data.works.filter(item => item.id !== id);
               this.setData({ works, worksCount: Math.max(0, this.data.worksCount - 1) });
-              this._likedNeedsRefresh = true;  // 被删的可能在赞过列表里
+              this._likedNeedsRefresh = true;
               showToast('已删除');
             } else {
               console.error('[deletePost] 云函数返回失败:', result);
@@ -576,11 +554,8 @@ dropdownTop: 0,
     });
   },
 
-  stopPropagation() {
-    // 阻止事件冒泡
-  },
+  stopPropagation() {},
 
-  // 拍照
   takePhoto() {
     this.hideAvatarModal();
     wx.chooseMedia({
@@ -593,7 +568,6 @@ dropdownTop: 0,
     });
   },
 
-  // 从相册选择
   chooseFromAlbum() {
     this.hideAvatarModal();
     wx.chooseMedia({
@@ -606,35 +580,25 @@ dropdownTop: 0,
     });
   },
 
-  // 上传头像
   async uploadAvatar(filePath) {
     showLoading('上传中...');
     try {
-      // 上传到云存储
       const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
       const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath });
-      
       if (!uploadRes.fileID) {
         hideLoading();
         showToast('上传失败');
         return;
       }
-
-      // 保存到数据库（存 fileID）
       const saveRes = await userApi.updateUserInfo(uploadRes.fileID);
-      
       if (!saveRes.success) {
         hideLoading();
         showToast('保存失败');
         return;
       }
-
-      // 重新获取用户信息（云函数会转换 cloud:// → HTTPS 临时链接）
       await this._fetchUserInfoWithAvatar();
-      
       hideLoading();
       showToast('头像已更新');
-      
     } catch (e) {
       hideLoading();
       showToast('上传失败');
@@ -643,7 +607,6 @@ dropdownTop: 0,
   }
 });
 
-// 辅助函数
 function showLoading(title) {
   wx.showLoading({ title, mask: true });
 }

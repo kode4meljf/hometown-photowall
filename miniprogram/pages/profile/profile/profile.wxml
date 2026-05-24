@@ -198,3 +198,13 @@
     </view>
   </view>
 </view>
+
+<!-- 登录弹窗（方案 2 · 居中浮层卡片） -->
+<login-modal
+  visible="{{loginModalShow}}"
+  title="登录"
+  subtitle="登录后即可使用完整功能"
+  cancel-text="取消"
+  bind:close="onLoginModalClose"
+  bind:success="onLoginSuccess"
+/>

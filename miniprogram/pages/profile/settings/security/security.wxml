@@ -1,0 +1,50 @@
+<view class="security-page">
+    <view class="page-body">
+
+        <view class="section-title">账号状态</view>
+        <view class="settings-card">
+            <view class="item no-arrow">
+                <view class="item-icon">
+                    <image src="{{avatar}}" mode="aspectFit"/>
+                </view>
+                <view class="user-info">
+                    <text class="user-name">{{nickname}}</text>
+                    <text class="user-id">UID: {{uid}}</text>
+                </view>
+                <view class="bind-tag {{hasPhone ? 'binded' : 'unbinded'}}">
+                    {{hasPhone ? (phoneDisplay || '已绑定手机') : '未绑定手机'}}
+                </view>
+            </view>
+        </view>
+
+        <view class="section-title">安全操作</view>
+        <view class="settings-card">
+            <button class="item phone-bind-btn" wx:if="{{!hasPhone}}" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" hover-class="item-hover">
+                <view class="item-icon">
+                    <image src="/assets/icons/icon-phone.svg" mode="aspectFit"/>
+                </view>
+                <text class="item-text">绑定手机号</text>
+                <text class="item-arrow">›</text>
+            </button>
+            <view class="item" bindtap="onChangePhone" wx:if="{{hasPhone}}">
+                <view class="item-icon">
+                    <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFiMWIxYiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM6Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48bGluZSB4MT0iMTYiIHkxPSIxMyIgeDI9IjgiIHkyPSIxMyIvPjxsaW5lIHgxPSIxNiIgeTE9IjE3IiB4Mj0iOCIgeTI9IjE3Ii8+PC9zdmc+" mode="aspectFit"/>
+                </view>
+                <text class="item-text">更换手机号</text>
+                <text class="item-arrow">›</text>
+            </view>
+            <view class="item danger" bindtap="onDeleteAccount">
+                <view class="item-icon">
+                    <image src="data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmNDQ0NCIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgeG1sbnM6Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNMjEgMTVhMiAyIDAgMCAxLTIgMkg3bC00IDRWNWEyIDIgMCAwIDEgMi0yaDE0YTIgMiAwIDAgMSAyIDJ6Ii8+PC9zdmc+" mode="aspectFit"/>
+                </view>
+                <text class="item-text">注销账号</text>
+                <text class="item-arrow">›</text>
+            </view>
+        </view>
+
+        <view class="tip-box">
+            <text class="tip-text">绑定手机号后，换微信号可在登录页选择「手机号找回」恢复作品。注销账号后将清除所有个人数据，此操作不可恢复。</text>
+        </view>
+
+    </view>
+</view>

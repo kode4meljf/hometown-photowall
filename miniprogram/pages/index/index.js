@@ -1,6 +1,7 @@
 // pages/index/index.js - 新设计:标签组筛选 + 自定义 TabBar
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
+const app = getApp();
 
 const COLUMN_GAP = 24; // 列间距 rpx (gap 12rpx * 2 列)
 const CARD_PADDING = 24; // 卡片左右内边距总和 rpx (padding 12rpx * 2 侧)
@@ -299,16 +300,24 @@ Page({
       wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
       return;
     }
-    // 捕获卡片图片的 boundingClientRect，传给详情页用于 FLIP 动画
+    // 捕获：图片 rect、标题描述 rect
     const query = wx.createSelectorQuery().in(this);
-    query.select('#card-img-' + id).boundingClientRect(rect => {
-      if (rect) {
-        const app = getApp();
-        app.globalData._indexCardRect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
-        app.globalData._indexCardUrl = post.coverUrl || (post.photos && post.photos[0] && post.photos[0].imageUrl) || '';
-      }
+    query.select('#card-img-' + id).boundingClientRect();
+    query.select('#card-title-' + id).boundingClientRect();
+    query.select('#card-desc-' + id).boundingClientRect();
+    query.exec(rects => {
+      const [imgRect, titleRect, descRect] = rects;
+      app.globalData._indexCardRect = imgRect ? { left: imgRect.left, top: imgRect.top, width: imgRect.width, height: imgRect.height } : null;
+      app.globalData._indexCardUrl = post.coverUrl || (post.photos && post.photos[0] && post.photos[0].imageUrl) || '';
+      app.globalData._indexAvatarUrl = post.authorAvatar || '';
+      app.globalData._indexTextRects = {
+        title: titleRect || null,
+        desc: descRect || null
+      };
+      app.globalData._indexTitleText = post.title || '';
+      app.globalData._indexDescText = post.description || '';
       wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
-    }).exec();
+    });
   },
 
   // 点赞（乐观更新：立即响应，后台同步）

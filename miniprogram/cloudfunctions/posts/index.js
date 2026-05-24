@@ -8,6 +8,11 @@ const _ = db.command;
 const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
+const identity = require('./common/identity');
+
+async function getActor(openId) {
+  return identity.resolveActor(db, openId);
+}
 
 // [2026-04-25] 移除所有 cloud:// → HTTPS 转换
 // 微信小程序 <image> 组件原生支持 cloud:// 协议，框架自动管理签名刷新
@@ -97,9 +102,9 @@ exports.main = async (event, context) => {
 
 // 获取照片列表（读 posts 集合）
 async function getPosts(params, openId) {
-  const { location, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
-
   try {
+    const actor = await getActor(openId);
+    const { location, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
     const conditions = {};
     if (location) conditions.location = location;
     if (keyword) {
@@ -123,35 +128,12 @@ async function getPosts(params, openId) {
     // 统一字段
     let posts = result.data.map(post => ({
       ...normalizePost(post),
-      liked: openId && (post.likedUsers || []).includes(openId)
+      liked: identity.isLikedBy(post.likedUsers, actor)
     }));
 
-
-    // 批量获取作者头像+昵称
     const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
-    if (authorIds.length > 0) {
-      const authorAvatarMap = {};
-      const authorNicknameMap = {};
-      try {
-        const userRes = await usersCollection
-          .where({ _openid: _.in(authorIds) })
-          .field({ _openid: true, avatar: true, nickname: true })
-          .get();
-        userRes.data.forEach(u => {
-          if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
-          if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
-        });
-      } catch (e) {}
-
-      posts.forEach(post => {
-        if (authorAvatarMap[post.authorId]) {
-          post.authorAvatar = authorAvatarMap[post.authorId];
-        }
-        if (authorNicknameMap[post.authorId]) {
-          post.author = authorNicknameMap[post.authorId];
-        }
-      });
-    }
+    const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
+    identity.applyAuthorToPosts(posts, avatarMap, nicknameMap);
 
     return {
       success: true,
@@ -169,6 +151,7 @@ async function getPosts(params, openId) {
 
 // 获取照片详情（读 posts 集合）
 async function getPostDetail(id, openId) {
+  const actor = await getActor(openId);
   try {
     // 浏览量 +1
     await postsCollection.doc(id).update({
@@ -178,29 +161,15 @@ async function getPostDetail(id, openId) {
     const postResult = await postsCollection.doc(id).get();
     const post = postResult.data;
 
-    // 检查点赞状态
-    post.liked = openId && (post.likedUsers || []).includes(openId);
+    post.liked = identity.isLikedBy(post.likedUsers, actor);
 
-    // 统一字段
     Object.assign(post, normalizePost(post));
 
-    // 批量获取作者头像+昵称
-    const authorAvatarMap = {};
-    const authorNicknameMap = {};
     if (post.authorId) {
-      try {
-        const userRes = await usersCollection
-          .where({ _openid: post.authorId })
-          .field({ _openid: true, avatar: true, nickname: true })
-          .get();
-        if (userRes.data[0]) {
-          if (userRes.data[0].avatar) authorAvatarMap[post.authorId] = userRes.data[0].avatar;
-          if (userRes.data[0].nickname) authorNicknameMap[post.authorId] = userRes.data[0].nickname;
-        }
-      } catch (e) {}
+      const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, [post.authorId]);
+      if (avatarMap[post.authorId]) post.authorAvatar = avatarMap[post.authorId];
+      if (nicknameMap[post.authorId]) post.author = nicknameMap[post.authorId];
     }
-    if (authorAvatarMap[post.authorId]) post.authorAvatar = authorAvatarMap[post.authorId];
-    if (authorNicknameMap[post.authorId]) post.author = authorNicknameMap[post.authorId];
 
 
     // 评论列表
@@ -212,6 +181,13 @@ async function getPostDetail(id, openId) {
       allCommentsCount = cntRes.total || 0;
     } catch (e) {}
 
+    let canDelete = false;
+    if (actor.userId) {
+      if (identity.isAuthor(post.authorId, actor) || actor.isAdmin) {
+        canDelete = true;
+      }
+    }
+
     return {
       success: true,
       data: {
@@ -219,7 +195,8 @@ async function getPostDetail(id, openId) {
         shares: post.shares || 0,
         comments: commentsData.comments,
         commentsCount: allCommentsCount,
-        hasMore: commentsData.hasMore
+        hasMore: commentsData.hasMore,
+        canDelete
       }
     };
   } catch (e) {
@@ -230,6 +207,7 @@ async function getPostDetail(id, openId) {
 
 // 查询评论并实时解析作者头像
 async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
+  const actor = await getActor(openId);
   try {
     // 只返回一级评论（parentId 为空/null），按热度排序
     const query = { postId, parentId: _.or(_.eq(null), _.exists(false)) };
@@ -283,31 +261,15 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
       // likes/likedUsers 默认值兜底
       c.likes = c.likes || 0;
       c.likedUsers = c.likedUsers || [];
-      c.liked = openId && c.likedUsers.includes(openId);
+      c.liked = identity.isLikedBy(c.likedUsers, actor);
       c.repliesCount = repliesCountMap[c._id] || 0;
       return c;
     });
 
     const authorIds = [...new Set(comments.map(c => c.authorId).filter(Boolean))];
-
-    let authorAvatarMap = {};
-    if (authorIds.length > 0) {
-      try {
-        const usersRes = await usersCollection
-          .where({ _openid: _.in(authorIds) })
-          .field({ _openid: true, avatar: true })
-          .get();
-        usersRes.data.forEach(u => {
-          if (!u.avatar) return;
-          authorAvatarMap[u._openid] = u.avatar;
-        });
-      } catch (e) {
-        console.error('[getCommentsWithAuthors] users query error:', e);
-      }
-    }
-
+    const { avatarMap } = await identity.resolveAuthorsMap(db, authorIds);
     comments.forEach(c => {
-      c.authorAvatar = authorAvatarMap[c.authorId] || '/assets/icons/default-avatar.png';
+      c.authorAvatar = avatarMap[c.authorId] || '/assets/icons/default-avatar.png';
     });
 
     console.log('[getCommentsWithAuthors] returning comments count:', comments.length);
@@ -339,18 +301,16 @@ async function getMoreComments(data, openId) {
 
 // 创建帖子（写入 posts 集合）
 async function createPost(data, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
   try {
-    // 获取作者信息
     let authorNickname = '匿名用户';
     let authorAvatar = '';
-    try {
-      const userResult = await usersCollection.where({ _openid: openId }).get();
-      if (userResult.data.length > 0) {
-        authorNickname = userResult.data[0].nickname || '匿名用户';
-        authorAvatar = userResult.data[0].avatar || '';
-      }
-    } catch (e) {
-      console.error('获取作者信息失败:', e);
+    if (actor.user) {
+      authorNickname = actor.user.nickname || '匿名用户';
+      authorAvatar = actor.user.avatar || '';
     }
 
     // posts 集合直接存 imageUrl（云存储 fileID，读取时转换）
@@ -368,7 +328,7 @@ async function createPost(data, openId) {
       location: data.location || '',
       photos,
       author: authorNickname,
-      authorId: openId,
+      authorId: identity.writeAuthorId(actor),
       authorAvatar,
       likes: 0,
       views: 0,
@@ -387,13 +347,14 @@ async function createPost(data, openId) {
 
 // 删除帖子（从 posts 集合删除，同时删除关联评论）
 async function deletePost(id, openId) {
+  const actor = await getActor(openId);
   try {
     console.log('[deletePost] id:', id, 'openId:', openId);
     if (!id) {
       return { success: false, message: '缺少帖子ID' };
     }
     const post = await postsCollection.doc(id).get();
-    if (post.data.authorId !== openId) {
+    if (!identity.isAuthor(post.data.authorId, actor) && !actor.isAdmin) {
       return { success: false, message: '无权删除' };
     }
 
@@ -409,6 +370,7 @@ async function deletePost(id, openId) {
 
 // 更新帖子
 async function updatePost(data, openId) {
+  const actor = await getActor(openId);
   console.log('[updatePost] received data:', JSON.stringify(data), 'openId:', openId);
   try {
     // 兼容三种调用格式：
@@ -424,7 +386,7 @@ async function updatePost(data, openId) {
 
     // 验证权限
     const post = await postsCollection.doc(postId).get();
-    if (!post.data || post.data.authorId !== openId) {
+    if (!post.data || (!identity.isAuthor(post.data.authorId, actor) && !actor.isAdmin)) {
       return { success: false, message: '无权编辑' };
     }
 
@@ -451,17 +413,22 @@ async function updatePost(data, openId) {
 
 // 点赞帖子
 async function likePost(id, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+  const likeId = identity.writeLikeId(actor);
   try {
     const post = await postsCollection.doc(id).get();
     const likedUsers = post.data.likedUsers || [];
-    const hasLiked = likedUsers.includes(openId);
+    const hasLiked = identity.isLikedBy(likedUsers, actor);
 
     if (hasLiked) {
       const newLikes = Math.max(0, post.data.likes - 1);
       await postsCollection.doc(id).update({
         data: {
           likes: newLikes,
-          likedUsers: _.pull(openId)
+          likedUsers: _.pull(likeId)
         }
       });
       return { success: true, liked: false, likes: newLikes };
@@ -469,7 +436,7 @@ async function likePost(id, openId) {
       await postsCollection.doc(id).update({
         data: {
           likes: _.inc(1),
-          likedUsers: _.push(openId)
+          likedUsers: _.push(likeId)
         }
       });
       return { success: true, liked: true, likes: post.data.likes + 1 };
@@ -482,6 +449,11 @@ async function likePost(id, openId) {
 
 // 点赞/取消点赞评论
 async function toggleCommentLike(data, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+  const likeId = identity.writeLikeId(actor);
   try {
     const { commentId } = data;
     if (!commentId) return { success: false, message: '缺少评论ID' };
@@ -490,14 +462,14 @@ async function toggleCommentLike(data, openId) {
     if (!comment.data) return { success: false, message: '评论不存在' };
 
     const likedUsers = comment.data.likedUsers || [];
-    const hasLiked = likedUsers.includes(openId);
+    const hasLiked = identity.isLikedBy(likedUsers, actor);
 
     if (hasLiked) {
       const newLikes = Math.max(0, (comment.data.likes || 0) - 1);
       await commentsCollection.doc(commentId).update({
         data: {
           likes: newLikes,
-          likedUsers: _.pull(openId)
+          likedUsers: _.pull(likeId)
         }
       });
       return { success: true, liked: false, likes: newLikes };
@@ -505,7 +477,7 @@ async function toggleCommentLike(data, openId) {
       await commentsCollection.doc(commentId).update({
         data: {
           likes: _.inc(1),
-          likedUsers: _.push(openId)
+          likedUsers: _.push(likeId)
         }
       });
       return { success: true, liked: true, likes: (comment.data.likes || 0) + 1 };
@@ -518,6 +490,7 @@ async function toggleCommentLike(data, openId) {
 
 // 获取某条一级评论的所有回复（用于点击"展开"时加载完整列表）
 async function getCommentReplies(data, openId) {
+  const actor = await getActor(openId);
   try {
     const { commentId, offset = 0, limit = 10 } = data;
     if (!commentId) return { success: false, message: '缺少评论ID' };
@@ -541,26 +514,16 @@ async function getCommentReplies(data, openId) {
       author: r.author || '',
       content: r.content,
       likes: r.likes || 0,
-      liked: openId && (r.likedUsers || []).includes(openId),
+      liked: identity.isLikedBy(r.likedUsers, actor),
       createdAt: r.createdAt,
       replyTo: r.replyTo || null,
       replyToAuthor: r.replyToAuthor || ''
     }));
 
-    // 批量获取回复者头像
     const authorIds = [...new Set(replies.map(r => r.authorId).filter(Boolean))];
-    let authorAvatarMap = {};
-    if (authorIds.length > 0) {
-      const usersRes = await usersCollection
-        .where({ _openid: _.in(authorIds) })
-        .field({ _openid: true, avatar: true })
-        .get();
-      usersRes.data.forEach(u => {
-        if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
-      });
-    }
+    const { avatarMap } = await identity.resolveAuthorsMap(db, authorIds);
     replies.forEach(r => {
-      r.authorAvatar = authorAvatarMap[r.authorId] || '/assets/icons/default-avatar.png';
+      r.authorAvatar = avatarMap[r.authorId] || '/assets/icons/default-avatar.png';
     });
 
     return { success: true, data: { replies, hasMore: offset + replies.length < total, total } };
@@ -572,21 +535,21 @@ async function getCommentReplies(data, openId) {
 
 // 添加评论
 async function addComment(data, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
   try {
     let authorNickname = '匿名用户';
-    try {
-      const userResult = await usersCollection.where({ _openid: openId }).get();
-      if (userResult.data.length > 0) {
-        authorNickname = userResult.data[0].nickname || '匿名用户';
-      }
-    } catch (e) {}
+    if (actor.user) {
+      authorNickname = actor.user.nickname || '匿名用户';
+    }
 
-    // 构建评论数据
     const commentData = {
       postId: data.postId,
       content: data.content,
       author: authorNickname,
-      authorId: openId,
+      authorId: identity.writeAuthorId(actor),
       createdAt: db.serverDate(),
       likes: 0,
       likedUsers: [],
@@ -643,6 +606,7 @@ async function addComment(data, openId) {
 
 // 获取时间线（读 posts 集合）
 async function getTimeline(openId) {
+  const actor = await getActor(openId);
   try {
     const result = await postsCollection
       .orderBy('createdAt', 'desc')
@@ -651,34 +615,12 @@ async function getTimeline(openId) {
 
     let posts = result.data.map(post => ({
       ...normalizePost(post),
-      liked: openId && (post.likedUsers || []).includes(openId)
+      liked: identity.isLikedBy(post.likedUsers, actor)
     }));
 
-    // 批量获取作者头像+昵称
     const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
-    if (authorIds.length > 0) {
-      const authorAvatarMap = {};
-      const authorNicknameMap = {};
-      try {
-        const userRes = await usersCollection
-          .where({ _openid: _.in(authorIds) })
-          .field({ _openid: true, avatar: true, nickname: true })
-          .get();
-        userRes.data.forEach(u => {
-          if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
-          if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
-        });
-      } catch (e) {}
-
-      posts.forEach(post => {
-        if (authorAvatarMap[post.authorId]) {
-          post.authorAvatar = authorAvatarMap[post.authorId];
-        }
-        if (authorNicknameMap[post.authorId]) {
-          post.author = authorNicknameMap[post.authorId];
-        }
-      });
-    }
+    const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
+    identity.applyAuthorToPosts(posts, avatarMap, nicknameMap);
 
 
     const timeline = {};
@@ -746,12 +688,12 @@ async function getStats() {
 
 // 获取我的作品（读 posts 集合）
 async function getMyWorks(openId, params = {}) {
-  if (!openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
     return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
   }
   const { page = 1, pageSize = 20, hidden } = params;
-  // hidden: true=仅隐藏, false=仅显示, undefined=全部
-  const whereCond = { authorId: openId };
+  const whereCond = { ...identity.authorOwnerWhere(db, actor) };
   if (hidden !== undefined) {
     whereCond.hidden = hidden;
   }
@@ -768,9 +710,8 @@ async function getMyWorks(openId, params = {}) {
 
     let posts = result.data.map(post => ({
       ...normalizePost(post),
-      liked: (post.likedUsers || []).includes(openId)
+      liked: identity.isLikedBy(post.likedUsers, actor)
     }));
-
 
     return { success: true, data: { posts, hasMore: page * pageSize < total, total } };
   } catch (e) {
@@ -781,18 +722,20 @@ async function getMyWorks(openId, params = {}) {
 
 // 获取我赞过的照片（读 posts 集合）
 async function getMyLiked(openId, params = {}) {
-  if (!openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
     return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
   }
   const { page = 1, pageSize = 20 } = params;
+  const userId = actor.userId;
   try {
     const countResult = await postsCollection
-      .where({ likedUsers: _.elemMatch(_.eq(openId)), hidden: false })
+      .where({ likedUsers: userId, hidden: false })
       .count();
     const total = countResult.total;
 
     const result = await postsCollection
-      .where({ likedUsers: _.elemMatch(_.eq(openId)), hidden: false })
+      .where({ likedUsers: userId, hidden: false })
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)
@@ -804,31 +747,12 @@ async function getMyLiked(openId, params = {}) {
     }));
 
 
-    // 批量获取作者头像+昵称
     const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
-    if (authorIds.length > 0) {
-      const authorAvatarMap = {};
-      const authorNicknameMap = {};
-      try {
-        const userRes = await usersCollection
-          .where({ _openid: _.in(authorIds) })
-          .field({ _openid: true, avatar: true, nickname: true })
-          .get();
-        userRes.data.forEach(u => {
-          if (u.avatar) authorAvatarMap[u._openid] = u.avatar;
-          if (u.nickname) authorNicknameMap[u._openid] = u.nickname;
-        });
-      } catch (e) {}
-
-      posts.forEach(post => {
-        if (authorAvatarMap[post.authorId]) {
-          post.authorAvatar = authorAvatarMap[post.authorId];
-        }
-        if (authorNicknameMap[post.authorId]) {
-          post.authorNickname = authorNicknameMap[post.authorId];
-        }
-      });
-    }
+    const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
+    posts.forEach(post => {
+      if (avatarMap[post.authorId]) post.authorAvatar = avatarMap[post.authorId];
+      if (nicknameMap[post.authorId]) post.authorNickname = nicknameMap[post.authorId];
+    });
 
     return { success: true, data: { posts, hasMore: page * pageSize < total, total } };
   } catch (e) {
@@ -851,14 +775,14 @@ async function fixCommentAvatars() {
 
       if (allComments.data.length === 0) break;
 
-      const openids = [...new Set(allComments.data.map(c => c.authorId).filter(Boolean))];
+      const userIds = [...new Set(allComments.data.map(c => c.authorId).filter(Boolean))];
       let userMap = {};
-      if (openids.length > 0) {
+      if (userIds.length > 0) {
         const users = await usersCollection
-          .where({ _openid: _.in(openids) })
-          .field({ _openid: true, avatar: true })
+          .where({ _id: _.in(userIds) })
+          .field({ _id: true, avatar: true })
           .get();
-        users.data.forEach(u => { userMap[u._openid] = u.avatar || ''; });
+        users.data.forEach(u => { userMap[u._id] = u.avatar || ''; });
       }
 
       await Promise.all(allComments.data.map(async (c) => {
@@ -893,12 +817,13 @@ async function incrementShares(data, openId) {
 
 // 获取我发出的评论
 async function getMyComments(openId, params = {}) {
-  if (!openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
     return { success: false, message: '未登录', data: { comments: [], hasMore: false, total: 0 } };
   }
   const { offset = 0, limit = 20 } = params;
   try {
-    const query = { authorId: openId };
+    const query = identity.authorOwnerWhere(db, actor);
     const countResult = await commentsCollection.where(query).count();
     const total = countResult.total;
 
@@ -927,24 +852,16 @@ async function getMyComments(openId, params = {}) {
 
     // 批量解析评论者信息（author、authorAvatar）
     const commenterIds = [...new Set(comments.map(c => c.authorId).filter(Boolean))];
-    let authorMap = {};
-    if (commenterIds.length > 0) {
-      const usersRes = await usersCollection
-        .where({ _openid: _.in(commenterIds) })
-        .field({ _openid: true, avatar: true, nickname: true })
-        .get();
-      usersRes.data.forEach(u => { authorMap[u._openid] = u; });
-    }
+    const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, commenterIds);
 
     comments.forEach(c => {
       const post = postMap[c.postId];
       c.postThumb = post ? (post.photos?.[0]?.imageUrl || '') : '';
       c.postTitle = post ? (post.title || '') : '';
-      const author = authorMap[c.authorId];
-      c.authorAvatar = author ? (author.avatar || '') : (c.authorAvatar || '');
-      c.author = author ? (author.nickname || '') : (c.author || '');
+      c.authorAvatar = avatarMap[c.authorId] || c.authorAvatar || '';
+      c.author = nicknameMap[c.authorId] || c.author || '';
       c.likes = c.likes || 0;
-      c.liked = openId && (c.likedUsers || []).includes(openId);
+      c.liked = identity.isLikedBy(c.likedUsers, actor);
       if (!c.time && c.createdAt) {
         const d = new Date(c.createdAt);
         const M = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -966,14 +883,14 @@ async function getMyComments(openId, params = {}) {
 
 // 获取我收到的评论（别人在我的帖子下的评论）
 async function getReceivedComments(openId, params = {}) {
-  if (!openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
     return { success: false, message: '未登录', data: { comments: [], hasMore: false, total: 0, newCount: 0 } };
   }
   const { offset = 0, limit = 20 } = params;
   try {
-    // 先查我发的所有帖子 ID
     const myPostsRes = await postsCollection
-      .where({ authorId: openId })
+      .where(identity.authorOwnerWhere(db, actor))
       .field({ _id: true })
       .get();
     const myPostIds = myPostsRes.data.map(p => p._id).filter(Boolean);
@@ -1010,18 +927,9 @@ async function getReceivedComments(openId, params = {}) {
       postsRes.data.forEach(p => { postMap[p._id] = p; });
     }
 
-    // 批量获取评论者信息
     const commenterIds = [...new Set(comments.map(c => c.authorId).filter(Boolean))];
-    let authorMap = {};
-    if (commenterIds.length > 0) {
-      const usersRes = await usersCollection
-        .where({ _openid: _.in(commenterIds) })
-        .field({ _openid: true, avatar: true, nickname: true })
-        .get();
-      usersRes.data.forEach(u => { authorMap[u._openid] = u; });
-    }
+    const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, commenterIds);
 
-    // 新回复数：createdAt > 24h 前的（简化版：按 offset=0 首次加载时计算差值）
     const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const newCount = commentsRes.data.filter(c => c.createdAt && c.createdAt > dayAgo).length;
 
@@ -1029,11 +937,10 @@ async function getReceivedComments(openId, params = {}) {
       const post = postMap[c.postId];
       c.postThumb = post ? (post.photos?.[0]?.imageUrl || '') : '';
       c.postTitle = post ? (post.title || '') : '';
-      const author = authorMap[c.authorId];
-      c.authorAvatar = author ? (author.avatar || '') : (c.authorAvatar || '');
-      c.author = author ? (author.nickname || '') : (c.author || '');
+      c.authorAvatar = avatarMap[c.authorId] || c.authorAvatar || '';
+      c.author = nicknameMap[c.authorId] || c.author || '';
       c.likes = c.likes || 0;
-      c.liked = openId && (c.likedUsers || []).includes(openId);
+      c.liked = identity.isLikedBy(c.likedUsers, actor);
       if (!c.time && c.createdAt) {
         const d = new Date(c.createdAt);
         const M = (d.getMonth() + 1).toString().padStart(2, '0');

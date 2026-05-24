@@ -19,9 +19,15 @@ Page({
   },
 
   onShow() {
-    // 每次进入刷新 TabBar 选中态
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: -1 });
+    }
+    if (app.globalData.isLoggedIn) {
+      app.syncSession().then(() => {
+        this.setData({ isLoggedIn: app.checkLogin() });
+      });
+    } else {
+      this.checkLogin();
     }
   },
 
@@ -79,7 +85,7 @@ Page({
     const action = e.currentTarget.dataset.action;
     switch (action) {
       case 'security':
-        wx.showToast({ title: '账号安全', icon: 'none' });
+        wx.navigateTo({ url: '/pages/profile/settings/security/security' });
         break;
       case 'about':
         wx.navigateTo({ url: '/pages/profile/settings/about/about' });
@@ -176,7 +182,7 @@ Page({
           wx.removeStorageSync('userInfo');
           wx.removeStorageSync('openid');
           // 跳到登录页
-          wx.reLaunch({ url: '/pages/login/login' });
+          wx.switchTab({ url: '/pages/profile/profile/profile' });
         }
       },
     });

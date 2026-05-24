@@ -3,33 +3,21 @@
 
 <!-- 首页→详情 FLIP 动画层（fixed 覆盖整个视口，z-index 低于 preview-layer） -->
 <view class="enter-anim-layer" wx:if="{{enterAnimActive}}" style="opacity:{{enterAnimOpacity}}; transform:{{enterAnimTransform}}; transform-origin:0 0;">
-  <image class="enter-anim-image" src="{{enterAnimImageUrl}}" mode="aspectFit" />
+  <image class="enter-anim-image {{enterAnimClass}}" src="{{enterAnimImageUrl}}" mode="aspectFit" />
+  <!-- 文字共享元素：标题 + 描述（从首页卡片跟随图片一起过渡） -->
+  <view class="enter-anim-text-layer {{enterAnimTextClass}}" wx:if="{{enterAnimTitleText}}" style="transform:{{enterAnimTextTransform}}; transform-origin:0 0;">
+    <text class="enter-anim-title">{{enterAnimTitleText}}</text>
+    <text class="enter-anim-desc" wx:if="{{enterAnimDescText}}">{{enterAnimDescText}}</text>
+  </view>
 </view>
 
-<!-- 骨架屏（loading 或动画进行中显示） -->
-<view class="skeleton-page" wx:if="{{loading || enterAnimActive}}">
-  <view class="skeleton-header">
-    <view class="skeleton-avatar"></view>
-    <view class="skeleton-author-lines">
-      <view class="skeleton-line" style="width:120rpx;height:28rpx;"></view>
-      <view class="skeleton-line" style="width:80rpx;height:22rpx;margin-top:8rpx;opacity:0.5;"></view>
-    </view>
-  </view>
-  <view class="skeleton-image"></view>
-  <view class="skeleton-content">
-    <view class="skeleton-line" style="width:90%;height:30rpx;"></view>
-    <view class="skeleton-line" style="width:60%;height:24rpx;margin-top:16rpx;"></view>
-    <view class="skeleton-line" style="width:40%;height:22rpx;margin-top:12rpx;opacity:0.5;"></view>
-  </view>
-  <view class="skeleton-actions">
-    <view class="skeleton-action-btn"></view>
-    <view class="skeleton-action-btn"></view>
-    <view class="skeleton-action-btn"></view>
-  </view>
+<!-- 简单 loading 遮罩（仅 direct navigation 时显示，无 FLIP） -->
+<view class="loading-cover" wx:if="{{loading && !enterAnimActive && !post}}">
+  <text class="loading-text">加载中...</text>
 </view>
 
 <!-- 外层容器：flex列，撑满全屏（动画期间隐藏） -->
-<view class="detail-shell {{yPageVisible ? '' : 'y-hidden'}}" wx:if="{{post && !enterAnimActive}}">
+<view class="detail-shell" wx:if="{{post && !enterAnimActive}}">
 
   <!-- 顶部：返回 + 头像 + 昵称 -->
   <view class="header" style="padding-top:{{headerPaddingTop}}px;">
@@ -84,8 +72,18 @@
 
     <view class="divider"></view>
 
-    <view class="comment-count">
-      <text>共 {{commentsCountText}} 条评论</text>
+    <view class="comment-count-row">
+      <text class="comment-count-text">共 {{commentsCountText}} 条评论</text>
+      <view
+        wx:if="{{canDelete}}"
+        class="comment-delete-btn {{deleteBtnPressed ? 'comment-delete-btn-pressed' : ''}}"
+        hover-class="comment-delete-btn-hover"
+        hover-stay-time="80"
+        bindtouchstart="onDeleteBtnTouchStart"
+        bindtouchend="onDeleteBtnTouchEnd"
+        bindtouchcancel="onDeleteBtnTouchEnd"
+        bindtap="onDeletePost"
+      >删除</view>
     </view>
 
     <!-- 评论列表 -->
@@ -295,4 +293,6 @@ auto-height
 </view>
 
 <!-- 海报绘制用隐藏 Canvas -->
-<canvas canvas-id="poster-canvas" id="poster-canvas" class="poster-canvas"></canvas>
+<canvas canvas-id="poster-canvas" id="poster-canvas" class="poster-canvas" type="2d" width="405" height="720"></canvas>
+
+<login-modal visible="{{loginModalShow}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess" />

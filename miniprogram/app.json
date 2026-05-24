@@ -5,14 +5,13 @@
     "pages/profile/comments/comments",
     "pages/profile/edit-profile/edit-profile",
     "pages/profile/settings/settings",
+    "pages/profile/settings/security/security",
     "pages/profile/settings/about/about",
     "pages/profile/settings/agreement/agreement",
     "pages/profile/settings/privacy/privacy",
     "pages/profile/settings/feedback/feedback",
     "pages/detail/detail",
     "pages/upload/upload",
-    "pages/admin/admin",
-    "pages/login/login",
     "pages/profile/signin/signin"
   ],
   "window": {

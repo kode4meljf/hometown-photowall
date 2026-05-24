@@ -9,7 +9,9 @@ Page({
     loading: true,
     commentContent: '',
     canDelete: false,
+    deleteBtnPressed: false,
     showCommentInput: false,
+    loginModalShow: false,
     showEmojiPanel: false,
     sendDisabled: true,
     commentsLoading: false,
@@ -21,7 +23,7 @@ Page({
     replyToId: null,   // 当前回复的评论id（用于显示›被回复人）
     replyToAuthor: '', // 当前回复的评论作者名
     parentId: null,    // 顶级评论ID（云函数用）
-highlightCommentId: null,  // 滚动定位时高亮的评论ID
+    highlightCommentId: null,  // 滚动定位时高亮的评论ID
     // 全屏预览状态
     isPreviewMode: false,
     previewTransform: 'translate(0px, 0px) scale(1, 1)',
@@ -35,10 +37,8 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
     enterAnimTransform: 'translate(0px,0px) scale(1,1)',
     enterAnimClass: '',
     enterAnimOpacity: 1,
-    // 骨架屏
-    showSkeleton: true,
-    skeletonReady: false,
-    previewAnimClass: '',   // 控制 transition 曲线：'animating-enter' | 'animating-exit' | ''
+    // 预览动画
+    previewAnimClass: '',
     overlayOpacity: 0,
     yPageVisible: true,
     showLikeAnim: false,
@@ -75,8 +75,18 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       const app = getApp();
       this._indexCardRect = app.globalData._indexCardRect || null;
       this._indexCardUrl = app.globalData._indexCardUrl || '';
+      this._indexAvatarUrl = app.globalData._indexAvatarUrl || '';
+      this._indexTextRects = app.globalData._indexTextRects || null;
+      this._indexTitleText = app.globalData._indexTitleText || '';
+      this._indexDescText = app.globalData._indexDescText || '';
       app.globalData._indexCardRect = null;
       app.globalData._indexCardUrl = '';
+      app.globalData._indexAvatarUrl = '';
+      app.globalData._indexTextRects = null;
+      app.globalData._indexTitleText = '';
+      app.globalData._indexDescText = '';
+      // 立即触发动画层（不等待 API），使 detail-shell 在动画期间保持隐藏
+      this._playEnterAnim();
       this.loadPost();
       this._loadPhotoList();
     } else {
@@ -118,16 +128,16 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
           _repliesHasMore: (c.repliesCount || 0) > (c.replies || []).length
         }));
         post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
-        const canDelete = app.globalData.userInfo &&
-          (app.globalData.userInfo.id === post.authorId ||
-           app.globalData.userInfo.role === 'admin' ||
-           app.globalData.userInfo._id === post.authorId);
+        // 头像复用：优先用首页传入的 URL（避免云存储 403 导致头像空白）
+        if (this._indexAvatarUrl) {
+          post.authorAvatar = this._indexAvatarUrl;
+        }
+        const canDelete = !!post.canDelete;
         const hasMoreComments = res.data.hasMore || false;
         const commentsCountText = formatLikeCount(post.commentsCount || 0).text;
         this.setData({ post, canDelete, loading: false, hasMoreComments, commentsCountText, currentPhotoIndex: 0 });
         this._updateNavState();
-        // loadPost 完成，触发首页→详情 FLIP 动画
-        this._playEnterAnim();
+        // 动画已在 onLoad 时触发，无需再次调用
       } else {
         showToast(res.message || '加载失败');
         this.setData({ loading: false });
@@ -166,19 +176,25 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   //   5. 动画结束后隐藏动画层，显示真实页面
   _playEnterAnim() {
     var self = this;
-    if (!this._indexCardRect || !this.data.post) return;
+    if (!this._indexCardRect) return;
+    // 注意：不检查 this.data.post，因为动画在 onLoad 时触发时 API 尚未返回
 
     var rect = this._indexCardRect;  // { left, top, width, height }
     var post = this.data.post;
-    var firstPhoto = post.photos && post.photos[0];
-    if (!firstPhoto) return;
-
-    // 图片 URL：优先用传入的 URL（与首页一致），否则 fallback
-    var imgUrl = this._indexCardUrl || firstPhoto.imageUrl || post.imageUrl || post.coverUrl;
-    if (!imgUrl) return;
-
-    // aspectRatio：服务器返回的原始比例，用于计算 aspectFit 布局
-    var imgAR = post.aspectRatio || 1;
+    // post 可能在 onLoad 时为 null（API 尚未返回），此时从 globalData 获取图片 URL
+    var firstPhoto = post ? (post.photos && post.photos[0]) : null;
+    if (!firstPhoto) {
+      // 无 post 数据时，用 globalData 兜底获取图片 URL 和宽高比
+      var imgUrl = this._indexCardUrl;
+      if (!imgUrl) return;
+      // aspectRatio 未知，设为 1（按正方形处理）
+      var imgAR = 1;
+    } else {
+      var imgUrl = this._indexCardUrl || firstPhoto.imageUrl || post.imageUrl || post.coverUrl;
+      var imgAR = post.aspectRatio || 1;
+    }
+    var titleText = this._indexTitleText || '';
+    var descText = this._indexDescText || '';
     if (imgAR <= 0) imgAR = 1;
 
     // Phase 1: 显示动画层，opacity=0（在正确位置之前先隐藏）
@@ -188,10 +204,10 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       enterAnimTransform: 'translate(0px,0px) scale(1,1)',
       enterAnimClass: '',
       enterAnimOpacity: 0,
-      // 隐藏真实页面内容，直到动画完成
-      yPageVisible: false,
-      // 同时显示骨架屏（方案A）
-      showSkeleton: true
+      enterAnimTitleText: titleText,
+      enterAnimDescText: descText,
+      enterAnimTextTransform: 'translate(0px,0px)',
+      enterAnimTextClass: ''
     });
 
     // 等 DOM 更新后计算坐标并执行动画
@@ -200,7 +216,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
       self._measureAnimImage(function(animImgRect) {
         if (!animImgRect) {
           // 兜底：无法测量，直接显示页面
-          self.setData({ enterAnimActive: false, yPageVisible: true, showSkeleton: false });
+          self.setData({ enterAnimActive: false });
           return;
         }
 
@@ -247,7 +263,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
 
             // 350ms 弹簧 + buffer 后收尾
             setTimeout(function() {
-              self.setData({ enterAnimActive: false, yPageVisible: true, enterAnimClass: '' });
+              self.setData({ enterAnimActive: false, enterAnimClass: '', enterAnimTextClass: '' });
               // 骨架屏随真实内容一起显示（setData loading:false 时已消失）
             }, 380);
           }, 16);
@@ -717,10 +733,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   },
 
   async handlePreviewLike() {
-    if (!app.checkLogin()) {
-      wx.navigateTo({ url: '/pages/login/login' });
-      return;
-    }
+    if (!this._ensureLogin()) return;
     try {
       const res = await postApi.likePost(this.postId);
       if (res.success) {
@@ -786,7 +799,63 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
 
   goBack() { wx.navigateBack(); },
 
+  onDeleteBtnTouchStart() {
+    this.setData({ deleteBtnPressed: true });
+  },
+
+  onDeleteBtnTouchEnd() {
+    if (this.data.deleteBtnPressed) {
+      this.setData({ deleteBtnPressed: false });
+    }
+  },
+
+  onDeletePost() {
+    const post = this.data.post;
+    if (!post || !this.data.canDelete) return;
+    const id = post.id || post._id;
+    if (!id) return;
+
+    wx.showModal({
+      title: '确认删除',
+      content: '删除后无法恢复，确定要删除这条作品吗？',
+      confirmColor: '#e02020',
+      success: async (res) => {
+        if (!res.confirm) return;
+        showLoading('删除中...');
+        try {
+          const result = await postApi.deletePost(id);
+          hideLoading();
+          if (result.success) {
+            showSuccess('已删除');
+            setTimeout(() => wx.navigateBack(), 400);
+          } else {
+            showToast(result.message || '删除失败');
+          }
+        } catch (e) {
+          hideLoading();
+          console.error('[onDeletePost]', e);
+          showToast('删除失败');
+        }
+      }
+    });
+  },
+
+  _ensureLogin() {
+    if (app.checkLogin()) return true;
+    this.setData({ loginModalShow: true });
+    return false;
+  },
+
+  onLoginModalClose() {
+    this.setData({ loginModalShow: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ loginModalShow: false });
+  },
+
   focusCommentInput() {
+    if (!this._ensureLogin()) return;
     this.setData({
       showCommentInput: true,
       showEmojiPanel: false,
@@ -820,193 +889,248 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
     // 触发分享菜单（原生右上角三点菜单，含「分享给朋友」「分享到朋友圈」）
     wx.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] });
   },
-
   async generatePoster() {
     const post = this.data.post;
     if (!post) return;
     showLoading('生成海报中…');
 
     try {
-      const sysInfo = wx.getSystemInfoSync();
-      const dpr = sysInfo.pixelRatio || 2;
+      // Canvas 2D API: get node first
+      const canvas = await new Promise((resolve, reject) => {
+        wx.createSelectorQuery().in(this)
+          .select('#poster-canvas')
+          .node({ resizable: false }, (res) => {
+            if (res && res.node) resolve(res.node);
+            else reject(new Error('canvas node not found'));
+          }).exec();
+      });
+      const ctx = canvas.getContext('2d');
 
-      // 9:16 poster = 405×720px (rpx)
+      // 9:16 poster = 405×720 CSS px, DPR×3 for physical px export
       const pw = 405, ph = 720;
-      const canvasW = pw * dpr, canvasH = ph * dpr;
+      canvas.width = pw * 3;
+      canvas.height = ph * 3;
 
-      const ctx = wx.createCanvasContext('poster-canvas', this);
-      ctx.scale(dpr, dpr);
+      // ---- Canvas 2D helpers ----
+      function drawRoundRect(cx, x, y, w, h, r) {
+        cx.beginPath();
+        cx.moveTo(x + r, y);
+        cx.lineTo(x + w - r, y);
+        cx.arcTo(x + w, y, x + w, y + r, r);
+        cx.lineTo(x + w, y + h - r);
+        cx.arcTo(x + w, y + h, x + w - r, y + h, r);
+        cx.lineTo(x + r, y + h);
+        cx.arcTo(x, y + h, x, y + h - r, r);
+        cx.lineTo(x, y + r);
+        cx.arcTo(x, y, x + r, y, r);
+        cx.closePath();
+        cx.fill();
+      }
 
-      // ── 1. 白色背景 ──
+      function drawMultiLine(cx, text, x, y, maxW, lineH, maxLines) {
+        if (!cx.measureText) return;
+        const chars = text.split('');
+        let line = '', lineYs = [];
+        for (let i = 0; i < chars.length; i++) {
+          const test = line + chars[i];
+          if (cx.measureText(test).width > maxW && i > 0) {
+            if (lineYs.length >= maxLines - 1) { line += '…'; break; }
+            lineYs.push(y + lineYs.length * lineH);
+            line = chars[i];
+          } else { line = test; }
+        }
+        lineYs.push(y + lineYs.length * lineH);
+        cx.save();
+        cx.beginPath();
+        cx.rect(x, y, maxW, lineYs[lineYs.length - 1] + lineH - y + 10);
+        cx.clip();
+        for (let i = 0; i < lineYs.length; i++) {
+          cx.fillText(i === lineYs.length - 1 ? line : line, x, lineYs[i]);
+        }
+        cx.restore();
+      }
+
+      // 1. 白色背景
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, pw, ph);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // ── 2. 顶部渐变色条 ──
-      const topGrad = ctx.createLinearGradient(0, 0, pw, 0);
-      topGrad.addColorStop(0, '#ff4444');
-      topGrad.addColorStop(0.5, '#ff6b6b');
-      topGrad.addColorStop(1, '#ff9a3c');
-      ctx.fillStyle = topGrad;
-      ctx.fillRect(0, 0, pw, 6);
-
-      // ── 3. 照片（cover 填充，保持宽高比） ──
+      // 2. 照片区 cover 填充 (360px CSS → 1080px 物理)
+      const PHOTO_H = 360 * 3;
       const imageUrl = post.coverUrl || post.imageUrl;
       if (imageUrl) {
-        // 云存储 URL 需要先转换 https
         let httpsUrl = imageUrl;
         if (imageUrl.startsWith('cloud://')) {
           try {
             const res = await wx.cloud.getTempFileURL({ fileList: [imageUrl] });
-            if (res.fileList && res.fileList[0] && res.fileList[0].tempFileURL) {
-              httpsUrl = res.fileList[0].tempFileURL;
-            }
+            if (res.fileList && res.fileList[0]) httpsUrl = res.fileList[0].tempFileURL || httpsUrl;
           } catch (e) {}
         }
-
-        await new Promise((resolve, reject) => {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(0, 0, pw, ph);
-          ctx.clip();
+        const tmp = await new Promise((resolve) => {
           wx.downloadFile({
             url: httpsUrl,
-            success: (res) => {
-              if (res.statusCode === 200 && res.tempFilePath) {
-                ctx.drawImage(res.tempFilePath, 0, 0, pw, ph);
-              }
-              ctx.restore();
-              resolve();
-            },
-            fail: () => { ctx.restore(); resolve(); }
+            success: (r) => { if (r.statusCode === 200) resolve(r.tempFilePath); else resolve(null); },
+            fail: () => resolve(null)
           });
         });
+        if (tmp) {
+          const img = canvas.createImage();
+          await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; img.src = tmp; });
+          if (img.width && img.height) {
+            const photoW = pw * 3;
+            const imgH = Math.round(photoW * img.height / img.width);
+            const srcY = Math.max(0, Math.round((imgH - PHOTO_H) / 2));
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, photoW, PHOTO_H);
+            ctx.clip();
+            ctx.drawImage(img, 0, srcY, photoW, imgH, 0, 0, photoW, PHOTO_H);
+            ctx.restore();
+          }
+        }
       }
 
-      // ── 4. 底部白色渐变遮罩 ──
-      const botGrad = ctx.createLinearGradient(0, ph * 0.55, 0, ph);
-      botGrad.addColorStop(0, 'rgba(255,255,255,0)');
-      botGrad.addColorStop(0.3, 'rgba(255,255,255,0.85)');
-      botGrad.addColorStop(1, '#ffffff');
-      ctx.fillStyle = botGrad;
-      ctx.fillRect(0, 0, pw, ph);
+      // 3. 照片底部渐变遮罩
+      const gradFade = ctx.createLinearGradient(0, PHOTO_H - 100 * 3, 0, PHOTO_H);
+      gradFade.addColorStop(0, 'rgba(255,255,255,0)');
+      gradFade.addColorStop(1, 'rgba(255,255,255,1)');
+      ctx.fillStyle = gradFade;
+      ctx.fillRect(0, PHOTO_H - 100 * 3, pw * 3, 100 * 3);
 
-      // ── 5. 点赞数角标（右上角毛玻璃卡片） ──
-      const likes = post.likes || 0;
-      const likesText = `❤️ ${likes > 9999 ? '9999+' : likes}`;
-      ctx.font = 'bold 20rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-      const likesW = 120, likesH = 52;
-      const likesX = pw - likesW - 22, likesY = 22;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
-      ctx.beginPath();
-      ctx.roundRect || ctx.arc;
-      _roundRect(ctx, likesX, likesY, likesW, likesH, 14);
-      ctx.fill();
-      ctx.fillStyle = '#ff4444';
-      ctx.font = 'bold 20rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(likesText, likesX + likesW / 2, likesY + likesH / 2);
+      // 4. 角标（右上角）
+      const totalPhotos = post.photos && post.photos.length || 1;
+      const currentIdx = (post.currentPhotoIndex || 0) + 1;
+      const badgeText = currentIdx + ' / ' + totalPhotos;
+      const badgeW = 50 * 3, badgeH = 24 * 3;
+      const badgeX = pw * 3 - badgeW - 12 * 3, badgeY = 12 * 3;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      drawRoundRect(ctx, badgeX, badgeY, badgeW, badgeH, 10 * 3);
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = 'bold ' + (10 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + badgeH / 2);
 
-      // ── 6. 地点标签（红色胶囊） ──
+      // 5. 地点标签（红色胶囊，左下角）
       const location = post.location || '';
       if (location) {
-        ctx.font = '500 20rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-        const locText = '📍 ' + location;
-        const locW = ctx.measureText ? ctx.measureText(locText).width + 28 : 100;
-        const locH = 44;
-        const locX = 32, locY = ph - 300;
+        ctx.font = '500 ' + (10 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+        const locW = Math.min(ctx.measureText(location).width + 20 * 3, 200 * 3);
+        const locH = 28 * 3, locX = 14 * 3, locY = PHOTO_H - locH - 12 * 3;
         ctx.fillStyle = '#ff4444';
-        _roundRect(ctx, locX, locY, Math.max(locW, 80), locH, 22);
-        ctx.fill();
+        drawRoundRect(ctx, locX, locY, Math.max(locW, 80 * 3), locH, 14 * 3);
         ctx.fillStyle = '#ffffff';
-        ctx.font = '500 20rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(locText, locX + 14, locY + locH / 2);
+        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(location, locX + 10 * 3, locY + locH / 2);
       }
 
-      // ── 7. 标题文字 ──
+      // 6. 底部白色信息区（顶部圆角 18px）
+      const CARD_Y = PHOTO_H, CARD_R = 18 * 3, CARD_W = pw * 3, CARD_H2 = ph * 3 - CARD_Y;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, CARD_Y, CARD_W, CARD_H2);
+      ctx.beginPath();
+      ctx.moveTo(CARD_R, CARD_Y);
+      ctx.lineTo(CARD_W - CARD_R, CARD_Y);
+      ctx.arcTo(CARD_W, CARD_Y, CARD_W, CARD_Y + CARD_R, CARD_R);
+      ctx.lineTo(CARD_W, CARD_Y + CARD_H2 - CARD_R);
+      ctx.arcTo(CARD_W, CARD_Y + CARD_H2, CARD_W - CARD_R, CARD_Y + CARD_H2, CARD_R);
+      ctx.lineTo(CARD_R, CARD_Y + CARD_H2);
+      ctx.arcTo(0, CARD_Y + CARD_H2, 0, CARD_Y + CARD_H2 - CARD_R, CARD_R);
+      ctx.lineTo(0, CARD_Y + CARD_R);
+      ctx.arcTo(0, CARD_Y, CARD_R, CARD_Y, CARD_R);
+      ctx.closePath();
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(0,0,0,0.09)';
+      ctx.shadowBlur = 30 * 3; ctx.shadowOffsetY = -6 * 3;
+      ctx.fill();
+      ctx.shadowColor = 'rgba(0,0,0,0)'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+      // 7. 标题（bold 17px）
       const title = (post.title || post.description || '').trim();
       if (title) {
         ctx.fillStyle = '#1b1b1b';
-        ctx.font = 'bold 28rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        const titleX = 32, titleY = ph - 240;
-        const titleMaxW = pw - 64;
-        _drawMultiLineText(ctx, title, titleX, titleY, titleMaxW, 40, 4);
+        ctx.font = 'bold ' + (17 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        drawMultiLine(ctx, title, 22 * 3, CARD_Y + 20 * 3, (pw - 44) * 3, 24 * 3, 4);
       }
 
-      // ── 8. 底部信息栏：QR码占位 + 来源 ──
-      const footerY = ph - 90;
+      // 8. 分隔线
+      const DIVIDER_Y = CARD_Y + 84 * 3;
+      ctx.fillStyle = '#f3f3f3';
+      ctx.fillRect(22 * 3, DIVIDER_Y, (pw - 44) * 3, 3);
 
-      // 小程序码白底卡片
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = 'rgba(0,0,0,0.1)';
-      ctx.shadowBlur = 14;
-      ctx.shadowOffsetY = 4;
-      _roundRect(ctx, 32, footerY - 10, 100, 100, 12);
-      ctx.fill();
-      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      // 9. 作者区 + 点赞
+      const FOOTER_Y = DIVIDER_Y + 14 * 3;
+      const AVATAR_SIZE = 36 * 3;
+      const authorName = post.author || '匿名';
+      const postDate = post.date || '';
+      const likes = post.likes || 0;
 
-      // QR 码格子图标（用方块模拟）
-      ctx.fillStyle = '#1b1b1b';
-      const qrSz = 60, qrX = 32 + 20, qrY = footerY + 10;
-      const cell = qrSz / 7;
-      for (let i = 0; i < 7; i++) {
-        for (let j = 0; j < 7; j++) {
-          if ((i === 0 || i === 6 || j === 0 || j === 6 || (i >= 2 && i <= 4 && j >= 2 && j <= 4)) === false && (i + j) % 3 === 0) {
-            ctx.fillRect(qrX + i * cell, qrY + j * cell, cell, cell);
-          }
-        }
-      }
-      ctx.fillStyle = '#888888';
-      ctx.font = '18rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('扫码查看', 82, footerY + 105);
-
-      // 来源文字
-      ctx.fillStyle = '#1b1b1b';
-      ctx.font = 'bold 22rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'top';
-      ctx.fillText('故乡照片墙', pw - 32, footerY + 5);
-      ctx.fillStyle = '#999999';
-      ctx.font = '18rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-      ctx.fillText('记录家乡的美好瞬间', pw - 32, footerY + 36);
-
-      // 长按保存提示
-      ctx.fillStyle = '#bbbbbb';
-      ctx.font = '16rpx -apple-system, BlinkMacSystemFont, PingFang SC, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.fillText('长按图片 → 保存到相册', pw / 2, ph - 14);
-
-      ctx.draw(false, async () => {
+      let avatarUrl = post.authorAvatar || '/assets/icons/default-avatar.png';
+      if (avatarUrl.startsWith('cloud://')) {
         try {
-          hideLoading();
-          const res = await wx.canvasToTempFilePath({
-            canvasId: 'poster-canvas',
-            x: 0, y: 0,
-            width: pw, height: ph,
-            destWidth: pw * 3,
-            destHeight: ph * 3,
-            fileType: 'png',
-            quality: 1,
-          }, this);
-          if (res.tempFilePath) {
-            wx.previewImage({
-              urls: [res.tempFilePath],
-              current: res.tempFilePath,
-              success: () => {},
-              fail: () => showToast('预览失败'),
-            });
-          }
-        } catch (e) {
-          hideLoading();
-          showToast('生成失败');
-        }
+          const res = await wx.cloud.getTempFileURL({ fileList: [avatarUrl] });
+          if (res.fileList && res.fileList[0]) avatarUrl = res.fileList[0].tempFileURL || avatarUrl;
+        } catch (e) {}
+      }
+      const avaTmp = await new Promise((resolve) => {
+        wx.downloadFile({
+          url: avatarUrl,
+          success: (r) => { if (r.statusCode === 200) resolve(r.tempFilePath); else resolve(null); },
+          fail: () => resolve(null)
+        });
       });
+      if (avaTmp) {
+        const avaImg = canvas.createImage();
+        await new Promise((resolve) => { avaImg.onload = resolve; avaImg.onerror = resolve; avaImg.src = avaTmp; });
+        if (avaImg.width && avaImg.height) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(22 * 3 + AVATAR_SIZE / 2, FOOTER_Y + AVATAR_SIZE / 2, AVATAR_SIZE / 2, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(avaImg, 22 * 3, FOOTER_Y, AVATAR_SIZE, AVATAR_SIZE);
+          ctx.restore();
+        }
+      }
+
+      ctx.fillStyle = '#1b1b1b';
+      ctx.font = '600 ' + (13 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(authorName, 22 * 3 + AVATAR_SIZE + 9 * 3, FOOTER_Y + 2 * 3);
+      ctx.fillStyle = '#888888';
+      ctx.font = (11 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.fillText(postDate, 22 * 3 + AVATAR_SIZE + 9 * 3, FOOTER_Y + 20 * 3);
+
+      const hx = pw * 3 - 22 * 3, hy = FOOTER_Y + AVATAR_SIZE / 2;
+      ctx.fillStyle = '#ff4444';
+      ctx.beginPath();
+      ctx.moveTo(hx - 18 * 3, hy);
+      ctx.bezierCurveTo(hx - 18 * 3, hy - 8 * 3, hx - 26 * 3, hy - 8 * 3, hx - 26 * 3, hy - 2 * 3);
+      ctx.bezierCurveTo(hx - 26 * 3, hy + 6 * 3, hx - 18 * 3, hy + 10 * 3, hx - 18 * 3, hy + 10 * 3);
+      ctx.bezierCurveTo(hx - 18 * 3, hy + 10 * 3, hx - 10 * 3, hy + 6 * 3, hx - 10 * 3, hy - 2 * 3);
+      ctx.bezierCurveTo(hx - 10 * 3, hy - 8 * 3, hx - 18 * 3, hy - 8 * 3, hx - 18 * 3, hy);
+      ctx.fill();
+      ctx.fillStyle = '#ff4444';
+      ctx.font = '600 ' + (13 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(likes), hx - 28 * 3, hy);
+
+      // 10. 底部提示
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.font = (11 * 3) + 'px -apple-system, BlinkMacSystemFont, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('长按图片 → 保存到相册', pw * 3 / 2, ph * 3 - 22 * 3);
+
+      // 导出
+      const res = await wx.canvasToTempFilePath({
+        canvasId: 'poster-canvas',
+        destWidth: pw * 3, destHeight: ph * 3,
+        fileType: 'png', quality: 1,
+      }, this);
+      hideLoading();
+      if (res.tempFilePath) {
+        wx.previewImage({ urls: [res.tempFilePath], current: res.tempFilePath });
+      } else {
+        showToast('生成失败');
+      }
     } catch (e) {
       hideLoading();
       showToast('生成失败');
@@ -1086,10 +1210,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   },
 
   async handleLike() {
-    if (!app.checkLogin()) {
-      wx.navigateTo({ url: '/pages/login/login' });
-      return;
-    }
+    if (!this._ensureLogin()) return;
     try {
       const res = await postApi.likePost(this.postId);
       if (res.success) {
@@ -1108,7 +1229,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
 
   // 点赞/取消点赞评论（顶层评论）
   async toggleCommentLike(e) {
-    if (!app.checkLogin()) { wx.navigateTo({ url: '/pages/login/login' }); return; }
+    if (!this._ensureLogin()) return;
     const commentId = e.currentTarget.dataset.id;
     if (!commentId) return;
     try {
@@ -1147,6 +1268,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
 
   // 点击回复按钮：设置回复目标 + 预填 @xxx
   handleReplyTap(e) {
+    if (!this._ensureLogin()) return;
     const { id, author, replyId } = e.currentTarget.dataset;
     if (!id) return;
     if (replyId) {
@@ -1285,7 +1407,7 @@ highlightCommentId: null,  // 滚动定位时高亮的评论ID
   },
 
   async submitComment() {
-    if (!app.checkLogin()) { wx.navigateTo({ url: '/pages/login/login' }); return; }
+    if (!this._ensureLogin()) return;
     const content = this.data.commentContent.trim();
     if (!content) { showToast('请输入评论内容'); return; }
     // 去掉自动补的 @author 前缀（用户可能没删）
