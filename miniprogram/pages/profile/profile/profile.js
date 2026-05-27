@@ -336,7 +336,12 @@ Page({
 
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
-    wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
+    if (!id) return;
+    const { openPostDetail } = require('../../../utils/openPostDetail');
+    const post =
+      this.data.works.find((p) => p.id === id) ||
+      this.data.liked.find((p) => p.id === id);
+    openPostDetail(post || { id });
   },
 
   goToUpload() {

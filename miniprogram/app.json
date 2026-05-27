@@ -10,7 +10,6 @@
     "pages/profile/settings/agreement/agreement",
     "pages/profile/settings/privacy/privacy",
     "pages/profile/settings/feedback/feedback",
-    "pages/detail/detail",
     "pages/upload/upload",
     "pages/profile/signin/signin"
   ],
@@ -40,5 +39,14 @@
   "cloud": true,
   "style": "v2",
   "__usePrivacyCheck__": true,
-  "sitemapLocation": "sitemap.json"
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "defaultContentBox": true,
+      "tagNameStyleIsolation": "legacy",
+      "enableScrollViewAutoSize": true
+    }
+  }
 }

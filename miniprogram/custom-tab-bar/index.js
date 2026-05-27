@@ -27,12 +27,18 @@ Component({
 
   methods: {
     switchTab(e) {
-      const index = e.currentTarget.dataset.index;
+      const index = Number(e.currentTarget.dataset.index);
       const item = this.data.list[index];
+      if (!item) return;
 
       if (index === 1) {
-        // 中间发布按钮：打开上传页
-        wx.navigateTo({ url: '/pages/upload/upload' });
+        wx.navigateTo({
+          url: '/pages/upload/upload',
+          fail: (err) => {
+            console.error('[tabbar] navigateTo upload failed:', err);
+            wx.showToast({ title: '无法打开发布页', icon: 'none' });
+          },
+        });
         return;
       }
 
@@ -40,6 +46,6 @@ Component({
 
       this.setData({ selected: index });
       wx.switchTab({ url: item.pagePath });
-    }
-  }
+    },
+  },
 });

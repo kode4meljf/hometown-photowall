@@ -1,8 +1,12 @@
 {
-  "navigationBarTitleText": "家乡照片墙",
-  "enablePullDownRefresh": true,
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "",
+  "enablePullDownRefresh": false,
   "navigationBarBackgroundColor": "#f8f8f8",
   "navigationBarTextStyle": "black",
   "backgroundColor": "#f8f8f8",
-  "backgroundTextStyle": "dark"
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "post-detail-overlay": "/components/post-detail-overlay/post-detail-overlay"
+  }
 }

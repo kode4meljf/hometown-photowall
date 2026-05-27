@@ -1,6 +1,7 @@
 // pages/index/index.js - 新设计:标签组筛选 + 自定义 TabBar
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
+const { getNavBarLayout } = require('../../utils/navBarLayout');
 const app = getApp();
 
 const COLUMN_GAP = 24; // 列间距 rpx (gap 12rpx * 2 列)
@@ -32,8 +33,22 @@ Page({
 
     // 系统信息
     windowWidth: 375,
-    columnWidth: 170, // 单列宽度 px
-    textHeight: 100, // 文字区域高度 px
+    columnWidth: 170,
+    textHeight: 100,
+    pageNavHeight: 88,
+    statusBarHeight: 20,
+
+    // 详情浮层
+    detailOpen: false,
+    detailPostId: '',
+    detailCoverUrl: '',
+    detailTitleText: '',
+    detailDescText: '',
+    detailImgRect: null,
+    detailTitleRect: null,
+    detailAspectRatio: 1,
+    detailAuthorAvatar: '',
+    detailAuthorName: '',
   },
 
   onLoad() {
@@ -46,7 +61,10 @@ Page({
     setTimeout(() => {
       const tabBar = this.getTabBar && this.getTabBar();
       if (tabBar) {
-        tabBar.setData({ selected: 0 });
+        tabBar.setData({
+          selected: 0,
+          hidden: !!this.data.detailOpen,
+        });
       }
     }, 0);
 
@@ -59,12 +77,57 @@ Page({
     if (this.data.posts.length > 0) {
       this.refreshPostsStatus();
     }
+
+    this._consumePendingDetail();
+  },
+
+  _findPostById(id) {
+    return (
+      this.data.leftPosts.find((p) => p.id === id) ||
+      this.data.rightPosts.find((p) => p.id === id) ||
+      null
+    );
+  },
+
+  _consumePendingDetail() {
+    const pending = app.globalData.pendingDetail;
+    if (!pending || !pending.postId) return;
+    app.globalData.pendingDetail = null;
+
+    const id = pending.postId;
+    if (this.data.detailOpen && this.data.detailPostId === id) return;
+
+    const inFeed = this._findPostById(id);
+    const ar = inFeed?.aspectRatio > 0 ? inFeed.aspectRatio : pending.aspectRatio || 1;
+
+    this.setData({
+      detailOpen: true,
+      detailPostId: id,
+      detailCoverUrl: inFeed?.imageUrl || pending.coverUrl || '',
+      detailTitleText: inFeed?.title || pending.titleText || '',
+      detailDescText: inFeed?.description || pending.descText || '',
+      detailImgRect: null,
+      detailTitleRect: null,
+      detailAspectRatio: ar,
+      detailAuthorAvatar: inFeed?.authorAvatar || pending.authorAvatar || '',
+      detailAuthorName: inFeed?.author || pending.authorName || '',
+    }, () => {
+      this._setTabBarHidden(true);
+    });
+  },
+
+  _setTabBarHidden(hidden) {
+    const tabBar = this.getTabBar && this.getTabBar();
+    if (tabBar) {
+      tabBar.setData({ hidden: !!hidden });
+    }
   },
 
   // 初始化系统信息
   initSystemInfo() {
     const sysInfo = wx.getSystemInfoSync();
     const windowWidth = sysInfo.windowWidth;
+    const nav = getNavBarLayout();
     // 计算列宽: (屏幕宽度 - 左右padding 24rpx - 中间gap 12rpx) / 2
     // rpx 转 px: rpx * windowWidth / 750
     const gapPx = 12 * windowWidth / 750;
@@ -77,6 +140,8 @@ Page({
       windowWidth,
       columnWidth,
       textHeight,
+      pageNavHeight: nav.navBarHeight,
+      statusBarHeight: nav.statusBarHeight,
     });
   },
 
@@ -133,6 +198,8 @@ Page({
           hasMore: res.data.hasMore,
           isLoading: false,
           isRefreshing: false
+        }, () => {
+          this._consumePendingDetail();
         });
       } else {
         this.setData({
@@ -167,6 +234,10 @@ Page({
       const safeRatio = Math.min(Math.max(rawRatio, 0.6), 1.8);
       const compressedRatio = Math.pow(safeRatio, 0.4);
       const cardHeight = Math.round(cardWidth * compressedRatio);
+      const hasText = !!(post.title || post.description);
+      const contentHeight = hasText
+        ? this.data.textHeight
+        : Math.round((120 * this.data.windowWidth) / 750);
 
       // 格式化日期：2024.3.15
       const date = new Date(post.createdAt);
@@ -177,6 +248,7 @@ Page({
       return {
         ...post,
         cardHeight,
+        slotHeight: cardHeight + contentHeight,
         _formattedDate,
         _likesText: likesInfo.text,
         _likesCls: likesInfo.cls
@@ -297,32 +369,57 @@ Page({
     }
   },
 
-  // 跳转到详情
+  // 打开详情浮层（卡片在首页放大展开，非跳转新页面）
+  onCardTap(e) {
+    const id = e.currentTarget.dataset.id;
+    if (this.data.detailOpen && this.data.detailPostId === id) return;
+    this.goToDetail(e);
+  },
+
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
     const post = e.currentTarget.dataset.post;
-    if (!post) {
-      wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
-      return;
-    }
-    // 捕获：图片 rect、标题描述 rect
+    if (!id || !post) return;
+
     const query = wx.createSelectorQuery().in(this);
     query.select('#card-img-' + id).boundingClientRect();
-    query.select('#card-title-' + id).boundingClientRect();
-    query.select('#card-desc-' + id).boundingClientRect();
-    query.exec(rects => {
-      const [imgRect, titleRect, descRect] = rects;
-      app.globalData._indexCardRect = imgRect ? { left: imgRect.left, top: imgRect.top, width: imgRect.width, height: imgRect.height } : null;
-      app.globalData._indexCardUrl = post.coverUrl || (post.photos && post.photos[0] && post.photos[0].imageUrl) || '';
-      app.globalData._indexAvatarUrl = post.authorAvatar || '';
-      app.globalData._indexTextRects = {
-        title: titleRect || null,
-        desc: descRect || null
-      };
-      app.globalData._indexTitleText = post.title || '';
-      app.globalData._indexDescText = post.description || '';
-      wx.navigateTo({ url: `/pages/detail/detail?id=${id}` });
+    query.select('#card-text-' + id).boundingClientRect();
+    query.exec((rects) => {
+      const [imgRect, titleRect] = rects;
+      const ar = post.aspectRatio > 0 ? post.aspectRatio : 1;
+      this.setData({
+        detailOpen: true,
+        detailPostId: id,
+        detailCoverUrl: post.imageUrl || post.coverUrl || '',
+        detailTitleText: post.title || '',
+        detailDescText: post.description || '',
+        detailImgRect: imgRect || null,
+        detailTitleRect: titleRect || null,
+        detailAspectRatio: ar,
+        detailAuthorAvatar: post.authorAvatar || '',
+        detailAuthorName: post.author || '',
+      }, () => {
+        this._setTabBarHidden(true);
+      });
     });
+  },
+
+  onDetailClose(e) {
+    const detail = e.detail || {};
+    this.setData({
+      detailOpen: false,
+      detailPostId: '',
+      detailImgRect: null,
+      detailTitleRect: null,
+    });
+    this._setTabBarHidden(false);
+    if (detail.deleted) {
+      this.loadPosts(true);
+      return;
+    }
+    if (detail.likedChanged) {
+      this.refreshPostsStatus();
+    }
   },
 
   // 点赞（乐观更新：立即响应，后台同步）

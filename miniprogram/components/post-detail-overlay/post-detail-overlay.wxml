@@ -1,0 +1,297 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+
+<view class="overlay-root" wx:if="{{visible}}" catchtouchmove="noop">
+  <view class="overlay-mask {{maskShow ? 'mask-visible' : ''}} {{panelDragging ? 'mask-no-transition' : ''}}" style="{{maskStyle}}" catchtap="onMaskTap"></view>
+
+  <view
+    class="detail-panel {{panelShow ? 'panel-show' : ''}} {{panelDragging ? 'panel-dragging' : ''}}"
+    style="{{panelTransformStyle}} {{panelChromeStyle}}"
+  >
+    <view
+      class="panel-header dismiss-zone"
+      style="padding-top:{{headerPaddingTop}}px;padding-right:{{headerPaddingRight}}px;height:{{navBarHeight}}px;"
+      bindtouchstart="onDismissTouchStart"
+      bindtouchmove="onDismissTouchMove"
+      bindtouchend="onDismissTouchEnd"
+      bindtouchcancel="onDismissTouchEnd"
+    >
+      <view class="panel-header-left">
+        <view class="back-btn" catchtap="onBack"><text>‹</text></view>
+        <block wx:if="{{post}}">
+          <image class="author-avatar" src="{{post.authorAvatar}}" mode="aspectFill" />
+          <text class="author-name">{{post.author}}</text>
+        </block>
+        <block wx:elif="{{authorAvatar || authorName}}">
+          <image class="author-avatar" src="{{authorAvatar}}" mode="aspectFill" />
+          <text class="author-name">{{authorName}}</text>
+        </block>
+      </view>
+    </view>
+
+    <!-- 飞行层：与槽位重合后淡出 -->
+    <image
+      wx:if="{{!flyDone}}"
+      class="fly-image {{flyAnimating ? 'fly-transition' : ''}}"
+      src="{{coverUrl}}"
+      mode="aspectFill"
+      style="{{heroImgStyle}}"
+      bindtransitionend="onFlyTransitionEnd"
+    />
+    <view
+      wx:if="{{!flyDone && (titleText || descText)}}"
+      class="fly-title {{flyAnimating ? 'fly-transition' : ''}}"
+      style="{{heroTitleStyle}}"
+      bindtransitionend="onFlyTransitionEnd"
+    >
+      <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
+      <text wx:if="{{titleText && descText}}"> </text>
+      <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
+    </view>
+
+    <scroll-view
+      class="panel-scroll"
+      scroll-y="{{!scrollLocked}}"
+      type="list"
+      scroll-top="{{commentScrollTop}}"
+      bindscroll="onCommentScroll"
+      bindscrolltolower="onScrollToLower"
+    >
+      <view class="image-section image-slot" id="image-slot" style="height:{{imageSlotHeight}}px;" bindtap="onImageTap">
+        <view class="panel-photo-wrap {{flyDone ? 'photo-visible' : ''}}">
+          <swiper
+            wx:if="{{post}}"
+            class="photo-swiper"
+            current="{{currentPhotoIndex}}"
+            bindchange="onSwiperChange"
+            duration="300"
+          >
+            <swiper-item wx:for="{{post.photos}}" wx:key="order">
+              <image class="photo-image" src="{{item.imageUrl}}" mode="{{photoMode}}" bindload="onPhotoLoad" />
+            </swiper-item>
+          </swiper>
+          <view class="progress-bar" wx:if="{{post && post.photos.length > 1}}">
+            <view
+              wx:for="{{post.photos}}"
+              wx:key="order"
+              class="progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
+            ></view>
+          </view>
+          <view class="photo-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post && post.photos.length > 1}}">
+            <text class="badge-text">{{currentPhotoIndex + 1}}/{{post.photos.length}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view
+        class="dismiss-zone"
+        bindtouchstart="onDismissTouchStart"
+        bindtouchmove="onDismissTouchMove"
+        bindtouchend="onDismissTouchEnd"
+        bindtouchcancel="onDismissTouchEnd"
+      >
+      <view class="content-section title-slot" id="title-slot" wx:if="{{!flyDone && (titleText || descText)}}">
+        <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
+        <text wx:if="{{titleText && descText}}"> </text>
+        <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
+      </view>
+
+      <view class="panel-loading" wx:if="{{loading && flyDone}}">加载中...</view>
+
+      <block wx:if="{{flyDone && post && !loading}}">
+        <view class="content-section content-reveal {{contentReveal ? 'show' : ''}}">
+          <text class="description" wx:if="{{post.titleDesc}}">{{post.titleDesc}}</text>
+          <text class="date">{{post.date}}</text>
+        </view>
+
+        <view class="divider content-reveal {{contentReveal ? 'show' : ''}}"></view>
+
+        <view class="comment-count-row content-reveal {{contentReveal ? 'show' : ''}}">
+          <text class="comment-count-text">共 {{commentsCountText}} 条评论</text>
+          <view
+            wx:if="{{canDelete}}"
+            class="comment-delete-btn {{deleteBtnPressed ? 'comment-delete-btn-pressed' : ''}}"
+            hover-class="comment-delete-btn-hover"
+            hover-stay-time="80"
+            bindtouchstart="onDeleteBtnTouchStart"
+            bindtouchend="onDeleteBtnTouchEnd"
+            bindtouchcancel="onDeleteBtnTouchEnd"
+            bindtap="onDeletePost"
+          >删除</view>
+        </view>
+
+        <view class="comment-list content-reveal {{contentReveal ? 'show' : ''}}">
+          <view class="comment-item {{highlightCommentId === item.id ? 'highlight' : ''}}" wx:for="{{post.comments}}" wx:key="id" id="comment-{{item.id}}">
+            <view class="comment-item-row" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">
+              <image class="comment-avatar" src="{{item.authorAvatar}}" mode="aspectFill" />
+              <view class="comment-content">
+                <text class="comment-author">{{item.author}}</text>
+                <text class="comment-text" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">{{item.content}}</text>
+                <view class="comment-footer">
+                  <view class="comment-footer-left">
+                    <text class="comment-time">{{item.time}}</text>
+                    <text class="reply-text-btn" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">回复</text>
+                  </view>
+                  <view class="like-btn" catchtap="toggleCommentLike" data-id="{{item.id}}">
+                    <image src="{{item.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
+                    <text>{{item.likes || 0}}</text>
+                  </view>
+                </view>
+                <view class="reply-list" wx:if="{{item._repliesExpanded && item.replies && item.replies.length > 0}}">
+                  <view class="reply-item" wx:for="{{item.replies}}" wx:for-item="reply" wx:key="id" catchtap="noop">
+                    <view class="reply-row">
+                      <image class="reply-avatar" src="{{reply.authorAvatar}}" mode="aspectFill" />
+                      <text class="reply-author">{{reply.author}}</text>
+                      <text wx:if="{{reply.replyToAuthor}}" class="reply-arrow">›</text>
+                      <text wx:if="{{reply.replyToAuthor}}" class="reply-target">{{reply.replyToAuthor}}</text>
+                    </view>
+                    <view class="reply-content-wrap" catchtap="handleReplyTap" data-reply-id="{{reply.id}}" data-id="{{item.id}}" data-author="{{reply.author}}">
+                      <text class="reply-text">{{reply.content}}</text>
+                    </view>
+                    <view class="comment-footer reply-footer">
+                      <view class="comment-footer-left">
+                        <text class="comment-time">{{reply.time}}</text>
+                        <text class="reply-text-btn" catchtap="handleReplyTap" data-reply-id="{{reply.id}}" data-id="{{item.id}}" data-author="{{reply.author}}">回复</text>
+                      </view>
+                      <view class="like-btn" catchtap="toggleCommentLike" data-id="{{reply.id}}" data-parent="{{item.id}}">
+                        <image src="{{reply.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
+                        <text>{{reply.likes || 0}}</text>
+                      </view>
+                    </view>
+                  </view>
+                </view>
+                <view class="replies-actions">
+                  <view class="expand-replies {{item._repliesLoading ? 'loading' : ''}}" wx:if="{{item._hasReplies && !item._repliesExpanded}}" catchtap="expandReplies" data-id="{{item.id}}">
+                    <text class="btn-text" wx:if="{{item._repliesLoading}}">加载中...</text>
+                    <text class="btn-text" wx:else>展开{{item.repliesCount}}条回复 ›</text>
+                  </view>
+                  <view class="expand-more-btn" wx:if="{{item._repliesExpanded && item._repliesHasMore}}" catchtap="expandReplies" data-id="{{item.id}}">
+                    <text class="dash">——— </text><text class="btn-text">展开更多</text>
+                  </view>
+                  <view class="collapse-btn" wx:if="{{item._repliesExpanded}}" catchtap="collapseReplies" data-id="{{item.id}}">
+                    <text wx:if="{{!item._repliesHasMore}}" class="dash">——— </text><text class="btn-text">收起^</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="load-more" wx:if="{{commentsLoading}}">
+            <view class="loading-dots"><view class="dot dot1"></view><view class="dot dot2"></view><view class="dot dot3"></view></view>
+          </view>
+          <view class="load-more load-more-done" wx:if="{{!hasMoreComments && post.comments.length > 0}}">
+            <text class="no-more-text">没有更多了</text>
+          </view>
+        </view>
+      </block>
+      </view>
+    </scroll-view>
+
+    <view
+      class="bottom-bar content-reveal dismiss-zone {{contentReveal && post ? 'show' : ''}}"
+      wx:if="{{post}}"
+      bindtouchstart="onDismissTouchStart"
+      bindtouchmove="onDismissTouchMove"
+      bindtouchend="onDismissTouchEnd"
+      bindtouchcancel="onDismissTouchEnd"
+    >
+      <view class="input-area" bindtap="focusCommentInput">
+        <image class="input-pen-icon" src="/assets/icons/pen-icon.png" mode="aspectFit" />
+        <text class="input-placeholder">说点什么...</text>
+      </view>
+      <view class="action-buttons">
+        <view class="action-item {{post.liked ? 'liked' : ''}}" catchtap="handleLike">
+          <image class="action-icon-img" src="{{post.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
+          <text class="action-num {{post.liked ? 'liked' : ''}}">{{f.formatCount(post.likes)}}</text>
+        </view>
+        <view class="action-item" bindtap="focusCommentInput">
+          <image class="action-icon-img" src="/assets/icons/comment.png" mode="aspectFit" />
+          <text class="action-num">{{f.formatCount(post.comments.length)}}</text>
+        </view>
+        <view class="action-item" catchtap="generatePoster">
+          <image class="action-icon-img" src="/assets/icons/icon-share.svg" mode="aspectFit" />
+          <text class="action-num">{{f.formatCount(post.shares || 0)}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="comment-modal" wx:if="{{showCommentInput}}">
+    <view class="comment-modal-mask" bindtap="hideCommentInput"></view>
+    <view class="comment-modal-content">
+      <view class="comment-input-row" style="padding-bottom: {{inputRowBottom}}px;">
+        <textarea
+          class="comment-textarea"
+          placeholder="{{replyToAuthor ? '回复 @' + replyToAuthor : '说点什么...'}}"
+          value="{{commentContent}}"
+          bindinput="onCommentInput"
+          focus="{{showCommentInput}}"
+          auto-height
+          adjust-position
+          bindkeyboardheightchange="_onKeyboardHeightChange"
+          show-confirm-bar="{{false}}"
+          max-rows="4"
+        />
+      </view>
+      <view class="comment-toolbar-row">
+        <view class="emoji-btn" catchtap="toggleEmojiPanel">
+          <image src="/assets/icons/emoji.svg" mode="aspectFit" />
+        </view>
+        <view class="toolbar-spacer"></view>
+        <view class="comment-send-btn {{sendDisabled ? 'disabled' : ''}}" catchtap="submitComment">发送</view>
+      </view>
+    </view>
+  </view>
+
+  <login-modal visible="{{loginModalShow}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess" />
+
+  <!-- 全屏预览 -->
+  <view
+    class="preview-layer {{previewBgBlack ? 'bg-black' : 'bg-transparent'}}"
+    style="{{previewBgStyle}}"
+    wx:if="{{isPreviewMode}}"
+    bindtouchstart="onPreviewTouchStart"
+    bindtouchmove="onPreviewTouchMove"
+    bindtouchend="onPreviewTouchEnd"
+  >
+    <view class="preview-image-area">
+      <view class="preview-drag-overlay" style="opacity: {{overlayOpacity}};"></view>
+      <view
+        class="preview-image-wrapper {{previewAnimClass}} {{previewDismissDragging ? 'preview-dismiss-dragging' : ''}}"
+        style="transform: {{previewTransform}}; opacity: {{previewOpacity !== 0 ? 1 : 0}};"
+      >
+        <swiper
+          class="preview-swiper"
+          current="{{currentPhotoIndex}}"
+          bindchange="onPreviewSwiperChange"
+          duration="300"
+        >
+          <swiper-item wx:for="{{post.photos}}" wx:key="order">
+            <image class="preview-image" src="{{item.imageUrl}}" mode="aspectFit" />
+          </swiper-item>
+        </swiper>
+        <view class="preview-progress-bar" wx:if="{{post.photos.length > 1}}">
+          <view
+            wx:for="{{post.photos}}"
+            wx:key="order"
+            class="preview-progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
+          ></view>
+        </view>
+        <view class="preview-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post.photos.length > 1}}">
+          <text class="preview-badge-text">{{currentPhotoIndex + 1}}/{{post.photos.length}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="like-animation {{showLikeAnim ? 'show' : ''}}" wx:if="{{showLikeAnim}}">
+      <text>❤️</text>
+    </view>
+    <view class="preview-bottom-bar">
+      <view class="preview-actions {{bottomBarVisible ? 'fade-in' : ''}}">
+        <view class="preview-action-item preview-close-btn" catchtap="exitPreview">
+          <text class="preview-action-icon">×</text>
+        </view>
+        <view class="preview-action-item preview-download-btn" catchtap="downloadPreviewImage">
+          <text class="preview-action-icon">↓</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

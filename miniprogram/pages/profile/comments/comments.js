@@ -152,6 +152,18 @@ Page({
   goToDetail(e) {
     const postId = e.currentTarget.dataset.postid;
     if (!postId) return;
-    wx.navigateTo({ url: `/pages/detail/detail?id=${postId}` });
+    const { openPostDetail } = require('../../../utils/openPostDetail');
+    const list =
+      this.data.activeTab === 'sent' ? this.data.sentList : this.data.receivedList;
+    const item = list.find((c) => c.postId === postId);
+    openPostDetail(
+      item
+        ? {
+            id: postId,
+            postThumb: item.postThumb,
+            postTitle: item.postTitle,
+          }
+        : { id: postId }
+    );
   },
 });

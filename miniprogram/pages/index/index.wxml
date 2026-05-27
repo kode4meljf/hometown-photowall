@@ -1,7 +1,11 @@
 <!-- 首页 - 新设计 -->
-<view class="container">
-  <!-- 搜索栏 -->
-  <view class="top-bar">
+<view class="container {{detailOpen ? 'feed-dimmed' : ''}}">
+  <!-- 状态栏区域：固定白底铺满左右（自定义导航下系统栏透明） -->
+  <view class="status-bar-cover" style="height: {{statusBarHeight}}px;"></view>
+
+  <!-- 顶部导航区：白底 + 搜索栏 -->
+  <view class="home-nav" style="height: {{pageNavHeight}}px; padding-top: {{statusBarHeight}}px;">
+    <view class="top-bar">
     <view class="search-input-wrapper">
       <text class="search-icon">🔍</text>
       <input 
@@ -15,6 +19,7 @@
       <view wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">
         <text class="clear-icon">×</text>
       </view>
+    </view>
     </view>
   </view>
 
@@ -67,7 +72,7 @@
   <!-- 瀑布流内容 -->
   <scroll-view 
     class="waterfall-scroll" 
-    scroll-y 
+    scroll-y="{{!detailOpen}}"
     enhanced
     show-scrollbar="{{false}}"
     bindscrolltolower="loadMore"
@@ -81,16 +86,22 @@
         <view 
           wx:for="{{leftPosts}}" 
           wx:key="id"
-          class="photo-card"
-          bindtap="goToDetail"
+          class="photo-card {{detailOpen && detailPostId === item.id ? 'card-slot-placeholder' : ''}}"
+          bindtap="onCardTap"
           data-id="{{item.id}}"
           data-post="{{item}}"
         >
+          <view
+            wx:if="{{detailOpen && detailPostId === item.id}}"
+            class="card-slot-hole"
+            style="height: {{item.slotHeight}}px;"
+          ></view>
+          <block wx:else>
           <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
             <image
               id="card-img-{{item.id}}"
-              class="card-image" 
-              src="{{item.imageUrl}}" 
+              class="card-image"
+              src="{{item.imageUrl}}"
               mode="aspectFill"
               lazy-load
             />
@@ -100,11 +111,15 @@
             </view>
           </view>
           <view class="card-content">
-            <view 
+            <view
+              id="card-text-{{item.id}}"
               class="card-text-row"
-              id="card-title-{{item.id}}"
               wx:if="{{item.title || item.description}}"
-            ><text class="card-title" wx:if="{{item.title}}">{{item.title}}</text><text wx:if="{{item.title && item.description}}"> </text><text class="card-desc" id="card-desc-{{item.id}}" wx:if="{{item.description}}">{{item.description}}</text></view>
+            >
+              <text class="card-title" wx:if="{{item.title}}">{{item.title}}</text>
+              <text wx:if="{{item.title && item.description}}"> </text>
+              <text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            </view>
             <view class="card-footer">
               <view class="author-info">
                 <image class="author-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill"/>
@@ -119,6 +134,7 @@
               </view>
             </view>
           </view>
+          </block>
         </view>
       </view>
       
@@ -127,16 +143,22 @@
         <view 
           wx:for="{{rightPosts}}" 
           wx:key="id"
-          class="photo-card"
-          bindtap="goToDetail"
+          class="photo-card {{detailOpen && detailPostId === item.id ? 'card-slot-placeholder' : ''}}"
+          bindtap="onCardTap"
           data-id="{{item.id}}"
           data-post="{{item}}"
         >
+          <view
+            wx:if="{{detailOpen && detailPostId === item.id}}"
+            class="card-slot-hole"
+            style="height: {{item.slotHeight}}px;"
+          ></view>
+          <block wx:else>
           <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
             <image
               id="card-img-{{item.id}}"
-              class="card-image" 
-              src="{{item.imageUrl}}" 
+              class="card-image"
+              src="{{item.imageUrl}}"
               mode="aspectFill"
               lazy-load
             />
@@ -146,11 +168,15 @@
             </view>
           </view>
           <view class="card-content">
-            <view 
+            <view
+              id="card-text-{{item.id}}"
               class="card-text-row"
-              id="card-title-{{item.id}}"
               wx:if="{{item.title || item.description}}"
-            ><text class="card-title" wx:if="{{item.title}}">{{item.title}}</text><text wx:if="{{item.title && item.description}}"> </text><text class="card-desc" id="card-desc-{{item.id}}" wx:if="{{item.description}}">{{item.description}}</text></view>
+            >
+              <text class="card-title" wx:if="{{item.title}}">{{item.title}}</text>
+              <text wx:if="{{item.title && item.description}}"> </text>
+              <text class="card-desc" wx:if="{{item.description}}">{{item.description}}</text>
+            </view>
             <view class="card-footer">
               <view class="author-info">
                 <image class="author-avatar" src="{{item.authorAvatar || '/assets/icons/default-avatar.png'}}" mode="aspectFill"/>
@@ -165,6 +191,7 @@
               </view>
             </view>
           </view>
+          </block>
         </view>
       </view>
     </view>
@@ -183,4 +210,19 @@
     </view>
     
   </scroll-view>
+
+  <!-- 首页内展开详情（抖音式卡片放大，非 navigateTo） -->
+  <post-detail-overlay
+    visible="{{detailOpen}}"
+    post-id="{{detailPostId}}"
+    cover-url="{{detailCoverUrl}}"
+    title-text="{{detailTitleText}}"
+    desc-text="{{detailDescText}}"
+    img-rect="{{detailImgRect}}"
+    title-rect="{{detailTitleRect}}"
+    aspect-ratio="{{detailAspectRatio}}"
+    author-avatar="{{detailAuthorAvatar}}"
+    author-name="{{detailAuthorName}}"
+    bind:close="onDetailClose"
+  />
 </view>
