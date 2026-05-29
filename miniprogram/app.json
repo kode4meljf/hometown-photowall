@@ -11,7 +11,8 @@
     "pages/profile/settings/privacy/privacy",
     "pages/profile/settings/feedback/feedback",
     "pages/upload/upload",
-    "pages/profile/signin/signin"
+    "pages/profile/signin/signin",
+    "pages/profile/stats/stats"
   ],
   "window": {
     "backgroundTextStyle": "dark",

@@ -43,6 +43,14 @@ Component({
       this.triggerEvent('close');
     },
 
+    onOpenAgreement() {
+      wx.navigateTo({ url: '/pages/profile/settings/agreement/agreement' });
+    },
+
+    onOpenPrivacy() {
+      wx.navigateTo({ url: '/pages/profile/settings/privacy/privacy' });
+    },
+
     onWechatLogin() {
       wx.showLoading({ title: '登录中...', mask: true });
 

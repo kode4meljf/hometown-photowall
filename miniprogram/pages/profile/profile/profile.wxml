@@ -135,6 +135,8 @@
               catchtap="openPhotoAction" 
               data-id="{{item.id}}"
               data-title="{{item.title}}"
+              data-description="{{item.description}}"
+              data-created-at="{{item.createdAt}}"
               data-hidden="{{item.hidden}}"
             >⋮</view>
           </view>
@@ -189,12 +191,51 @@
     <view class="avatar-modal-content" catchtap="stopPropagation">
       <!-- 选项组 -->
       <view class="modal-options-group">
-        <view class="modal-option" bindtap="editPhotoTitle">编辑标题</view>
+        <view class="modal-option" bindtap="editPhotoTitle">编辑标题与描述</view>
         <view class="modal-option" bindtap="toggleHidePost">{{currentPhotoHidden ? '显示作品' : '隐藏作品'}}</view>
         <view class="modal-option modal-option-danger" bindtap="deletePost">删除</view>
       </view>
       <!-- 取消按钮 - 独立卡片 -->
       <view class="modal-cancel" bindtap="hidePhotoAction">取消</view>
+    </view>
+  </view>
+
+  <!-- 编辑作品标题与描述 -->
+  <view class="edit-post-modal" wx:if="{{showEditPostModal}}" bindtap="hideEditPostModal">
+    <view class="edit-post-panel" catchtap="stopPropagation">
+      <text class="edit-post-heading">编辑作品</text>
+      <view class="edit-post-tip" wx:if="{{!editPostEditable}}">
+        发布超过一个月的作品不可修改标题和描述
+      </view>
+      <view class="edit-post-field">
+        <text class="edit-post-label">标题</text>
+        <input
+          class="edit-post-input"
+          placeholder="添加标题（选填）"
+          value="{{editPostTitle}}"
+          disabled="{{!editPostEditable}}"
+          maxlength="50"
+          bindinput="onEditPostTitleInput"
+        />
+      </view>
+      <view class="edit-post-field">
+        <text class="edit-post-label">作品描述</text>
+        <textarea
+          class="edit-post-textarea"
+          placeholder="添加作品描述…"
+          value="{{editPostDescription}}"
+          disabled="{{!editPostEditable}}"
+          maxlength="200"
+          bindinput="onEditPostDescInput"
+        />
+      </view>
+      <view class="edit-post-actions">
+        <view class="edit-post-btn edit-post-btn-cancel" bindtap="hideEditPostModal">取消</view>
+        <view
+          class="edit-post-btn edit-post-btn-save {{editPostEditable ? '' : 'edit-post-btn-disabled'}}"
+          bindtap="saveEditPost"
+        >保存</view>
+      </view>
     </view>
   </view>
 </view>

@@ -60,7 +60,7 @@ module.exports = Behavior({
 
     _canDismissGesture() {
       return (
-        this.data.flyDone &&
+        this.data.shellReady &&
         !this.data.isPreviewMode &&
         !this._closing &&
         !this.data.showCommentInput

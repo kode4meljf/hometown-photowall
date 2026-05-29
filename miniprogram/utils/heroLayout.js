@@ -72,11 +72,18 @@ function flyTransformStyle(startRect, endRect, uniform = true) {
   return `${rectToStyle(startRect)}transform:translate(${tx}px,${ty}px) scale(${sx},${sy});`;
 }
 
-/** 与首页卡片 processPosts 相同的比例压缩，保证 FLIP 终点与卡片视觉比例一致 */
+/** 详情图区：宽 X 铺满；高 clamp(自然高, min, max)，max = 3:4 竖图高度 */
+const DETAIL_SLOT_MAX_RATIO = 4 / 3;
+/** 横图保底高度（约 5:3 横图铺满宽时的高），避免极扁全景图区过矮 */
+const DETAIL_SLOT_MIN_RATIO = 0.6;
+
 function getDetailSlotHeight(windowWidth, aspectRatio) {
-  const safeRatio = Math.min(Math.max(aspectRatio || 1, 0.6), 1.8);
-  const compressedRatio = Math.pow(safeRatio, 0.4);
-  return Math.round(windowWidth * compressedRatio);
+  const w = windowWidth || 375;
+  const safeRatio = Math.min(Math.max(aspectRatio || 1, 0.3), 3);
+  const natural = w * safeRatio;
+  const maxH = w * DETAIL_SLOT_MAX_RATIO;
+  const minH = w * DETAIL_SLOT_MIN_RATIO;
+  return Math.round(Math.min(Math.max(natural, minH), maxH));
 }
 
 function getDetailImageRect(windowWidth, headerTop, aspectRatio) {
@@ -104,4 +111,6 @@ module.exports = {
   getDetailSlotHeight,
   getDetailImageRect,
   getDetailTitleRect,
+  DETAIL_SLOT_MAX_RATIO,
+  DETAIL_SLOT_MIN_RATIO,
 };

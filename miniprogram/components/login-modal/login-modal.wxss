@@ -78,8 +78,21 @@
   font-size: 26rpx;
   color: #888;
   line-height: 1.55;
-  margin-bottom: 44rpx;
+  margin-bottom: 24rpx;
   padding: 0 8rpx;
+}
+
+.login-modal-privacy {
+  font-size: 22rpx;
+  color: #999;
+  line-height: 1.65;
+  margin-bottom: 32rpx;
+  padding: 0 8rpx;
+}
+
+.login-modal-privacy-link {
+  color: #1b1b1b;
+  font-weight: 500;
 }
 
 .login-modal-btn {

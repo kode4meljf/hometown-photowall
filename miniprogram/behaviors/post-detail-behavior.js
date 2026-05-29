@@ -1,9 +1,10 @@
 const { postApi } = require('../utils/api');
+const { getDetailSlotHeight } = require('../utils/heroLayout');
 const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatLikeCount } = require('../utils/util');
 const app = getApp();
 
 /**
- * 详情页/首页浮层共用的帖子与评论逻辑
+ * 帖子详情浮层：帖子数据、评论与互动逻辑
  */
 module.exports = Behavior({
   data: {
@@ -25,10 +26,18 @@ module.exports = Behavior({
     currentPhotoIndex: 0,
     indexBadgeVisible: false,
     commentsCountText: '0',
-    inputRowBottom: 0,
+    keyboardHeight: 0,
+    commentBottomInset: 0,
+    commentFocus: false,
     commentScrollTop: 0,
     photoMode: 'aspectFit',
-    scrollClass: 'panel-scroll',
+    quickEmojis: ['😀', '😂', '🤣', '😊', '😅', '😍', '🙄', '👍'],
+    emojiPanelEmojis: [
+      '😀', '😁', '😂', '🤣', '😊', '😇', '🙂', '😉',
+      '😍', '🥰', '😘', '😗', '😋', '😛', '😜', '🤪',
+      '😢', '😭', '😤', '😡', '🥺', '😱', '🤔', '🙄',
+      '👍', '👎', '👏', '🙏', '💪', '❤️', '🔥', '✨',
+    ],
   },
 
   methods: {
@@ -43,6 +52,15 @@ module.exports = Behavior({
       return false;
     },
 
+    /** 与详情接口 canDelete 规则一致，用于骨架阶段预占位避免行高跳动 */
+    _canDeleteHint(authorId) {
+      const user = app.globalData?.userInfo;
+      if (!user) return false;
+      if (user.role === 'admin') return true;
+      const uid = user.id || user._id || user.userId;
+      return !!(authorId && uid && authorId === uid);
+    },
+
     /** 详情首图与首页传入 cover 同源，避免 FLIP 结束后 swiper 换图闪烁 */
     _alignFirstPhotoWithCover(post) {
       const cover =
@@ -53,6 +71,23 @@ module.exports = Behavior({
       const photos = post.photos.slice();
       photos[0] = { ...photos[0], imageUrl: cover };
       return { ...post, photos };
+    },
+
+    _photoAspectRatio(photo, fallback) {
+      if (photo && photo.width && photo.height) {
+        const r = photo.height / photo.width;
+        if (isFinite(r) && r > 0) return r;
+      }
+      const fb = fallback ?? this.properties.aspectRatio;
+      return fb > 0 ? fb : 1;
+    },
+
+    _imageSlotHeightForIndex(index) {
+      const post = this.data.post;
+      const photo = post && post.photos && post.photos[index];
+      const ar = this._photoAspectRatio(photo, this.properties.aspectRatio);
+      const w = this._windowWidth || wx.getSystemInfoSync().windowWidth;
+      return getDetailSlotHeight(w, ar);
     },
 
     async loadPost() {
@@ -95,6 +130,7 @@ module.exports = Behavior({
           const canDelete = !!finalPost.canDelete;
           const hasMoreComments = res.data.hasMore || false;
           const commentsCountText = formatLikeCount(finalPost.commentsCount || 0).text;
+          const imageSlotHeight = this._imageSlotHeightForIndex(0);
           this.setData({
             post: finalPost,
             canDelete,
@@ -102,7 +138,15 @@ module.exports = Behavior({
             hasMoreComments,
             commentsCountText,
             currentPhotoIndex: 0,
+            imageSlotHeight,
           });
+          if (
+            this.data.heroPhase === 'docked' &&
+            typeof this._heroTryHandoff === 'function' &&
+            !this._handoffStarted
+          ) {
+            this._heroTryHandoff();
+          }
         } else {
           showToast(res.message || '加载失败');
           this.setData({ loading: false });
@@ -116,7 +160,11 @@ module.exports = Behavior({
     onPhotoLoad() {},
 
     onSwiperChange(e) {
-      this.setData({ currentPhotoIndex: e.detail.current });
+      const index = e.detail.current;
+      this.setData({
+        currentPhotoIndex: index,
+        imageSlotHeight: this._imageSlotHeightForIndex(index),
+      });
       this._showIndexBadge();
     },
 
@@ -275,10 +323,16 @@ module.exports = Behavior({
         replyToAuthor: '',
         parentId: null,
         commentContent: '',
+        keyboardHeight: 0,
+        commentBottomInset: 0,
+        commentFocus: false,
+      }, () => {
+        this.setData({ commentFocus: true });
       });
     },
 
     hideCommentInput() {
+      wx.hideKeyboard();
       this.setData({
         showCommentInput: false,
         showEmojiPanel: false,
@@ -286,16 +340,68 @@ module.exports = Behavior({
         replyToAuthor: '',
         parentId: null,
         commentContent: '',
-        inputRowBottom: 0,
+        keyboardHeight: 0,
+        commentBottomInset: 0,
+        commentFocus: false,
       });
     },
 
     _onKeyboardHeightChange(e) {
-      this.setData({ inputRowBottom: e.detail.height });
+      const h = e.detail.height || 0;
+      if (h > 0) {
+        this.setData({
+          keyboardHeight: h,
+          showEmojiPanel: false,
+          commentBottomInset: h,
+        });
+      } else if (!this.data.showEmojiPanel) {
+        this.setData({ keyboardHeight: 0, commentBottomInset: 0 });
+      }
     },
 
     toggleEmojiPanel() {
-      this.setData({ showEmojiPanel: !this.data.showEmojiPanel });
+      const next = !this.data.showEmojiPanel;
+      if (next) {
+        wx.hideKeyboard();
+        const h = this._emojiPanelHeight || 280;
+        this.setData({
+          showEmojiPanel: true,
+          keyboardHeight: 0,
+          commentBottomInset: h,
+          commentFocus: false,
+        });
+      } else {
+        this.setData({
+          showEmojiPanel: false,
+          commentBottomInset: 0,
+          commentFocus: false,
+        }, () => {
+          this.setData({ commentFocus: true });
+        });
+      }
+    },
+
+    _onCommentInputFocus() {
+      if (this.data.showEmojiPanel) {
+        this.setData({
+          showEmojiPanel: false,
+          commentBottomInset: this.data.keyboardHeight || 0,
+        });
+      }
+    },
+
+    _onCommentInputBlur() {
+      // 保留面板状态，由键盘高度回调收起底部占位
+    },
+
+    onQuickEmojiTap(e) {
+      const emoji = e.currentTarget.dataset.emoji;
+      if (!emoji) return;
+      const content = (this.data.commentContent || '') + emoji;
+      this.setData({
+        commentContent: content,
+        sendDisabled: !content.trim(),
+      });
     },
 
     handleReplyTap(e) {
@@ -309,6 +415,9 @@ module.exports = Behavior({
           parentId: id,
           showCommentInput: true,
           commentContent: '',
+          commentFocus: false,
+        }, () => {
+          this.setData({ commentFocus: true });
         });
       } else {
         this.setData({
@@ -317,11 +426,12 @@ module.exports = Behavior({
           parentId: id,
           showCommentInput: true,
           commentContent: '',
+          commentFocus: false,
+        }, () => {
+          this.setData({ commentFocus: true });
         });
       }
     },
-
-    noop() {},
 
     async expandReplies(e) {
       const commentId = e.currentTarget.dataset.id;

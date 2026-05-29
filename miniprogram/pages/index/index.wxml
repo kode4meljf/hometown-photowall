@@ -1,9 +1,16 @@
 <!-- 首页 - 新设计 -->
 <view class="page-root">
 <view class="container feed-underlay {{detailOpen ? 'feed-dimmed' : ''}}" style="{{feedLayerStyle}}">
-  <!-- 顶栏：上方留白给状态栏+胶囊，搜索独占下一行全宽 -->
+  <!-- 顶栏：状态栏 + 胶囊同行标题，搜索独占下一行 -->
   <view class="home-header">
-    <view class="capsule-spacer" style="height: {{navBarInsetTop}}px;"></view>
+    <view
+      class="nav-bar"
+      style="height: {{navBarInsetTop}}px; padding-top: {{navPaddingTop}}px; padding-left: {{navPaddingRight}}px; padding-right: {{navPaddingRight}}px;"
+    >
+      <view class="nav-bar-row" style="height: {{navBarRowHeight}}px;">
+        <text class="nav-title">老根茶村</text>
+      </view>
+    </view>
     <view class="top-bar">
     <view class="search-input-wrapper">
       <text class="search-icon">🔍</text>
@@ -85,21 +92,26 @@
         <view 
           wx:for="{{leftPosts}}" 
           wx:key="id"
-          class="photo-card {{detailOpen && detailPostId === item.id ? 'card-slot-placeholder' : ''}}"
+          id="card-{{item.id}}"
+          class="photo-card {{detailOpen && detailPostId === item.id && !detailSlotHold ? 'card-slot-placeholder' : ''}}"
           bindtap="onCardTap"
           data-id="{{item.id}}"
           data-post="{{item}}"
         >
           <view
-            wx:if="{{detailOpen && detailPostId === item.id}}"
+            wx:if="{{detailOpen && detailPostId === item.id && !detailSlotHold}}"
             class="card-slot-hole"
-            style="height: {{item.slotHeight}}px;"
+            style="height: {{detailCardSlotHeight}}px;"
           ></view>
-          <block wx:else>
+          <view
+            wx:else
+            class="card-exit-shell {{detailOpen && detailPostId === item.id && detailCardHandoff ? 'card-exit-handoff' : ''}}"
+            style="{{detailOpen && detailPostId === item.id ? detailCardTransformStyle : ''}}"
+          >
           <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
             <image
               id="card-img-{{item.id}}"
-              class="card-image"
+              class="card-image {{detailOpen && detailPostId === item.id && detailCardFade ? 'card-image--leave' : ''}}"
               src="{{item.imageUrl}}"
               mode="aspectFill"
               lazy-load
@@ -133,7 +145,7 @@
               </view>
             </view>
           </view>
-          </block>
+          </view>
         </view>
       </view>
       
@@ -142,21 +154,26 @@
         <view 
           wx:for="{{rightPosts}}" 
           wx:key="id"
-          class="photo-card {{detailOpen && detailPostId === item.id ? 'card-slot-placeholder' : ''}}"
+          id="card-{{item.id}}"
+          class="photo-card {{detailOpen && detailPostId === item.id && !detailSlotHold ? 'card-slot-placeholder' : ''}}"
           bindtap="onCardTap"
           data-id="{{item.id}}"
           data-post="{{item}}"
         >
           <view
-            wx:if="{{detailOpen && detailPostId === item.id}}"
+            wx:if="{{detailOpen && detailPostId === item.id && !detailSlotHold}}"
             class="card-slot-hole"
-            style="height: {{item.slotHeight}}px;"
+            style="height: {{detailCardSlotHeight}}px;"
           ></view>
-          <block wx:else>
+          <view
+            wx:else
+            class="card-exit-shell {{detailOpen && detailPostId === item.id && detailCardHandoff ? 'card-exit-handoff' : ''}}"
+            style="{{detailOpen && detailPostId === item.id ? detailCardTransformStyle : ''}}"
+          >
           <view class="card-image-wrapper" style="height: {{item.cardHeight}}px;">
             <image
               id="card-img-{{item.id}}"
-              class="card-image"
+              class="card-image {{detailOpen && detailPostId === item.id && detailCardFade ? 'card-image--leave' : ''}}"
               src="{{item.imageUrl}}"
               mode="aspectFill"
               lazy-load
@@ -190,13 +207,13 @@
               </view>
             </view>
           </view>
-          </block>
+          </view>
         </view>
       </view>
     </view>
     
     <!-- 加载更多 -->
-    <view class="load-more" wx:if="{{isLoading}}">
+    <view class="load-more" wx:if="{{isLoading && !isRefreshing}}">
       <view class="loading-spinner"></view>
       <text class="loading-text">加载中...</text>
     </view>
@@ -219,11 +236,21 @@
     title-text="{{detailTitleText}}"
     desc-text="{{detailDescText}}"
     img-rect="{{detailImgRect}}"
+    full-card-rect="{{detailFullCardRect}}"
+    card-slot-height="{{detailCardSlotHeight}}"
     title-rect="{{detailTitleRect}}"
     aspect-ratio="{{detailAspectRatio}}"
     author-avatar="{{detailAuthorAvatar}}"
     author-name="{{detailAuthorName}}"
+    card-likes="{{detailCardLikes}}"
+    card-comments-count="{{detailCardCommentsCount}}"
+    card-liked="{{detailCardLiked}}"
+    card-date="{{detailCardDate}}"
+    card-photo-count="{{detailCardPhotoCount}}"
+    post-author-id="{{detailPostAuthorId}}"
     bind:close="onDetailClose"
     bind:feedlayer="onFeedLayer"
+    bind:herofly="onDetailHeroFly"
+    bind:cardrestore="onDetailCardRestore"
   />
 </view>

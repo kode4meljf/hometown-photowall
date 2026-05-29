@@ -3,33 +3,34 @@
 <view class="overlay-root" wx:if="{{visible}}" catchtouchmove="noop">
   <view class="overlay-mask {{maskShow ? 'mask-visible' : ''}} {{panelDragging ? 'mask-no-transition' : ''}}" style="{{maskStyle}}" catchtap="onMaskTap"></view>
 
-  <!-- 飞行层独立叠在遮罩上，底下透出首页（卡片占位孔） -->
-  <view class="overlay-fly-layer" wx:if="{{!handoffDone}}">
-    <image
-      class="fly-image {{flyAnimating ? 'fly-transition' : ''}}"
-      src="{{coverUrl}}"
-      mode="{{flyImageMode}}"
-      style="{{heroImgStyle}}"
-      bindtransitionend="onFlyTransitionEnd"
-    />
-    <view
-      wx:if="{{!flyDone && (titleText || descText)}}"
-      class="fly-title {{flyAnimating ? 'fly-transition' : ''}}"
-      style="{{heroTitleStyle}}"
-    >
-      <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
-      <text wx:if="{{titleText && descText}}"> </text>
-      <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
-    </view>
+  <!-- 英雄层用 view 承载 opacity/变暗，避免 image 组件不做过渡 -->
+  <view
+    wx:if="{{heroVisible && (heroPhase === 'exiting')}}"
+    class="hero-media-wrap {{heroAnimating ? 'hero-transition' : ''}}"
+    style="{{heroMediaStyle}};opacity:{{heroCoverOpacity}};"
+    bindtransitionend="onHeroTransitionEnd"
+  >
+    <image class="hero-media-img" src="{{coverUrl}}" mode="{{heroMediaMode}}" />
   </view>
 
   <view
-    class="detail-panel {{panelShow ? 'panel-show' : ''}} {{flyDone ? 'detail-panel-ready' : ''}} {{panelDragging ? 'panel-dragging' : ''}}"
+    wx:if="{{(heroPhase === 'entering' || heroPhase === 'exiting') && (titleText || descText)}}"
+    class="fly-title"
+    style="{{heroTitleStyle}}"
+  >
+    <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
+    <text wx:if="{{titleText && descText}}"> </text>
+    <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
+  </view>
+
+  <view
+    class="detail-panel {{panelShow ? 'panel-show' : ''}} {{shellReady ? 'detail-panel-ready' : ''}} {{shellScaling ? 'shell-scaling' : ''}} {{panelExiting ? 'panel-exiting' : ''}} {{panelDragging ? 'panel-dragging' : ''}}"
     style="{{panelTransformStyle}} {{panelChromeStyle}}"
+    bindtransitionend="onPanelTransitionEnd"
   >
     <view
-      class="panel-header dismiss-zone"
-      wx:if="{{flyDone}}"
+      class="panel-header dismiss-zone {{panelExitChrome ? 'panel-exit-chrome' : ''}}"
+      wx:if="{{shellReady}}"
       style="padding-top:{{headerPaddingTop}}px;padding-right:{{headerPaddingRight}}px;height:{{navBarHeight}}px;"
       bindtouchstart="onDismissTouchStart"
       bindtouchmove="onDismissTouchMove"
@@ -50,15 +51,30 @@
     </view>
 
     <scroll-view
-      wx:if="{{flyDone}}"
+      wx:if="{{shellReady}}"
       class="panel-scroll"
       scroll-y="{{!scrollLocked}}"
       scroll-top="{{commentScrollTop}}"
       bindscroll="onCommentScroll"
       bindscrolltolower="onScrollToLower"
     >
-      <view class="image-section image-slot" id="image-slot" style="height:{{imageSlotHeight}}px;" bindtap="onImageTap">
-        <view class="panel-photo-wrap photo-visible">
+      <view class="image-section image-slot image-slot--stage" id="image-slot" style="height:{{imageSlotHeight}}px;" bindtap="onImageTap">
+        <view class="media-skeleton" wx:if="{{mediaSkeleton && !swiperShown}}">
+          <view class="progress-bar progress-bar--skeleton" wx:if="{{photoCount > 1}}">
+            <view
+              wx:for="{{skeletonSegments}}"
+              wx:key="*this"
+              class="progress-segment {{index === 0 ? 'done' : 'todo'}}"
+            ></view>
+          </view>
+          <view class="photo-index-badge badge-show" wx:if="{{photoCount > 1}}">
+            <text class="badge-text">1/{{photoCount}}</text>
+          </view>
+        </view>
+        <view
+          class="panel-photo-wrap photo-letterbox {{swiperShown ? 'swiper-show' : ''}} {{heroFadingOut ? 'swiper-crossfade' : ''}}"
+          style="opacity:{{swiperShown ? swiperRevealOpacity : 0}};"
+        >
           <swiper
             wx:if="{{post}}"
             class="photo-swiper"
@@ -76,14 +92,14 @@
               />
             </swiper-item>
           </swiper>
-          <view class="progress-bar" wx:if="{{post && post.photos.length > 1}}">
+          <view class="progress-bar" wx:if="{{post && post.photos.length > 1 && swiperShown}}">
             <view
               wx:for="{{post.photos}}"
               wx:key="order"
               class="progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
             ></view>
           </view>
-          <view class="photo-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post && post.photos.length > 1}}">
+          <view class="photo-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post && post.photos.length > 1 && swiperShown}}">
             <text class="badge-text">{{currentPhotoIndex + 1}}/{{post.photos.length}}</text>
           </view>
         </view>
@@ -96,20 +112,22 @@
         bindtouchend="onDismissTouchEnd"
         bindtouchcancel="onDismissTouchEnd"
       >
-      <view class="panel-loading" wx:if="{{loading}}">加载中...</view>
-
-      <block wx:if="{{flyDone && post && !loading}}">
+      <view class="panel-body-below">
+      <block wx:if="{{shellReady && post}}">
         <view class="content-section content-reveal {{contentReveal ? 'show' : ''}}">
           <text class="description" wx:if="{{post.titleDesc}}">{{post.titleDesc}}</text>
           <text class="date">{{post.date}}</text>
         </view>
 
-        <view class="divider content-reveal {{contentReveal ? 'show' : ''}}"></view>
+        <view class="divider content-reveal {{contentReveal ? 'show' : ''}} {{panelExitChrome ? 'panel-exit-chrome' : ''}}"></view>
 
-        <view class="comment-count-row content-reveal {{contentReveal ? 'show' : ''}}">
+        <view class="comment-count-row content-reveal {{contentReveal ? 'show' : ''}} {{canDelete ? 'comment-count-row--with-delete' : ''}} {{panelExitChrome ? 'panel-exit-chrome' : ''}}">
           <text class="comment-count-text">共 {{commentsCountText}} 条评论</text>
           <view
             wx:if="{{canDelete}}"
+            class="comment-delete-slot"
+          >
+          <view
             class="comment-delete-btn {{deleteBtnPressed ? 'comment-delete-btn-pressed' : ''}}"
             hover-class="comment-delete-btn-hover"
             hover-stay-time="80"
@@ -118,9 +136,10 @@
             bindtouchcancel="onDeleteBtnTouchEnd"
             bindtap="onDeletePost"
           >删除</view>
+          </view>
         </view>
 
-        <view class="comment-list content-reveal {{contentReveal ? 'show' : ''}}">
+        <view class="comment-list content-reveal {{contentReveal ? 'show' : ''}} {{panelExitChrome ? 'panel-exit-chrome' : ''}}" wx:if="{{!loading}}">
           <view class="comment-item {{highlightCommentId === item.id ? 'highlight' : ''}}" wx:for="{{post.comments}}" wx:key="id" id="comment-{{item.id}}">
             <view class="comment-item-row" catchtap="handleReplyTap" data-id="{{item.id}}" data-author="{{item.author}}">
               <image class="comment-avatar" src="{{item.authorAvatar}}" mode="aspectFill" />
@@ -184,18 +203,19 @@
         </view>
       </block>
       </view>
+      </view>
     </scroll-view>
 
     <view
-      class="bottom-bar dismiss-zone {{flyDone && post ? 'bottom-bar--show' : ''}}"
-      wx:if="{{flyDone && post}}"
+      class="bottom-bar dismiss-zone {{shellReady && post ? 'bottom-bar--show' : ''}} {{panelExitChrome ? 'panel-exit-chrome' : ''}}"
+      wx:if="{{shellReady && post}}"
       bindtouchstart="onDismissTouchStart"
       bindtouchmove="onDismissTouchMove"
       bindtouchend="onDismissTouchEnd"
       bindtouchcancel="onDismissTouchEnd"
     >
       <view class="input-area" bindtap="focusCommentInput">
-        <image class="input-pen-icon" src="/assets/icons/pen-icon.png" mode="aspectFit" />
+        <image class="input-pen-icon" src="/assets/icons/pen.svg" mode="aspectFit" />
         <text class="input-placeholder">说点什么...</text>
       </view>
       <view class="action-buttons">
@@ -205,7 +225,7 @@
         </view>
         <view class="action-item" bindtap="focusCommentInput">
           <image class="action-icon-img" src="/assets/icons/comment.png" mode="aspectFit" />
-          <text class="action-num">{{f.formatCount(post.comments.length)}}</text>
+          <text class="action-num">{{f.formatCount(post.commentsCount != null ? post.commentsCount : post.comments.length)}}</text>
         </view>
         <view class="action-item" catchtap="generatePoster">
           <image class="action-icon-img" src="/assets/icons/icon-share.svg" mode="aspectFit" />
@@ -215,61 +235,117 @@
     </view>
   </view>
 
-  <view class="comment-modal" wx:if="{{showCommentInput}}">
+  <view class="comment-modal" wx:if="{{showCommentInput}}" catchtouchmove="noop">
     <view class="comment-modal-mask" bindtap="hideCommentInput"></view>
-    <view class="comment-modal-content">
-      <view class="comment-input-row" style="padding-bottom: {{inputRowBottom}}px;">
+    <view
+      class="comment-modal-content {{commentBottomInset > 0 && !showEmojiPanel ? 'keyboard-up' : ''}}"
+      style="padding-bottom: {{showEmojiPanel ? 0 : commentBottomInset}}px;"
+    >
+      <view class="comment-input-row">
         <textarea
           class="comment-textarea"
-          placeholder="{{replyToAuthor ? '回复 @' + replyToAuthor : '说点什么...'}}"
+          placeholder="{{replyToAuthor ? '回复 @' + replyToAuthor : '期待你的评论'}}"
           value="{{commentContent}}"
           bindinput="onCommentInput"
-          focus="{{showCommentInput}}"
+          focus="{{commentFocus}}"
           auto-height
-          adjust-position
+          adjust-position="{{false}}"
+          hold-keyboard
           bindkeyboardheightchange="_onKeyboardHeightChange"
+          bindfocus="_onCommentInputFocus"
+          bindblur="_onCommentInputBlur"
           show-confirm-bar="{{false}}"
-          max-rows="4"
+          maxlength="500"
         />
       </view>
       <view class="comment-toolbar-row">
-        <view class="emoji-btn" catchtap="toggleEmojiPanel">
+        <view class="emoji-btn {{showEmojiPanel ? 'emoji-btn-active' : ''}}" catchtap="toggleEmojiPanel">
           <image src="/assets/icons/emoji.svg" mode="aspectFit" />
         </view>
         <view class="toolbar-spacer"></view>
         <view class="comment-send-btn {{sendDisabled ? 'disabled' : ''}}" catchtap="submitComment">发送</view>
       </view>
+      <view
+        wx:if="{{showEmojiPanel}}"
+        class="comment-emoji-area"
+        style="height: {{commentBottomInset}}px;"
+      >
+        <scroll-view class="emoji-panel-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+          <view class="emoji-panel-grid">
+            <view
+              class="emoji-panel-item"
+              wx:for="{{emojiPanelEmojis}}"
+              wx:key="*this"
+              catchtap="onQuickEmojiTap"
+              data-emoji="{{item}}"
+            >{{item}}</view>
+          </view>
+        </scroll-view>
+      </view>
+      <scroll-view
+        wx:elif="{{commentBottomInset > 0}}"
+        class="emoji-quick-row"
+        scroll-x
+        enhanced
+        show-scrollbar="{{false}}"
+      >
+        <view class="emoji-quick-inner">
+          <view
+            class="emoji-quick-item"
+            wx:for="{{quickEmojis}}"
+            wx:key="*this"
+            catchtap="onQuickEmojiTap"
+            data-emoji="{{item}}"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
     </view>
   </view>
 
   <login-modal visible="{{loginModalShow}}" bind:close="onLoginModalClose" bind:success="onLoginSuccess" />
 
-  <!-- 全屏预览 -->
   <view
     class="preview-layer {{previewBgBlack ? 'bg-black' : 'bg-transparent'}}"
     style="{{previewBgStyle}}"
     wx:if="{{isPreviewMode}}"
-    bindtouchstart="onPreviewTouchStart"
-    bindtouchmove="onPreviewTouchMove"
-    bindtouchend="onPreviewTouchEnd"
   >
     <view class="preview-image-area">
       <view class="preview-drag-overlay" style="opacity: {{overlayOpacity}};"></view>
       <view
         class="preview-image-wrapper {{previewAnimClass}} {{previewDismissDragging ? 'preview-dismiss-dragging' : ''}}"
         style="transform: {{previewTransform}}; opacity: {{previewOpacity !== 0 ? 1 : 0}};"
+        bindtouchstart="onPreviewTouchStart"
+        bindtouchmove="onPreviewTouchMove"
+        bindtouchend="onPreviewTouchEnd"
+        bindtouchcancel="onPreviewTouchEnd"
       >
         <swiper
           class="preview-swiper"
           current="{{currentPhotoIndex}}"
           bindchange="onPreviewSwiperChange"
           duration="300"
+          easing-function="easeOutCubic"
         >
           <swiper-item wx:for="{{post.photos}}" wx:key="order">
-            <image class="preview-image" src="{{item.imageUrl}}" mode="aspectFit" />
+            <image
+              class="preview-image"
+              src="{{item.imageUrl}}"
+              mode="aspectFit"
+              data-index="{{index}}"
+              bindload="onPreviewPhotoLoad"
+            />
           </swiper-item>
         </swiper>
-        <view class="preview-progress-bar" wx:if="{{post.photos.length > 1}}">
+        <view
+          class="preview-touch-catcher"
+          wx:if="{{previewTouchCapture}}"
+          catchtouchmove="onPreviewTouchMove"
+        ></view>
+        <view
+          class="preview-progress-bar"
+          style="{{previewProgressStyle}}"
+          wx:if="{{post.photos.length > 1}}"
+        >
           <view
             wx:for="{{post.photos}}"
             wx:key="order"

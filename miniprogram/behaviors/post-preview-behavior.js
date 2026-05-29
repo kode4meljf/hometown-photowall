@@ -1,10 +1,11 @@
 const { postApi } = require('../utils/api');
 
-const PREVIEW_DIR_LOCK_PX = 8;
+const PREVIEW_DIR_LOCK_PX = 12;
+const PREVIEW_DIR_BIAS = 1.4;
 const PREVIEW_VERTICAL_EXIT_RATIO = 0.12;
 
 /**
- * 全屏图片预览（从 detail 页提炼，供首页浮层使用）
+ * 全屏图片预览（详情浮层内使用）
  */
 module.exports = Behavior({
   data: {
@@ -17,11 +18,88 @@ module.exports = Behavior({
     overlayOpacity: 0,
     previewBgStyle: '',
     previewDismissDragging: false,
+    previewTouchCapture: false,
     bottomBarVisible: false,
     showLikeAnim: false,
+    previewProgressStyle: '',
   },
 
   methods: {
+    _previewPhotoAR(index) {
+      const idx = index ?? this.data.currentPhotoIndex ?? 0;
+      const photos = this.data.post && this.data.post.photos;
+      const p = photos && photos[idx];
+      if (p && p.width && p.height) return p.width / p.height;
+      const dim = this._previewPhotoDims && this._previewPhotoDims[idx];
+      if (dim && dim.w && dim.h) return dim.w / dim.h;
+      if (
+        idx === this.data.currentPhotoIndex &&
+        this._imgNaturalW &&
+        this._imgNaturalH
+      ) {
+        return this._imgNaturalW / this._imgNaturalH;
+      }
+      return null;
+    },
+
+    _updatePreviewProgressPos(index) {
+      if (!this.data.isPreviewMode) return;
+      const photos = this.data.post && this.data.post.photos;
+      if (!photos || photos.length <= 1) return;
+
+      const screenW = this._windowWidth || wx.getSystemInfoSync().windowWidth;
+      const screenH = this._windowHeight || wx.getSystemInfoSync().windowHeight;
+      let imgAR = this._previewPhotoAR(index);
+      if (!imgAR) imgAR = 1;
+
+      const layout = this._aspectFitLayout(screenW, screenH, imgAR);
+      const bottomGap = screenH - layout.offsetY - layout.visH;
+      const pad = 8;
+      this.setData({
+        previewProgressStyle: `bottom:${Math.max(bottomGap, 0) + pad}px;`,
+      });
+    },
+
+    onPreviewPhotoLoad(e) {
+      const index = Number(e.currentTarget.dataset.index);
+      if (!this._previewPhotoDims) this._previewPhotoDims = {};
+      const { width, height } = e.detail || {};
+      if (width && height) {
+        this._previewPhotoDims[index] = { w: width, h: height };
+      }
+      if (this.data.isPreviewMode && index === this.data.currentPhotoIndex) {
+        this._updatePreviewProgressPos(index);
+      }
+    },
+    _clearPreviewSingleTapTimer() {
+      if (this._singleTapTimer) {
+        clearTimeout(this._singleTapTimer);
+        this._singleTapTimer = null;
+      }
+    },
+
+    _previewTouchDelta(touch) {
+      if (!touch || !this._touchStart) return { dx: 0, dy: 0 };
+      return {
+        dx: touch.clientX - this._touchStart.x,
+        dy: touch.clientY - this._touchStart.y,
+      };
+    },
+
+    _isPreviewHorizontalMove(dx, dy) {
+      return (
+        Math.abs(dx) >= PREVIEW_DIR_LOCK_PX &&
+        Math.abs(dx) >= Math.abs(dy) * PREVIEW_DIR_BIAS
+      );
+    },
+
+    _isPreviewVerticalDismissMove(dx, dy) {
+      return (
+        Math.abs(dy) >= PREVIEW_DIR_LOCK_PX &&
+        Math.abs(dy) >= Math.abs(dx) * PREVIEW_DIR_BIAS
+      );
+    },
+
     _aspectFitLayout(containerW, containerH, imgAR) {
       const containerAR = containerW / containerH;
       let visW;
@@ -71,12 +149,16 @@ module.exports = Behavior({
     },
 
     onImageTap() {
-      if (!this.data.flyDone || this.data.loading || this.data.isPreviewMode) return;
+      if (!this.data.shellReady || this.data.loading || this.data.isPreviewMode) return;
       this.enterPreview();
     },
 
     onPreviewSwiperChange(e) {
-      this.setData({ currentPhotoIndex: e.detail.current });
+      const index = e.detail.current;
+      this._clearPreviewSingleTapTimer();
+      this._hasMoved = true;
+      this.setData({ currentPhotoIndex: index });
+      this._updatePreviewProgressPos(index);
       this._showIndexBadge();
     },
 
@@ -98,6 +180,7 @@ module.exports = Behavior({
         overlayOpacity: 0,
         previewBgStyle: 'background:#121212;',
         previewDismissDragging: false,
+        previewProgressStyle: '',
       });
 
       wx.createSelectorQuery()
@@ -111,6 +194,7 @@ module.exports = Behavior({
               previewOpacity: 1,
               previewTransform: 'translate(0px, 0px) scale(1, 1)',
             });
+            this._updatePreviewProgressPos(this.data.currentPhotoIndex);
             return;
           }
 
@@ -146,6 +230,7 @@ module.exports = Behavior({
             endSx: 1,
             endSy: 1,
           };
+          this._updatePreviewProgressPos(this.data.currentPhotoIndex);
 
           this._exitRequested = false;
           this._previewAnimating = true;
@@ -176,6 +261,7 @@ module.exports = Behavior({
                   previewAnimClass: '',
                   previewAnimating: false,
                 });
+                this._updatePreviewProgressPos(this.data.currentPhotoIndex);
                 this._previewAnimating = false;
               }, 360);
             }, 16);
@@ -195,6 +281,8 @@ module.exports = Behavior({
           previewBgBlack: false,
           previewBgStyle: '',
           previewDismissDragging: false,
+          previewTouchCapture: false,
+          previewProgressStyle: '',
         });
         return;
       }
@@ -236,6 +324,7 @@ module.exports = Behavior({
               previewBgBlack: false,
               previewBgStyle: '',
               previewDismissDragging: false,
+              previewProgressStyle: '',
             });
             this._previewAnimating = false;
             this._currentTx = 0;
@@ -245,6 +334,7 @@ module.exports = Behavior({
             this._rectY = null;
             this._flipParams = null;
             this._exitRequested = false;
+            this.setData({ previewTouchCapture: false });
           }, 16);
         }, 300);
       });
@@ -266,6 +356,7 @@ module.exports = Behavior({
     _resetVerticalDismissPreview(animate) {
       this.setData({
         previewDismissDragging: false,
+        previewTouchCapture: false,
         previewAnimating: !!animate,
         previewBgStyle: 'background:#121212;',
         bottomBarVisible: true,
@@ -280,6 +371,7 @@ module.exports = Behavior({
       const t = e.touches;
       this._touchStartTime = Date.now();
       this._hasMoved = false;
+      this.setData({ previewTouchCapture: false });
 
       if (this._previewAnimating) return;
 
@@ -291,6 +383,7 @@ module.exports = Behavior({
 
       if (t.length === 2) {
         this._gestureState = 'pinch';
+        this.setData({ previewTouchCapture: true });
         this._pinchStartDist = this._getDist(t[0], t[1]);
         this._pinchStartCenter = {
           x: (t[0].clientX + t[1].clientX) / 2,
@@ -310,6 +403,79 @@ module.exports = Behavior({
     onPreviewTouchMove(e) {
       const t = e.touches;
 
+      if (this._gestureState === 'horizontal') {
+        return;
+      }
+
+      if (this.data.previewTouchCapture) {
+        return this._onPreviewCapturedMove(e);
+      }
+
+      const { sx } = this._getTransformValues();
+      if (
+        sx <= 1.05 &&
+        this._gestureState !== 'vertical-dismiss' &&
+        this._gestureState !== 'pinch' &&
+        this._gestureState !== 'pan' &&
+        t.length === 1 &&
+        this._touchStart
+      ) {
+        const dx = t[0].clientX - this._touchStart.x;
+        const dy = t[0].clientY - this._touchStart.y;
+        if (Math.abs(dx) < PREVIEW_DIR_LOCK_PX && Math.abs(dy) < PREVIEW_DIR_LOCK_PX) {
+          return;
+        }
+        if (this._isPreviewHorizontalMove(dx, dy)) {
+          this._gestureState = 'horizontal';
+          this._hasMoved = true;
+          this._clearPreviewSingleTapTimer();
+          return;
+        }
+        if (!this._isPreviewVerticalDismissMove(dx, dy)) {
+          return;
+        }
+        this._gestureState = 'vertical-dismiss';
+        this.setData({ previewTouchCapture: true });
+        return this._onPreviewCapturedMove(e);
+      }
+
+      if (this._gestureState === 'pinch' && t.length >= 2) {
+        const dist = this._getDist(t[0], t[1]);
+        let scale = this._startSx * (dist / this._pinchStartDist);
+        scale = Math.max(0.3, Math.min(scale, 4));
+        const sy = Math.max(0.3, Math.min(scale, 4));
+        const cx = (t[0].clientX + t[1].clientX) / 2;
+        const cy = (t[0].clientY + t[1].clientY) / 2;
+        const pinchX = this._pinchStartCenter.x;
+        const pinchY = this._pinchStartCenter.y;
+        const scaleRatio = scale / this._startSx;
+        const newTx = pinchX - (pinchX - this._startTx) * scaleRatio + (cx - pinchX);
+        const newTy = pinchY - (pinchY - this._startTy) * scaleRatio + (cy - pinchY);
+        if (!this.data.previewTouchCapture) {
+          this.setData({ previewTouchCapture: true });
+        }
+        this._applyPreviewTransform(newTx, newTy, scale, sy);
+        return;
+      }
+
+      if (t.length === 1 && this._touchStart && this._startSx > 1.05) {
+        const dx = t[0].clientX - this._touchStart.x;
+        const dy = t[0].clientY - this._touchStart.y;
+        if (Math.abs(dx) > PREVIEW_DIR_LOCK_PX || Math.abs(dy) > PREVIEW_DIR_LOCK_PX) {
+          this._hasMoved = true;
+          this._gestureState = 'pan';
+          if (!this.data.previewTouchCapture) {
+            this.setData({ previewTouchCapture: true });
+          }
+          return this._onPreviewCapturedMove(e);
+        }
+      }
+    },
+
+    _onPreviewCapturedMove(e) {
+      const t = e.touches;
+      if (this._gestureState === 'in-bottom') return;
+
       if (this._gestureState === 'pinch' && t.length >= 2) {
         const dist = this._getDist(t[0], t[1]);
         let scale = this._startSx * (dist / this._pinchStartDist);
@@ -323,43 +489,50 @@ module.exports = Behavior({
         const newTx = pinchX - (pinchX - this._startTx) * scaleRatio + (cx - pinchX);
         const newTy = pinchY - (pinchY - this._startTy) * scaleRatio + (cy - pinchY);
         this._applyPreviewTransform(newTx, newTy, scale, sy);
-      } else if (t.length === 1 && (this._gestureState === 'single' || this._gestureState === 'pan' || this._gestureState === 'vertical-dismiss')) {
-        if (this._gestureState === 'in-bottom') return;
-        const dx = t[0].clientX - this._touchStart.x;
+        return;
+      }
+
+      if (
+        t.length === 1 &&
+        this._touchStart &&
+        (this._gestureState === 'pan' || this._gestureState === 'vertical-dismiss')
+      ) {
         const dy = t[0].clientY - this._touchStart.y;
-
-        if (Math.abs(dx) > PREVIEW_DIR_LOCK_PX || Math.abs(dy) > PREVIEW_DIR_LOCK_PX) {
+        if (this._gestureState === 'vertical-dismiss') {
           this._hasMoved = true;
-
-          if (this._startSx > 1.05) {
-            this._gestureState = 'pan';
-            this._applyPreviewTransform(
-              this._startTx + dx,
-              this._startTy + dy,
-              this._startSx,
-              this._startSy
-            );
-            return;
-          }
-
-          if (this._gestureState === 'single') {
-            if (Math.abs(dy) > Math.abs(dx)) {
-              this._gestureState = 'vertical-dismiss';
-            } else {
-              this._gestureState = 'horizontal';
-              return;
-            }
-          }
-
-          if (this._gestureState === 'vertical-dismiss') {
-            this._applyVerticalDismissVisual(dy);
-          }
+          this._applyVerticalDismissVisual(dy);
+          return;
+        }
+        if (this._gestureState === 'pan') {
+          const dx = t[0].clientX - this._touchStart.x;
+          this._hasMoved = true;
+          this._applyPreviewTransform(
+            this._startTx + dx,
+            this._startTy + dy,
+            this._startSx,
+            this._startSy
+          );
         }
       }
     },
 
     onPreviewTouchEnd(e) {
-      const touchY = e.changedTouches?.[0]?.clientY ?? 0;
+      const touch = e.changedTouches && e.changedTouches[0];
+      const { dx, dy } = this._previewTouchDelta(touch);
+      const totalMove = Math.sqrt(dx * dx + dy * dy);
+
+      if (
+        this._gestureState === 'horizontal' ||
+        this._isPreviewHorizontalMove(dx, dy)
+      ) {
+        this._gestureState = null;
+        this._hasMoved = true;
+        this._clearPreviewSingleTapTimer();
+        this.setData({ previewTouchCapture: false });
+        return;
+      }
+
+      const touchY = touch?.clientY ?? 0;
       const bottomBarTop = this._windowHeight - this._bottomBarH;
       const startedInBottom = this._gestureState === 'in-bottom';
       const endedInBottom = touchY >= bottomBarTop;
@@ -378,7 +551,7 @@ module.exports = Behavior({
         return;
       }
 
-      if (!this._hasMoved && dt < 250) {
+      if (!this._hasMoved && totalMove < PREVIEW_DIR_LOCK_PX && dt < 250) {
         const now = Date.now();
         if (now - (this._lastTapTime || 0) < 300) {
           this._onPreviewDoubleTap();

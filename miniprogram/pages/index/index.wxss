@@ -10,8 +10,6 @@
   display: flex;
   flex-direction: column;
   background-color: #f8f8f8;
-  transition: transform 420ms cubic-bezier(0.25, 0.1, 0.25, 1),
-              filter 420ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .feed-underlay {
@@ -34,6 +32,19 @@
   background: transparent;
 }
 
+.card-image--leave {
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.card-exit-shell {
+  transform-origin: left top;
+}
+
+.card-exit-shell.card-exit-handoff {
+  will-change: transform;
+}
+
 /* 顶栏白底 */
 .home-header {
   width: 100%;
@@ -41,8 +52,23 @@
   flex-shrink: 0;
 }
 
-.capsule-spacer {
+.nav-bar {
+  box-sizing: border-box;
+}
+
+.nav-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+}
+
+.nav-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1b1b1b;
+  line-height: 1;
+  text-align: center;
 }
 
 /* 搜索栏：胶囊下方独占一行，全宽不与胶囊抢位置 */

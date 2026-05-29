@@ -1,0 +1,75 @@
+<view class="stats-page">
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <block wx:else>
+    <!-- 四栏横条 -->
+    <view class="strip-card">
+      <view class="strip-item" wx:for="{{strip}}" wx:key="key">
+        <view class="strip-num">{{item.num}}</view>
+        <view class="strip-lbl">{{item.lbl}}</view>
+        <view class="strip-delta {{item.flat ? 'flat' : ''}}">{{item.text}}</view>
+      </view>
+    </view>
+
+    <!-- 主指标 -->
+    <view class="hero-metric">
+      <view class="hero-left">
+        <view class="hero-num">{{heroLikes}}</view>
+        <view class="hero-lbl">累计获赞</view>
+        <view class="hero-delta" wx:if="{{heroDeltaText && heroDeltaText !== '持平'}}">
+          <text class="up">{{heroDeltaText}}</text>
+          <text>{{heroDeltaLabel}}</text>
+        </view>
+      </view>
+      <view class="hero-right" wx:if="{{heroPercentile}}">
+        <text>超过 {{heroPercentile}}%</text>
+        <text>的创作者</text>
+      </view>
+    </view>
+
+    <!-- 全站数据（仅管理员） -->
+    <view class="card" wx:if="{{isAdmin && platform}}">
+      <view class="sec-label">全站数据</view>
+      <view class="metric-line" wx:for="{{platform.rows}}" wx:key="name">
+        <view class="metric-dot"></view>
+        <text class="metric-name">{{item.name}}</text>
+        <view class="metric-right">
+          <text class="metric-val">{{item.value}}</text>
+          <text class="metric-delta {{item.flat ? 'neutral' : ''}}">{{item.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 近六月发布 -->
+    <view class="card">
+      <view class="chart-head">
+        <text class="chart-title">近六月发布</text>
+        <text class="chart-delta {{chartDeltaFlat ? 'flat' : ''}}">{{chartDeltaText}}</text>
+      </view>
+      <view class="bar-chart">
+        <view class="bar-item" wx:for="{{monthly}}" wx:key="label">
+          <text class="bar-val">{{item.count}}</text>
+          <view class="bar-fill {{item.isCurrent ? 'on' : ''}}" style="{{item.heightStyle}}"></view>
+          <text class="bar-lbl {{item.isCurrent ? 'on' : ''}}">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 能力维度 -->
+    <view class="card">
+      <view class="sec-label">能力维度</view>
+      <view class="ability-row" wx:for="{{abilities}}" wx:key="key">
+        <view class="ability-head">
+          <text class="name">{{item.name}}</text>
+          <text class="score">{{item.grade}}</text>
+        </view>
+        <view class="ability-track">
+          <view class="ability-fill" style="{{item.widthStyle}}"></view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

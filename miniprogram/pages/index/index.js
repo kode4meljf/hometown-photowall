@@ -2,10 +2,8 @@
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
+const { cardHandoffScaleAtProgress } = require('../../utils/heroController');
 const app = getApp();
-
-const COLUMN_GAP = 24; // 列间距 rpx (gap 12rpx * 2 列)
-const CARD_PADDING = 24; // 卡片左右内边距总和 rpx (padding 12rpx * 2 侧)
 
 Page({
   data: {
@@ -28,14 +26,15 @@ Page({
     locations: [],
     searchKeyword: '',
 
-    // TabBar
-    activeTab: 'home',
-
     // 系统信息
     windowWidth: 375,
+    windowHeight: 667,
     columnWidth: 170,
     textHeight: 100,
     navBarInsetTop: 88,
+    navPaddingTop: 48,
+    navPaddingRight: 96,
+    navBarRowHeight: 32,
 
     // 详情浮层
     detailOpen: false,
@@ -44,10 +43,18 @@ Page({
     detailTitleText: '',
     detailDescText: '',
     detailImgRect: null,
+    detailFullCardRect: null,
+    detailCardSlotHeight: 0,
     detailTitleRect: null,
     detailAspectRatio: 1,
     detailAuthorAvatar: '',
     detailAuthorName: '',
+    detailSlotHold: false,
+    detailCardFade: false,
+    detailPostAuthorId: '',
+    detailCardRestoring: false,
+    detailCardHandoff: false,
+    detailCardTransformStyle: '',
     feedLayerStyle: '',
   },
 
@@ -115,14 +122,44 @@ Page({
         detailTitleText: inFeed?.title || pending.titleText || '',
         detailDescText: inFeed?.description || pending.descText || '',
         detailImgRect: null,
+        detailFullCardRect: null,
+        detailCardSlotHeight: inFeed?.slotHeight || 0,
         detailTitleRect: null,
         detailAspectRatio: ar,
         detailAuthorAvatar: inFeed?.authorAvatar || pending.authorAvatar || '',
         detailAuthorName: inFeed?.author || pending.authorName || '',
+        detailSlotHold: true,
+        detailCardLikes: inFeed?.likes || pending.likes || 0,
+        detailCardCommentsCount:
+          inFeed?.commentsCount || pending.commentsCount || 0,
+        detailCardLiked: !!(inFeed?.liked || pending.liked),
+        detailCardDate: inFeed?._formattedDate || pending.cardDate || '',
+        detailCardPhotoCount:
+          (inFeed?.photos && inFeed.photos.length) ||
+          pending.photoCount ||
+          1,
+        detailPostAuthorId: inFeed?.authorId || pending.authorId || '',
       },
       () => {
         this.setData({ detailOpen: true }, () => {
           this._setTabBarHidden(true);
+          if (inFeed) {
+            wx.nextTick(() => {
+              const query = wx.createSelectorQuery().in(this);
+              query.select('#card-' + id).boundingClientRect();
+              query.exec((rects) => {
+                const fullCardRect = rects && rects[0];
+                if (!fullCardRect || !fullCardRect.height) return;
+                this.setData({
+                  detailFullCardRect: fullCardRect,
+                  detailCardSlotHeight: Math.round(fullCardRect.height),
+                });
+              });
+            });
+          }
+          wx.nextTick(() => {
+            this.setData({ detailCardFade: true });
+          });
         });
       }
     );
@@ -150,9 +187,13 @@ Page({
 
     this.setData({
       windowWidth,
+      windowHeight: sysInfo.windowHeight,
       columnWidth,
       textHeight,
       navBarInsetTop: nav.navBarHeight,
+      navPaddingTop: nav.paddingTop,
+      navPaddingRight: nav.paddingRight,
+      navBarRowHeight: nav.barHeight,
     });
   },
 
@@ -235,6 +276,17 @@ Page({
     }
   },
 
+  _getCardContentHeight(post) {
+    const hasText = !!(post.title || post.description);
+    return hasText
+      ? this.data.textHeight
+      : Math.round((120 * this.data.windowWidth) / 750);
+  },
+
+  _getPostSlotHeight(post) {
+    return post.cardHeight + this._getCardContentHeight(post);
+  },
+
   // 处理帖子数据
   processPosts(posts) {
     return posts.map(post => {
@@ -245,10 +297,7 @@ Page({
       const safeRatio = Math.min(Math.max(rawRatio, 0.6), 1.8);
       const compressedRatio = Math.pow(safeRatio, 0.4);
       const cardHeight = Math.round(cardWidth * compressedRatio);
-      const hasText = !!(post.title || post.description);
-      const contentHeight = hasText
-        ? this.data.textHeight
-        : Math.round((120 * this.data.windowWidth) / 750);
+      const slotHeight = this._getPostSlotHeight({ ...post, cardHeight });
 
       // 格式化日期：2024.3.15
       const date = new Date(post.createdAt);
@@ -259,7 +308,7 @@ Page({
       return {
         ...post,
         cardHeight,
-        slotHeight: cardHeight + contentHeight,
+        slotHeight,
         _formattedDate,
         _likesText: likesInfo.text,
         _likesCls: likesInfo.cls
@@ -393,11 +442,17 @@ Page({
     if (!id || !post) return;
 
     const query = wx.createSelectorQuery().in(this);
+    query.select('#card-' + id).boundingClientRect();
     query.select('#card-img-' + id).boundingClientRect();
     query.select('#card-text-' + id).boundingClientRect();
     query.exec((rects) => {
-      const [imgRect, titleRect] = rects;
+      const [fullCardRect, imgRect, titleRect] = rects;
       const ar = post.aspectRatio > 0 ? post.aspectRatio : 1;
+      const slotHeight = post.slotHeight || this._getPostSlotHeight(post);
+      const measuredCardHeight =
+        fullCardRect && fullCardRect.height > 0
+          ? Math.round(fullCardRect.height)
+          : slotHeight;
       // 先写入测量矩形，再打开浮层，避免子组件 _enter 时 imgRect 仍为空
       this.setData(
         {
@@ -406,23 +461,102 @@ Page({
           detailTitleText: post.title || '',
           detailDescText: post.description || '',
           detailImgRect: imgRect || null,
+          detailFullCardRect: fullCardRect || null,
+          detailCardSlotHeight: measuredCardHeight,
           detailTitleRect: titleRect || null,
           detailAspectRatio: ar,
           detailAuthorAvatar: post.authorAvatar || '',
           detailAuthorName: post.author || '',
+          detailSlotHold: true,
+          detailCardLikes: post.likes || 0,
+          detailCardCommentsCount: post.commentsCount || 0,
+          detailCardLiked: !!post.liked,
+          detailCardDate: post._formattedDate || '',
+          detailCardPhotoCount:
+            (post.photos && post.photos.length) || post.photoCount || 1,
+          detailPostAuthorId: post.authorId || '',
         },
         () => {
           this.setData({ detailOpen: true }, () => {
             this._setTabBarHidden(true);
+            wx.nextTick(() => {
+              this.setData({ detailCardFade: true });
+            });
           });
         }
       );
     });
   },
 
+  onDetailHeroFly() {
+    this.setData({ detailSlotHold: false });
+    setTimeout(() => {
+      if (this.data.detailOpen) {
+        this.setData({ detailCardFade: false });
+      }
+    }, 120);
+  },
+
+  onDetailCardRestore(e) {
+    const detail = e.detail || {};
+    const duration = detail.duration || 280;
+    const handoffRatio =
+      typeof detail.handoffRatio === 'number' ? detail.handoffRatio : 0.62;
+    const fullCardRect =
+      detail.fullCardRect || this.data.detailFullCardRect;
+    const winW = this.data.windowWidth;
+    const winH = this.data.windowHeight;
+    const delay = Math.round(duration * handoffRatio);
+    const handoffMs = Math.max(duration - delay, 80);
+    const curve = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
+
+    clearTimeout(this._cardHandoffTimer);
+    clearTimeout(this._cardRestoreClearTimer);
+
+    this.setData({
+      detailCardRestoring: true,
+      detailCardHandoff: false,
+      detailCardTransformStyle: '',
+      detailSlotHold: false,
+    });
+
+    this._cardHandoffTimer = setTimeout(() => {
+      if (!this.data.detailCardRestoring) return;
+      if (!fullCardRect) {
+        this.setData({ detailSlotHold: true });
+        return;
+      }
+      const { scaleX, scaleY } = cardHandoffScaleAtProgress(
+        fullCardRect,
+        winW,
+        winH,
+        handoffRatio
+      );
+      const fromStyle = `transform:scale(${scaleX},${scaleY});transform-origin:left top;`;
+      this.setData({
+        detailSlotHold: true,
+        detailCardHandoff: true,
+        detailCardTransformStyle: fromStyle,
+      });
+      wx.nextTick(() => {
+        this.setData({
+          detailCardTransformStyle: `transform:scale(1,1);transform-origin:left top;transition:transform ${handoffMs}ms ${curve};`,
+        });
+      });
+    }, delay);
+
+    this._cardRestoreClearTimer = setTimeout(() => {
+      this.setData({
+        detailCardRestoring: false,
+        detailCardHandoff: false,
+        detailCardTransformStyle: '',
+      });
+    }, duration + 80);
+  },
+
   onFeedLayer(e) {
     const { opacity, animate, duration } = e.detail || {};
-    const ms = duration || 420;
+    const ms = duration || 280;
     const curve = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
     const target = Math.min(1, Math.max(0, Number(opacity)));
     if (!animate) {
@@ -442,11 +576,20 @@ Page({
 
   onDetailClose(e) {
     const detail = e.detail || {};
+    clearTimeout(this._cardHandoffTimer);
+    clearTimeout(this._cardRestoreClearTimer);
     this.setData({
       detailOpen: false,
       detailPostId: '',
       detailImgRect: null,
+      detailFullCardRect: null,
+      detailCardSlotHeight: 0,
       detailTitleRect: null,
+      detailSlotHold: false,
+      detailCardFade: false,
+      detailCardRestoring: false,
+      detailCardHandoff: false,
+      detailCardTransformStyle: '',
       feedLayerStyle: '',
     });
     this._setTabBarHidden(false);
@@ -461,15 +604,11 @@ Page({
 
   // 点赞（乐观更新：立即响应，后台同步）
   onLikeTap(e) {
-    console.log('[like] dataset:', JSON.stringify(e.currentTarget.dataset));
-
     const { id, index: indexStr, column } = e.currentTarget.dataset;
     const index = parseInt(indexStr, 10);
-    console.log('[like] id:', id, 'index:', index, 'column:', column);
     const postsKey = column === 'left' ? 'leftPosts' : 'rightPosts';
     const posts = this.data[postsKey];
     const post = posts[index];
-    console.log('[like] post:', post ? post.id : 'NOT FOUND', 'liked before:', post && post.liked);
     if (!post) return;
 
     const wasLiked = !!post.liked;
@@ -477,7 +616,6 @@ Page({
     const nowLiked = !wasLiked;
     const nowLikes = wasLiked ? wasLikes - 1 : wasLikes + 1;
     const nowLikesInfo = formatLikeCount(nowLikes);
-    console.log('[like] nowLiked:', nowLiked, 'nowLikes:', nowLikes);
 
     // 立即更新 UI（乐观翻转）
     const updatedPosts = posts.map(p => {
@@ -485,8 +623,6 @@ Page({
       return p;
     });
     this.setData({ [postsKey]: updatedPosts });
-    console.log('[like] setData done, checking UI...');
-    console.log('[like] leftPosts[0] after setData:', this.data.leftPosts[0] && this.data.leftPosts[0].liked);
 
     // 后台调用云函数
     postApi.likePost(id).then(res => {

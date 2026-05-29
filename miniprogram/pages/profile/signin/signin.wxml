@@ -1,67 +1,105 @@
-<!-- miniprogram/pages/signin/signin.wxml -->
 <view class="signin-page">
-
-  <!-- 连续签到大字 -->
-  <view class="streak-display">
-    <view class="streak-number">{{streakDays}}</view>
-    <view class="streak-unit">连续签到</view>
+  <!-- Hero：连续签到 -->
+  <view class="hero-card">
+    <view class="hero-label">连续签到</view>
+    <view class="streak-row">
+      <text class="streak-number">{{streakDays}}</text>
+      <text class="streak-unit">天</text>
+    </view>
     <view class="streak-hint">每日签到，记录坚持的力量</view>
+    <view class="streak-progress">
+      <view
+        wx:for="{{progressDots}}"
+        wx:key="index"
+        class="progress-dot {{item.cls}}"
+      ></view>
+    </view>
+    <view class="progress-caption">{{progressCaption}}</view>
   </view>
 
-  <view class="divider"></view>
-
   <!-- 今日签到 -->
-  <view class="today-section">
-    <view class="section-label">TODAY</view>
+  <view class="section-card">
+    <view class="section-head">
+      <text class="section-label">Today</text>
+      <text class="section-badge" wx:if="{{signedToday}}">今日已签到</text>
+    </view>
     <view class="today-row">
-      <view class="today-date-wrap">
+      <view>
         <view class="today-date-main">{{todayText}}</view>
         <view class="today-weekday">{{todayWeekday}}</view>
       </view>
-      <view class="today-status" wx:if="{{signedToday}}">今日已签到</view>
+      <view class="today-reward">
+        <view class="today-reward-value">{{todayRewardText}}</view>
+        <view class="today-reward-label">{{todayRewardLabel}}</view>
+      </view>
     </view>
-    <button class="checkin-btn {{signedToday ? 'signed' : ''}}" bindtap="onCheckinTap" disabled="{{signedToday}}">
+    <view class="checkin-btn-skeleton" wx:if="{{!pageReady}}"></view>
+    <button
+      wx:else
+      class="checkin-btn {{signedToday ? 'signed' : ''}}"
+      bindtap="onCheckinTap"
+      disabled="{{signedToday || checkingIn}}"
+      loading="{{checkingIn}}"
+    >
       {{signedToday ? '已签到' : '立即签到'}}
     </button>
   </view>
 
-  <view class="divider"></view>
-
   <!-- 本周 -->
-  <view class="week-section">
-    <view class="section-label">THIS WEEK</view>
+  <view class="section-card">
+    <view class="section-head">
+      <text class="section-label">This Week</text>
+    </view>
     <view class="week-grid">
-      <view class="week-item {{item.signed ? 'checked' : ''}} {{item.isToday ? 'today' : ''}} {{item.isFuture ? 'future' : ''}}"
-            wx:for="{{weekDays}}" wx:key="date">
+      <view
+        wx:for="{{weekDays}}"
+        wx:key="date"
+        class="week-item {{item.signed ? 'checked' : ''}} {{item.isToday ? 'today' : ''}} {{item.isFuture ? 'future' : ''}}"
+      >
         <view class="week-dot">{{item.signed ? '✓' : item.dayNum}}</view>
         <view class="week-day-label">{{item.dayLabel}}</view>
       </view>
     </view>
   </view>
 
-  <!-- 积分余额 -->
-  <view class="credits-section">
-    <view class="section-label">MY CREDITS</view>
-    <view class="credits-card">
-      <view class="credits-header">
-        <view class="credits-title">剩余次数</view>
-        <view class="credits-value-wrap">
-          <view class="credits-value">{{credits}}</view>
-          <view class="credits-unit">次</view>
-        </view>
+  <!-- 积分 -->
+  <view class="section-card">
+    <view class="section-head">
+      <text class="section-label">My Credits</text>
+    </view>
+    <view class="credits-row">
+      <text class="credits-title">剩余次数</text>
+      <view class="credits-value-wrap">
+        <text class="credits-value">{{credits}}</text>
+        <text class="credits-unit">次</text>
       </view>
     </view>
-    <view class="credits-bonus-tip">
-      <text wx:if="{{streakDays >= 7}}">已解锁连续7天 +2次奖励</text>
-      <text wx:elif="{{streakDays >= 4}}">已解锁连续4天 +1次奖励</text>
-      <text wx:else>连续签到4天额外+1次，7天额外+2次</text>
+    <view class="credits-divider"></view>
+    <view class="bonus-title">连续签到奖励</view>
+    <view class="bonus-tags">
+      <view class="bonus-tag {{bonus4Active ? 'active' : 'inactive'}}">
+        <view class="dot" wx:if="{{bonus4Active}}"></view>
+        <text>连续 4 天 +1 次</text>
+      </view>
+      <view class="bonus-tag {{bonus7Active ? 'active' : 'inactive'}}">
+        <view class="dot" wx:if="{{bonus7Active}}"></view>
+        <text>连续 7 天 +2 次</text>
+      </view>
     </view>
   </view>
 
-  <!-- 底部 -->
-  <view class="footer">
-    <view class="footer-note">坚持签到，让记忆更有重量</view>
-    <view class="footer-note">邀请好友可获得补签卡</view>
+  <!-- 规则 -->
+  <view class="rules-card">
+    <view class="rules-title">签到规则</view>
+    <view class="rules-list">
+      <view class="rules-item">每日签到可获得 1 次使用机会</view>
+      <view class="rules-item">连续签到 4 天额外 +1 次，连续 7 天额外 +2 次</view>
+      <view class="rules-item">中断后连续天数重新计算</view>
+    </view>
   </view>
 
+  <view class="footer">
+    <view class="footer-note">坚持签到，让记忆更有重量</view>
+    <view class="footer-note">邀请好友可获得补签卡（规划中）</view>
+  </view>
 </view>

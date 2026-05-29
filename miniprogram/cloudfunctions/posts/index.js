@@ -390,6 +390,21 @@ async function updatePost(data, openId) {
       return { success: false, message: '无权编辑' };
     }
 
+    const titleDescUpdate =
+      updates &&
+      (updates.title !== undefined || updates.description !== undefined);
+    if (titleDescUpdate) {
+      const createdAt = post.data.createdAt;
+      const createdTs = createdAt ? new Date(createdAt).getTime() : 0;
+      const monthMs = 30 * 24 * 60 * 60 * 1000;
+      if (!createdTs || Date.now() - createdTs >= monthMs) {
+        return {
+          success: false,
+          message: '发布超过一个月的作品不可修改标题和描述',
+        };
+      }
+    }
+
     // 只允许更新特定字段
     const allowedFields = ['title', 'description', 'location', 'hidden'];
     const updateData = {};

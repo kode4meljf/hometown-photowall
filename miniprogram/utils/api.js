@@ -254,11 +254,18 @@ const postApi = {
   }
 };
 
+const statsApi = {
+  getDashboard() {
+    return callFunction('stats', 'getDashboard');
+  }
+};
+
 module.exports = {
   callFunction,
   uploadImage,
   photoApi,
   seedApi,
   userApi,
-  postApi
+  postApi,
+  statsApi
 };

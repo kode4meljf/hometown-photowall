@@ -495,42 +495,6 @@
   border-top: none;
 }
 
-/* 微信头像选项：圆形缩略图在上，文字在下 */
-.modal-option-wechat {
-  padding: 24rpx 0 20rpx;
-  border-top: 1rpx solid #e5e5e5;
-  border-radius: 0;
-  background: #fff;
-}
-
-.modal-option-wechat:first-child {
-  border-top: none;
-}
-
-.wechat-avatar-ring {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background: #07c160;
-  margin: 0 auto 12rpx;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wechat-avatar-img {
-  width: 100%;
-  height: 100%;
-}
-
-.wechat-avatar-text {
-  display: block;
-  font-size: 34rpx;
-  color: #1b1b1b;
-  font-weight: 500;
-}
-
 /* 取消按钮 - 与选项组同一卡片，浅色分割线与「删除」区分 */
 .modal-cancel {
   text-align: center;
@@ -548,6 +512,116 @@
 .modal-option-danger {
   color: #e02020;
 }
+
+/* 编辑作品弹窗 */
+.edit-post-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  box-sizing: border-box;
+}
+
+.edit-post-panel {
+  width: 100%;
+  max-width: 620rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.edit-post-heading {
+  display: block;
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1b1b1b;
+  margin-bottom: 24rpx;
+}
+
+.edit-post-tip {
+  background: #fff8e6;
+  color: #b8860b;
+  font-size: 24rpx;
+  line-height: 1.5;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  margin-bottom: 24rpx;
+}
+
+.edit-post-field {
+  margin-bottom: 24rpx;
+}
+
+.edit-post-label {
+  display: block;
+  font-size: 26rpx;
+  color: #888;
+  margin-bottom: 12rpx;
+}
+
+.edit-post-input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+  background: #f7f7f7;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  color: #1b1b1b;
+}
+
+.edit-post-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  padding: 20rpx 24rpx;
+  box-sizing: border-box;
+  background: #f7f7f7;
+  border-radius: 12rpx;
+  font-size: 30rpx;
+  color: #1b1b1b;
+  line-height: 1.5;
+}
+
+.edit-post-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 8rpx;
+}
+
+.edit-post-btn {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  text-align: center;
+  border-radius: 40rpx;
+  font-size: 30rpx;
+}
+
+.edit-post-btn-cancel {
+  background: #f2f2f2;
+  color: #666;
+}
+
+.edit-post-btn-save {
+  background: #07c160;
+  color: #fff;
+  font-weight: 500;
+}
+
+.edit-post-btn-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 /* ── 作品下拉筛选弹窗（fixed 定位，防止被 swiper overflow 截断） ── */
 
 /* 遮罩层：透明全屏，点击关闭弹窗 */

@@ -1,5 +1,5 @@
 // pages/profile/profile.js
-const { postApi, userApi } = require('../../../utils/api');
+const { postApi } = require('../../../utils/api');
 const { showToast } = require('../../../utils/util');
 const app = getApp();
 
@@ -23,6 +23,10 @@ Page({
     hiddenCount: 0,
     showPhotoAction: false,
     currentPhotoHidden: false,
+    showEditPostModal: false,
+    editPostTitle: '',
+    editPostDescription: '',
+    editPostEditable: true,
     _postId: null,
     worksPage: 1,
     likedPage: 1,
@@ -411,7 +415,7 @@ Page({
     } else if (func === 'signin') {
       wx.navigateTo({ url: '/pages/profile/signin/signin' });
     } else if (func === 'stats') {
-      wx.showToast({ title: '数据统计功能开发中', icon: 'none' });
+      wx.navigateTo({ url: '/pages/profile/stats/stats' });
     }
   },
 
@@ -424,10 +428,20 @@ Page({
   },
 
   // ── 作品操作弹窗 ──
+  _isPostEditable(createdAt) {
+    if (!createdAt) return false;
+    const ts = new Date(createdAt).getTime();
+    if (!isFinite(ts)) return false;
+    const monthMs = 30 * 24 * 60 * 60 * 1000;
+    return Date.now() - ts < monthMs;
+  },
+
   openPhotoAction(e) {
-    const { id, title, hidden } = e.currentTarget.dataset;
+    const { id, title, description, createdAt, hidden } = e.currentTarget.dataset;
     this._postId = id;
     this._currentPhotoTitle = title || '';
+    this._currentPhotoDescription = description || '';
+    this._currentPhotoCreatedAt = createdAt || '';
     const tabBar = this.getTabBar && this.getTabBar();
     if (tabBar) tabBar.setData({ hidden: true });
     this.setData({ showPhotoAction: true, currentPhotoHidden: !!hidden });
@@ -442,39 +456,78 @@ Page({
 
   editPhotoTitle() {
     const id = this._postId;
-    const currentTitle = this._currentPhotoTitle || '';
+    if (!id) return;
+    const editable = this._isPostEditable(this._currentPhotoCreatedAt);
+    this._editPostId = id;
     this.hidePhotoAction();
+
+    this.setData({
+      showEditPostModal: true,
+      editPostTitle: this._currentPhotoTitle || '',
+      editPostDescription: this._currentPhotoDescription || '',
+      editPostEditable: editable,
+    });
+  },
+
+  hideEditPostModal() {
+    this._editPostId = null;
+    this.setData({
+      showEditPostModal: false,
+      editPostTitle: '',
+      editPostDescription: '',
+      editPostEditable: true,
+    });
+  },
+
+  onEditPostTitleInput(e) {
+    this.setData({ editPostTitle: e.detail.value });
+  },
+
+  onEditPostDescInput(e) {
+    this.setData({ editPostDescription: e.detail.value });
+  },
+
+  async saveEditPost() {
+    if (!this.data.editPostEditable) return;
+    const id = this._editPostId;
     if (!id) return;
 
-    wx.showModal({
-      title: '编辑标题',
-      editable: true,
-      placeholderText: '请输入标题',
-      defaultText: currentTitle,
-      success: async (res) => {
-        if (res.confirm && res.content && res.content.trim() !== currentTitle) {
-          const newTitle = res.content.trim();
-          wx.showLoading({ title: '保存中...', mask: true });
-          try {
-            const result = await postApi.updatePost(id, { title: newTitle });
-            wx.hideLoading();
-            if (result.success) {
-              const works = this.data.works.map(item =>
-                item.id === id ? { ...item, title: newTitle } : item
-              );
-              this.setData({ works });
-              showToast('已保存');
-            } else {
-              showToast(result.message || '保存失败');
-            }
-          } catch (e) {
-            wx.hideLoading();
-            showToast('保存失败');
-            console.error('编辑标题失败:', e);
-          }
-        }
+    const newTitle = (this.data.editPostTitle || '').trim();
+    const newDescription = (this.data.editPostDescription || '').trim();
+    const oldTitle = (this._currentPhotoTitle || '').trim();
+    const oldDescription = (this._currentPhotoDescription || '').trim();
+
+    if (newTitle === oldTitle && newDescription === oldDescription) {
+      this.hideEditPostModal();
+      return;
+    }
+
+    wx.showLoading({ title: '保存中...', mask: true });
+    try {
+      const result = await postApi.updatePost(id, {
+        title: newTitle,
+        description: newDescription,
+      });
+      wx.hideLoading();
+      if (result.success) {
+        const works = this.data.works.map((item) =>
+          item.id === id
+            ? { ...item, title: newTitle, description: newDescription }
+            : item
+        );
+        this.setData({ works });
+        this._currentPhotoTitle = newTitle;
+        this._currentPhotoDescription = newDescription;
+        this.hideEditPostModal();
+        showToast('已保存');
+      } else {
+        showToast(result.message || '保存失败');
       }
-    });
+    } catch (e) {
+      wx.hideLoading();
+      showToast('保存失败');
+      console.error('编辑作品失败:', e);
+    }
   },
 
   toggleHidePost() {
@@ -559,63 +612,5 @@ Page({
     });
   },
 
-  stopPropagation() {},
-
-  takePhoto() {
-    this.hideAvatarModal();
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['camera'],
-      success: (res) => {
-        this.uploadAvatar(res.tempFiles[0].tempFilePath);
-      }
-    });
-  },
-
-  chooseFromAlbum() {
-    this.hideAvatarModal();
-    wx.chooseMedia({
-      count: 1,
-      mediaType: ['image'],
-      sourceType: ['album'],
-      success: (res) => {
-        this.uploadAvatar(res.tempFiles[0].tempFilePath);
-      }
-    });
-  },
-
-  async uploadAvatar(filePath) {
-    showLoading('上传中...');
-    try {
-      const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-      const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath });
-      if (!uploadRes.fileID) {
-        hideLoading();
-        showToast('上传失败');
-        return;
-      }
-      const saveRes = await userApi.updateUserInfo(uploadRes.fileID);
-      if (!saveRes.success) {
-        hideLoading();
-        showToast('保存失败');
-        return;
-      }
-      await this._fetchUserInfoWithAvatar();
-      hideLoading();
-      showToast('头像已更新');
-    } catch (e) {
-      hideLoading();
-      showToast('上传失败');
-      console.error('上传头像失败:', e);
-    }
-  }
+  stopPropagation() {}
 });
-
-function showLoading(title) {
-  wx.showLoading({ title, mask: true });
-}
-
-function hideLoading() {
-  wx.hideLoading();
-}
