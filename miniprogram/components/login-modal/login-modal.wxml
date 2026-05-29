@@ -11,7 +11,7 @@
       <view class="login-modal-title">{{title}}</view>
       <view class="login-modal-desc" wx:if="{{subtitle}}">{{subtitle}}</view>
       <view class="login-modal-privacy">
-        <text>登录即表示您已阅读并同意</text>
+        <text>即表示您已阅读并同意</text>
         <text class="login-modal-privacy-link" catchtap="onOpenAgreement">《用户协议》</text>
         <text>和</text>
         <text class="login-modal-privacy-link" catchtap="onOpenPrivacy">《隐私政策》</text>

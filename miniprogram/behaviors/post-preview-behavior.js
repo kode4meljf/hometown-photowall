@@ -3,6 +3,7 @@ const { postApi } = require('../utils/api');
 const PREVIEW_DIR_LOCK_PX = 12;
 const PREVIEW_DIR_BIAS = 1.4;
 const PREVIEW_VERTICAL_EXIT_RATIO = 0.12;
+const PREVIEW_PINCH_EXIT_SCALE = 0.94;
 
 /**
  * 全屏图片预览（详情浮层内使用）
@@ -22,6 +23,7 @@ module.exports = Behavior({
     bottomBarVisible: false,
     showLikeAnim: false,
     previewProgressStyle: '',
+    previewProgressVisible: false,
   },
 
   methods: {
@@ -141,6 +143,114 @@ module.exports = Behavior({
       });
     },
 
+    _beginPreviewPinch(touches) {
+      if (!touches || touches.length < 2) return;
+      this._clearPreviewSingleTapTimer();
+      this._gestureState = 'pinch';
+      this._hasMoved = true;
+      const { tx, ty, sx, sy } = this._getTransformValues();
+      this._startTx = tx;
+      this._startTy = ty;
+      this._startSx = sx;
+      this._startSy = sy;
+      this._pinchStartDist = this._getDist(touches[0], touches[1]);
+      this._pinchStartCenter = {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2,
+      };
+      if (!this.data.previewTouchCapture) {
+        this.setData({ previewTouchCapture: true });
+      }
+    },
+
+    _applyPreviewPinch(touches) {
+      if (!touches || touches.length < 2 || !this._pinchStartDist) return;
+      const dist = this._getDist(touches[0], touches[1]);
+      let scale = this._startSx * (dist / this._pinchStartDist);
+      scale = Math.max(0.3, Math.min(scale, 4));
+      const sy = Math.max(0.3, Math.min(scale, 4));
+      const cx = (touches[0].clientX + touches[1].clientX) / 2;
+      const cy = (touches[0].clientY + touches[1].clientY) / 2;
+      const pinchX = this._pinchStartCenter.x;
+      const pinchY = this._pinchStartCenter.y;
+      const scaleRatio = scale / this._startSx;
+      const newTx = pinchX - (pinchX - this._startTx) * scaleRatio + (cx - pinchX);
+      const newTy = pinchY - (pinchY - this._startTy) * scaleRatio + (cy - pinchY);
+      this._applyPreviewTransform(newTx, newTy, scale, sy);
+      this._applyPreviewPinchOutVisual(scale);
+    },
+
+    _applyPreviewPinchOutVisual(scale) {
+      if (scale >= 1) {
+        if (this.data.previewDismissDragging && this._gestureState === 'pinch') {
+          this.setData({
+            previewDismissDragging: false,
+            previewBgStyle: 'background:#121212;',
+          });
+        }
+        return;
+      }
+      const progress = Math.min((1 - scale) / 0.35, 1);
+      const bgAlpha = Math.max(0, 1 - progress * 0.92);
+      this.setData({
+        previewDismissDragging: true,
+        previewBgStyle: `background: rgba(18, 18, 18, ${bgAlpha.toFixed(3)});`,
+        bottomBarVisible: false,
+        previewProgressVisible: false,
+      });
+    },
+
+    _previewNeedsSnap() {
+      const { tx, ty, sx } = this._getTransformValues();
+      return sx > 1.02 || Math.abs(tx) > 1 || Math.abs(ty) > 1;
+    },
+
+    _previewShouldExitByPinchOut() {
+      const { sx } = this._getTransformValues();
+      return sx < PREVIEW_PINCH_EXIT_SCALE;
+    },
+
+    _resetPinchOutPreview(animate) {
+      this.setData({
+        previewDismissDragging: false,
+        previewTouchCapture: false,
+        previewAnimating: !!animate,
+        previewBgStyle: 'background:#121212;',
+        bottomBarVisible: true,
+        previewAnimClass: animate ? 'animating' : '',
+      });
+      this._applyPreviewTransform(0, 0, 1, 1);
+      if (animate) {
+        setTimeout(() => {
+          this.setData({ previewAnimating: false, previewAnimClass: '' });
+        }, 300);
+      }
+    },
+
+    _snapPreviewZoom() {
+      this._gestureState = null;
+      this.setData({
+        previewTouchCapture: false,
+        previewAnimating: true,
+        previewAnimClass: 'animating',
+      });
+      this._applyPreviewTransform(0, 0, 1, 1);
+      setTimeout(() => {
+        this.setData({ previewAnimating: false, previewAnimClass: '' });
+      }, 300);
+    },
+
+    _handoffPreviewPan(touch) {
+      if (!touch) return;
+      const { tx, ty, sx, sy } = this._getTransformValues();
+      this._gestureState = 'pan';
+      this._startTx = tx;
+      this._startTy = ty;
+      this._startSx = sx;
+      this._startSy = sy;
+      this._touchStart = { x: touch.clientX, y: touch.clientY };
+    },
+
     onPhotoLoad(e) {
       const { width, height } = e.detail;
       if (!width || !height) return;
@@ -157,7 +267,9 @@ module.exports = Behavior({
       const index = e.detail.current;
       this._clearPreviewSingleTapTimer();
       this._hasMoved = true;
-      this.setData({ currentPhotoIndex: index });
+      this._gestureState = null;
+      this.setData({ currentPhotoIndex: index, previewTouchCapture: false });
+      this._applyPreviewTransform(0, 0, 1, 1);
       this._updatePreviewProgressPos(index);
       this._showIndexBadge();
     },
@@ -181,6 +293,7 @@ module.exports = Behavior({
         previewBgStyle: 'background:#121212;',
         previewDismissDragging: false,
         previewProgressStyle: '',
+        previewProgressVisible: false,
       });
 
       wx.createSelectorQuery()
@@ -195,6 +308,9 @@ module.exports = Behavior({
               previewTransform: 'translate(0px, 0px) scale(1, 1)',
             });
             this._updatePreviewProgressPos(this.data.currentPhotoIndex);
+            if (this.data.post.photos.length > 1) {
+              this._showIndexBadge();
+            }
             return;
           }
 
@@ -262,6 +378,9 @@ module.exports = Behavior({
                   previewAnimating: false,
                 });
                 this._updatePreviewProgressPos(this.data.currentPhotoIndex);
+                if (this.data.post.photos.length > 1) {
+                  this._showIndexBadge();
+                }
                 this._previewAnimating = false;
               }, 360);
             }, 16);
@@ -275,6 +394,7 @@ module.exports = Behavior({
       const flipParams = this._flipParams;
 
       if (!rectY || !flipParams) {
+        if (this._badgeTimer) clearTimeout(this._badgeTimer);
         this.setData({
           isPreviewMode: false,
           previewAnimating: false,
@@ -283,6 +403,8 @@ module.exports = Behavior({
           previewDismissDragging: false,
           previewTouchCapture: false,
           previewProgressStyle: '',
+          previewProgressVisible: false,
+          indexBadgeVisible: false,
         });
         return;
       }
@@ -300,6 +422,7 @@ module.exports = Behavior({
         previewAnimClass: '',
         previewTransform: `translate(${curTx.toFixed(2)}px, ${curTy.toFixed(2)}px) scale(${curSx.toFixed(4)}, ${curSy.toFixed(4)})`,
         bottomBarVisible: false,
+        previewProgressVisible: false,
       });
 
       wx.nextTick(() => {
@@ -325,6 +448,8 @@ module.exports = Behavior({
               previewBgStyle: '',
               previewDismissDragging: false,
               previewProgressStyle: '',
+              previewProgressVisible: false,
+              indexBadgeVisible: false,
             });
             this._previewAnimating = false;
             this._currentTx = 0;
@@ -350,6 +475,7 @@ module.exports = Behavior({
         previewDismissDragging: true,
         previewBgStyle: `background: rgba(18, 18, 18, ${bgAlpha.toFixed(3)});`,
         bottomBarVisible: false,
+        previewProgressVisible: false,
       });
     },
 
@@ -371,7 +497,6 @@ module.exports = Behavior({
       const t = e.touches;
       this._touchStartTime = Date.now();
       this._hasMoved = false;
-      this.setData({ previewTouchCapture: false });
 
       if (this._previewAnimating) return;
 
@@ -382,26 +507,36 @@ module.exports = Behavior({
       this._startSy = sy;
 
       if (t.length === 2) {
-        this._gestureState = 'pinch';
-        this.setData({ previewTouchCapture: true });
-        this._pinchStartDist = this._getDist(t[0], t[1]);
-        this._pinchStartCenter = {
-          x: (t[0].clientX + t[1].clientX) / 2,
-          y: (t[0].clientY + t[1].clientY) / 2,
-        };
+        this._beginPreviewPinch(t);
       } else if (t.length === 1) {
-        this._gestureState = 'single';
         this._touchStart = { x: t[0].clientX, y: t[0].clientY };
         const windowHeight = this._windowHeight;
         const bottomBarH = this._bottomBarH;
         if (t[0].clientY >= windowHeight - bottomBarH) {
           this._gestureState = 'in-bottom';
+          this.setData({ previewTouchCapture: false });
+          return;
+        }
+        if (sx > 1.05) {
+          this._gestureState = 'pan';
+          this.setData({ previewTouchCapture: true });
+        } else {
+          this._gestureState = 'single';
+          this.setData({ previewTouchCapture: false });
         }
       }
     },
 
     onPreviewTouchMove(e) {
       const t = e.touches;
+
+      if (t.length >= 2) {
+        if (this._gestureState !== 'pinch') {
+          this._beginPreviewPinch(t);
+        }
+        this._applyPreviewPinch(t);
+        return;
+      }
 
       if (this._gestureState === 'horizontal') {
         return;
@@ -439,25 +574,6 @@ module.exports = Behavior({
         return this._onPreviewCapturedMove(e);
       }
 
-      if (this._gestureState === 'pinch' && t.length >= 2) {
-        const dist = this._getDist(t[0], t[1]);
-        let scale = this._startSx * (dist / this._pinchStartDist);
-        scale = Math.max(0.3, Math.min(scale, 4));
-        const sy = Math.max(0.3, Math.min(scale, 4));
-        const cx = (t[0].clientX + t[1].clientX) / 2;
-        const cy = (t[0].clientY + t[1].clientY) / 2;
-        const pinchX = this._pinchStartCenter.x;
-        const pinchY = this._pinchStartCenter.y;
-        const scaleRatio = scale / this._startSx;
-        const newTx = pinchX - (pinchX - this._startTx) * scaleRatio + (cx - pinchX);
-        const newTy = pinchY - (pinchY - this._startTy) * scaleRatio + (cy - pinchY);
-        if (!this.data.previewTouchCapture) {
-          this.setData({ previewTouchCapture: true });
-        }
-        this._applyPreviewTransform(newTx, newTy, scale, sy);
-        return;
-      }
-
       if (t.length === 1 && this._touchStart && this._startSx > 1.05) {
         const dx = t[0].clientX - this._touchStart.x;
         const dy = t[0].clientY - this._touchStart.y;
@@ -477,18 +593,7 @@ module.exports = Behavior({
       if (this._gestureState === 'in-bottom') return;
 
       if (this._gestureState === 'pinch' && t.length >= 2) {
-        const dist = this._getDist(t[0], t[1]);
-        let scale = this._startSx * (dist / this._pinchStartDist);
-        scale = Math.max(0.3, Math.min(scale, 4));
-        const sy = Math.max(0.3, Math.min(scale, 4));
-        const cx = (t[0].clientX + t[1].clientX) / 2;
-        const cy = (t[0].clientY + t[1].clientY) / 2;
-        const pinchX = this._pinchStartCenter.x;
-        const pinchY = this._pinchStartCenter.y;
-        const scaleRatio = scale / this._startSx;
-        const newTx = pinchX - (pinchX - this._startTx) * scaleRatio + (cx - pinchX);
-        const newTy = pinchY - (pinchY - this._startTy) * scaleRatio + (cy - pinchY);
-        this._applyPreviewTransform(newTx, newTy, scale, sy);
+        this._applyPreviewPinch(t);
         return;
       }
 
@@ -517,6 +622,14 @@ module.exports = Behavior({
     },
 
     onPreviewTouchEnd(e) {
+      const remaining = (e.touches && e.touches.length) || 0;
+      if (remaining > 0) {
+        if (this._gestureState === 'pinch' && remaining === 1) {
+          this._handoffPreviewPan(e.touches[0]);
+        }
+        return;
+      }
+
       const touch = e.changedTouches && e.changedTouches[0];
       const { dx, dy } = this._previewTouchDelta(touch);
       const totalMove = Math.sqrt(dx * dx + dy * dy);
@@ -536,9 +649,12 @@ module.exports = Behavior({
       const bottomBarTop = this._windowHeight - this._bottomBarH;
       const startedInBottom = this._gestureState === 'in-bottom';
       const endedInBottom = touchY >= bottomBarTop;
-      if (startedInBottom || endedInBottom) return;
+      if (startedInBottom || endedInBottom) {
+        this._gestureState = null;
+        return;
+      }
 
-      const { ty, sx, sy } = this._getTransformValues();
+      const { ty } = this._getTransformValues();
       const dt = Date.now() - this._touchStartTime;
 
       if (this._gestureState === 'vertical-dismiss') {
@@ -548,6 +664,7 @@ module.exports = Behavior({
         } else {
           this._resetVerticalDismissPreview(true);
         }
+        this._gestureState = null;
         return;
       }
 
@@ -566,16 +683,34 @@ module.exports = Behavior({
         return;
       }
 
-      if (sx < 1.0 && this._gestureState === 'pinch') {
+      if (
+        (this._gestureState === 'pinch' || this._gestureState === 'pan') &&
+        this._previewShouldExitByPinchOut()
+      ) {
+        this._gestureState = null;
         this.exitPreview();
         return;
       }
 
-      if (this._gestureState === 'pinch') {
-        this.setData({ previewAnimating: true });
-        this._applyPreviewTransform(0, 0, 1, 1);
-        setTimeout(() => this.setData({ previewAnimating: false }), 300);
+      if (
+        (this._gestureState === 'pinch' || this._gestureState === 'pan') &&
+        this._getTransformValues().sx < 1
+      ) {
+        this._gestureState = null;
+        this._resetPinchOutPreview(true);
+        return;
       }
+
+      if (
+        (this._gestureState === 'pinch' || this._gestureState === 'pan') &&
+        this._previewNeedsSnap()
+      ) {
+        this._snapPreviewZoom();
+        return;
+      }
+
+      this._gestureState = null;
+      this.setData({ previewTouchCapture: false });
     },
 
     _onPreviewDoubleTap() {

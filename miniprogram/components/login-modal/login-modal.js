@@ -13,7 +13,7 @@ Component({
     },
     subtitle: {
       type: String,
-      value: '登录后可以点赞、发表评论，记录你与家乡的故事'
+      value: ''
     },
     loginText: {
       type: String,

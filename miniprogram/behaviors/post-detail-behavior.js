@@ -170,9 +170,17 @@ module.exports = Behavior({
 
     _showIndexBadge() {
       if (this._badgeTimer) clearTimeout(this._badgeTimer);
-      this.setData({ indexBadgeVisible: true });
+      const patch = { indexBadgeVisible: true };
+      if (this.data.isPreviewMode) {
+        patch.previewProgressVisible = true;
+      }
+      this.setData(patch);
       this._badgeTimer = setTimeout(() => {
-        this.setData({ indexBadgeVisible: false });
+        const hide = { indexBadgeVisible: false };
+        if (this.data.isPreviewMode) {
+          hide.previewProgressVisible = false;
+        }
+        this.setData(hide);
       }, 1500);
     },
 

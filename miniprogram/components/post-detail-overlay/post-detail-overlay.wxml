@@ -339,10 +339,13 @@
         <view
           class="preview-touch-catcher"
           wx:if="{{previewTouchCapture}}"
+          catchtouchstart="onPreviewTouchStart"
           catchtouchmove="onPreviewTouchMove"
+          catchtouchend="onPreviewTouchEnd"
+          catchtouchcancel="onPreviewTouchEnd"
         ></view>
         <view
-          class="preview-progress-bar"
+          class="preview-progress-bar {{previewProgressVisible ? 'progress-show' : ''}}"
           style="{{previewProgressStyle}}"
           wx:if="{{post.photos.length > 1}}"
         >
