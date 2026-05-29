@@ -1,10 +1,9 @@
 <!-- 首页 - 新设计 -->
-<view class="container {{detailOpen ? 'feed-dimmed' : ''}}">
-  <!-- 状态栏区域：固定白底铺满左右（自定义导航下系统栏透明） -->
-  <view class="status-bar-cover" style="height: {{statusBarHeight}}px;"></view>
-
-  <!-- 顶部导航区：白底 + 搜索栏 -->
-  <view class="home-nav" style="height: {{pageNavHeight}}px; padding-top: {{statusBarHeight}}px;">
+<view class="page-root">
+<view class="container feed-underlay {{detailOpen ? 'feed-dimmed' : ''}}" style="{{feedLayerStyle}}">
+  <!-- 顶栏：上方留白给状态栏+胶囊，搜索独占下一行全宽 -->
+  <view class="home-header">
+    <view class="capsule-spacer" style="height: {{navBarInsetTop}}px;"></view>
     <view class="top-bar">
     <view class="search-input-wrapper">
       <text class="search-icon">🔍</text>
@@ -210,8 +209,9 @@
     </view>
     
   </scroll-view>
+</view>
 
-  <!-- 首页内展开详情（抖音式卡片放大，非 navigateTo） -->
+  <!-- 浮层与首页同级，避免 feed 渐隐时把飞行层/详情一并透明掉 -->
   <post-detail-overlay
     visible="{{detailOpen}}"
     post-id="{{detailPostId}}"
@@ -224,5 +224,6 @@
     author-avatar="{{detailAuthorAvatar}}"
     author-name="{{detailAuthorName}}"
     bind:close="onDetailClose"
+    bind:feedlayer="onFeedLayer"
   />
 </view>

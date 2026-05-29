@@ -32,6 +32,17 @@ Component({
       if (!item) return;
 
       if (index === 1) {
+        const pages = getCurrentPages();
+        const cur = pages[pages.length - 1];
+        if (
+          cur &&
+          cur.route === 'pages/index/index' &&
+          cur.data.detailOpen &&
+          typeof cur.onDetailClose === 'function'
+        ) {
+          cur.onDetailClose({ detail: {} });
+        }
+
         wx.navigateTo({
           url: '/pages/upload/upload',
           fail: (err) => {

@@ -42,6 +42,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.preview-placeholder::after {
+  border: none;
+}
+
+.preview-placeholder-active {
+  opacity: 0.85;
 }
 
 .placeholder-icon {

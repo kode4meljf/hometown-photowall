@@ -39,58 +39,76 @@ Page({
     } catch (e) {}
   },
 
-  // 选择图片（多选，不限数量）
+  // 选择图片（多选）
   chooseImage() {
-    const openPicker = () => {
-      wx.chooseMedia({
-        count: 9,
-        mediaType: ['image'],
-        sourceType: ['album', 'camera'],
-        success: (res) => {
-          const newFiles = res.tempFiles;
-          const newPaths = newFiles.map((f) => f.tempFilePath);
+    wx.chooseMedia({
+      count: 9,
+      mediaType: ['image'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const newFiles = res.tempFiles || [];
+        if (!newFiles.length) return;
 
-          const getInfoPromises = newPaths.map((path) => {
-            return new Promise((resolve) => {
-              wx.getImageInfo({
-                src: path,
-                success: (info) => resolve({ width: info.width, height: info.height }),
-                fail: () => resolve({ width: 1, height: 1 }),
-              });
+        const newPaths = newFiles.map((f) => f.tempFilePath);
+
+        const getInfoPromises = newPaths.map((path) => {
+          return new Promise((resolve) => {
+            wx.getImageInfo({
+              src: path,
+              success: (info) => resolve({ width: info.width, height: info.height }),
+              fail: () => resolve({ width: 1, height: 1 }),
             });
           });
+        });
 
-          Promise.all(getInfoPromises).then((infos) => {
-            const newImageList = [...this.data.imageList, ...newPaths];
-            const newImageInfoList = [...this.data.imageInfoList, ...infos];
+        Promise.all(getInfoPromises).then((infos) => {
+          const newImageList = [...this.data.imageList, ...newPaths];
+          const newImageInfoList = [...this.data.imageInfoList, ...infos];
 
-            this.setData(
-              {
-                imageList: newImageList,
-                imageInfoList: newImageInfoList,
-                currentIndex: 0,
-              },
-              () => {
-                this.checkOverflow();
-              }
-            );
+          this.setData(
+            {
+              imageList: newImageList,
+              imageInfoList: newImageInfoList,
+              currentIndex: 0,
+            },
+            () => {
+              this.checkOverflow();
+            }
+          );
+        });
+      },
+      fail: (err) => {
+        const errMsg = (err && err.errMsg) || '';
+        console.error('[upload] chooseMedia fail:', errMsg);
+        if (/cancel/i.test(errMsg)) return;
+
+        if (/privacy|scope|隐私/i.test(errMsg) && wx.openPrivacyContract) {
+          wx.showModal({
+            title: '需要同意隐私协议',
+            content: '选图前需同意《用户隐私保护指引》',
+            confirmText: '查看协议',
+            success: (r) => {
+              if (r.confirm) wx.openPrivacyContract();
+            },
           });
-        },
-        fail: (err) => {
-          if (err && err.errMsg && err.errMsg.includes('cancel')) return;
-          showToast('无法打开相册，请检查权限');
-        },
-      });
-    };
+          return;
+        }
 
-    if (wx.requirePrivacyAuthorize) {
-      wx.requirePrivacyAuthorize({
-        success: openPicker,
-        fail: () => showToast('需同意隐私协议后才能选图'),
-      });
-    } else {
-      openPicker();
-    }
+        if (/auth deny|permission denied/i.test(errMsg)) {
+          wx.showModal({
+            title: '需要相册权限',
+            content: '请在设置中允许访问相册和相机',
+            confirmText: '去设置',
+            success: (r) => {
+              if (r.confirm) wx.openSetting();
+            },
+          });
+          return;
+        }
+
+        showToast('无法打开相册，请重试');
+      },
+    });
   },
 
   // swiper 滑动切换
@@ -210,6 +228,8 @@ Page({
 
   // 提交发布
   async handleSubmit() {
+    if (this.data.submitting) return;
+
     // 如果自定义地点输入框有值但未确认（未按键盘完成），自动补写到 form.location
     const customLoc = this.data.customLocation && this.data.customLocation.trim();
     if (customLoc && !this.data.form.location) {

@@ -35,8 +35,7 @@ Page({
     windowWidth: 375,
     columnWidth: 170,
     textHeight: 100,
-    pageNavHeight: 88,
-    statusBarHeight: 20,
+    navBarInsetTop: 88,
 
     // 详情浮层
     detailOpen: false,
@@ -49,6 +48,7 @@ Page({
     detailAspectRatio: 1,
     detailAuthorAvatar: '',
     detailAuthorName: '',
+    feedLayerStyle: '',
   },
 
   onLoad() {
@@ -57,7 +57,15 @@ Page({
     this.loadPosts(true);
   },
 
+  onHide() {
+    if (this.data.detailOpen) {
+      this.onDetailClose({ detail: {} });
+    }
+  },
+
   onShow() {
+    this.initSystemInfo();
+
     setTimeout(() => {
       const tabBar = this.getTabBar && this.getTabBar();
       if (tabBar) {
@@ -100,20 +108,24 @@ Page({
     const inFeed = this._findPostById(id);
     const ar = inFeed?.aspectRatio > 0 ? inFeed.aspectRatio : pending.aspectRatio || 1;
 
-    this.setData({
-      detailOpen: true,
-      detailPostId: id,
-      detailCoverUrl: inFeed?.imageUrl || pending.coverUrl || '',
-      detailTitleText: inFeed?.title || pending.titleText || '',
-      detailDescText: inFeed?.description || pending.descText || '',
-      detailImgRect: null,
-      detailTitleRect: null,
-      detailAspectRatio: ar,
-      detailAuthorAvatar: inFeed?.authorAvatar || pending.authorAvatar || '',
-      detailAuthorName: inFeed?.author || pending.authorName || '',
-    }, () => {
-      this._setTabBarHidden(true);
-    });
+    this.setData(
+      {
+        detailPostId: id,
+        detailCoverUrl: inFeed?.imageUrl || pending.coverUrl || '',
+        detailTitleText: inFeed?.title || pending.titleText || '',
+        detailDescText: inFeed?.description || pending.descText || '',
+        detailImgRect: null,
+        detailTitleRect: null,
+        detailAspectRatio: ar,
+        detailAuthorAvatar: inFeed?.authorAvatar || pending.authorAvatar || '',
+        detailAuthorName: inFeed?.author || pending.authorName || '',
+      },
+      () => {
+        this.setData({ detailOpen: true }, () => {
+          this._setTabBarHidden(true);
+        });
+      }
+    );
   },
 
   _setTabBarHidden(hidden) {
@@ -140,8 +152,7 @@ Page({
       windowWidth,
       columnWidth,
       textHeight,
-      pageNavHeight: nav.navBarHeight,
-      statusBarHeight: nav.statusBarHeight,
+      navBarInsetTop: nav.navBarHeight,
     });
   },
 
@@ -387,19 +398,44 @@ Page({
     query.exec((rects) => {
       const [imgRect, titleRect] = rects;
       const ar = post.aspectRatio > 0 ? post.aspectRatio : 1;
+      // 先写入测量矩形，再打开浮层，避免子组件 _enter 时 imgRect 仍为空
+      this.setData(
+        {
+          detailPostId: id,
+          detailCoverUrl: post.imageUrl || post.coverUrl || '',
+          detailTitleText: post.title || '',
+          detailDescText: post.description || '',
+          detailImgRect: imgRect || null,
+          detailTitleRect: titleRect || null,
+          detailAspectRatio: ar,
+          detailAuthorAvatar: post.authorAvatar || '',
+          detailAuthorName: post.author || '',
+        },
+        () => {
+          this.setData({ detailOpen: true }, () => {
+            this._setTabBarHidden(true);
+          });
+        }
+      );
+    });
+  },
+
+  onFeedLayer(e) {
+    const { opacity, animate, duration } = e.detail || {};
+    const ms = duration || 420;
+    const curve = 'cubic-bezier(0.25, 0.1, 0.25, 1)';
+    const target = Math.min(1, Math.max(0, Number(opacity)));
+    if (!animate) {
       this.setData({
-        detailOpen: true,
-        detailPostId: id,
-        detailCoverUrl: post.imageUrl || post.coverUrl || '',
-        detailTitleText: post.title || '',
-        detailDescText: post.description || '',
-        detailImgRect: imgRect || null,
-        detailTitleRect: titleRect || null,
-        detailAspectRatio: ar,
-        detailAuthorAvatar: post.authorAvatar || '',
-        detailAuthorName: post.author || '',
-      }, () => {
-        this._setTabBarHidden(true);
+        feedLayerStyle: target >= 1 ? '' : `opacity:${target};`,
+      });
+      return;
+    }
+    const from = target < 1 ? 1 : 0;
+    this.setData({ feedLayerStyle: `opacity:${from};` });
+    wx.nextTick(() => {
+      this.setData({
+        feedLayerStyle: `opacity:${target};transition:opacity ${ms}ms ${curve};`,
       });
     });
   },
@@ -411,6 +447,7 @@ Page({
       detailPostId: '',
       detailImgRect: null,
       detailTitleRect: null,
+      feedLayerStyle: '',
     });
     this._setTabBarHidden(false);
     if (detail.deleted) {

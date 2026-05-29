@@ -35,6 +35,18 @@ module.exports = Behavior({
       return Math.round(maxR * (0.22 + 0.78 * t));
     },
 
+    _revealFeedUnderlay(animate) {
+      if (typeof this._feedLayer === 'function') {
+        this._feedLayer(1, !!animate);
+      }
+    },
+
+    _hideFeedUnderlay() {
+      if (typeof this._feedLayer === 'function') {
+        this._feedLayer(0, false);
+      }
+    },
+
     _applyPanelDragVisual(dx, dy, progress) {
       const scale = 1 - progress * MAX_SCALE_SHRINK;
       const maskAlpha = Math.max(0, 0.38 * (1 - progress * 1.1));
@@ -81,6 +93,7 @@ module.exports = Behavior({
         }
         this._dismissMode = 'drag';
         this.setData({ scrollLocked: true, panelDragging: true });
+        this._revealFeedUnderlay(false);
         this._applyPanelDragVisual(dx, dy, this._getDragProgress(dx));
         return;
       }
@@ -120,6 +133,7 @@ module.exports = Behavior({
       const chromeTransition = animate
         ? `transition: border-radius ${ease}; overflow: hidden;`
         : '';
+      this._hideFeedUnderlay();
       this.setData({
         panelDragging: false,
         panelTransformStyle: `transform: translate3d(0, 0, 0) scale(1); ${transformTransition}`,
@@ -142,6 +156,7 @@ module.exports = Behavior({
     },
 
     _closeByDismissDrag() {
+      this._dismissExit = true;
       this.setData({
         panelDragging: false,
         panelTransformStyle: '',

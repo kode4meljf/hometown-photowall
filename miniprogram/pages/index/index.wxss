@@ -1,5 +1,10 @@
 /* 首页样式 - 新设计 */
 
+.page-root {
+  position: relative;
+  height: 100vh;
+}
+
 .container {
   height: 100vh;
   display: flex;
@@ -7,6 +12,10 @@
   background-color: #f8f8f8;
   transition: transform 420ms cubic-bezier(0.25, 0.1, 0.25, 1),
               filter 420ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.feed-underlay {
+  will-change: opacity;
 }
 
 .container.feed-dimmed {
@@ -25,37 +34,22 @@
   background: transparent;
 }
 
-/* 状态栏白底：铺满屏幕左右，避免透明状态栏露出灰色底 */
-.status-bar-cover {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+/* 顶栏白底 */
+.home-header {
   width: 100%;
-  background-color: #ffffff;
-  z-index: 500;
-  pointer-events: none;
-}
-
-/* 顶部导航白底区域 */
-.home-nav {
-  width: 100%;
-  box-sizing: border-box;
   background-color: #ffffff;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  position: relative;
-  z-index: 501;
 }
 
-/* 搜索栏 */
+.capsule-spacer {
+  width: 100%;
+}
+
+/* 搜索栏：胶囊下方独占一行，全宽不与胶囊抢位置 */
 .top-bar {
   display: flex;
   align-items: center;
   padding: 0 24rpx 12rpx;
-  flex-shrink: 0;
 }
 
 .search-input-wrapper {

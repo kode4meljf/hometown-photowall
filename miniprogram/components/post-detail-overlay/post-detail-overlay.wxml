@@ -3,12 +3,33 @@
 <view class="overlay-root" wx:if="{{visible}}" catchtouchmove="noop">
   <view class="overlay-mask {{maskShow ? 'mask-visible' : ''}} {{panelDragging ? 'mask-no-transition' : ''}}" style="{{maskStyle}}" catchtap="onMaskTap"></view>
 
+  <!-- 飞行层独立叠在遮罩上，底下透出首页（卡片占位孔） -->
+  <view class="overlay-fly-layer" wx:if="{{!handoffDone}}">
+    <image
+      class="fly-image {{flyAnimating ? 'fly-transition' : ''}}"
+      src="{{coverUrl}}"
+      mode="{{flyImageMode}}"
+      style="{{heroImgStyle}}"
+      bindtransitionend="onFlyTransitionEnd"
+    />
+    <view
+      wx:if="{{!flyDone && (titleText || descText)}}"
+      class="fly-title {{flyAnimating ? 'fly-transition' : ''}}"
+      style="{{heroTitleStyle}}"
+    >
+      <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
+      <text wx:if="{{titleText && descText}}"> </text>
+      <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
+    </view>
+  </view>
+
   <view
-    class="detail-panel {{panelShow ? 'panel-show' : ''}} {{panelDragging ? 'panel-dragging' : ''}}"
+    class="detail-panel {{panelShow ? 'panel-show' : ''}} {{flyDone ? 'detail-panel-ready' : ''}} {{panelDragging ? 'panel-dragging' : ''}}"
     style="{{panelTransformStyle}} {{panelChromeStyle}}"
   >
     <view
       class="panel-header dismiss-zone"
+      wx:if="{{flyDone}}"
       style="padding-top:{{headerPaddingTop}}px;padding-right:{{headerPaddingRight}}px;height:{{navBarHeight}}px;"
       bindtouchstart="onDismissTouchStart"
       bindtouchmove="onDismissTouchMove"
@@ -28,36 +49,16 @@
       </view>
     </view>
 
-    <!-- 飞行层：与槽位重合后淡出 -->
-    <image
-      wx:if="{{!flyDone}}"
-      class="fly-image {{flyAnimating ? 'fly-transition' : ''}}"
-      src="{{coverUrl}}"
-      mode="aspectFill"
-      style="{{heroImgStyle}}"
-      bindtransitionend="onFlyTransitionEnd"
-    />
-    <view
-      wx:if="{{!flyDone && (titleText || descText)}}"
-      class="fly-title {{flyAnimating ? 'fly-transition' : ''}}"
-      style="{{heroTitleStyle}}"
-      bindtransitionend="onFlyTransitionEnd"
-    >
-      <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
-      <text wx:if="{{titleText && descText}}"> </text>
-      <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
-    </view>
-
     <scroll-view
+      wx:if="{{flyDone}}"
       class="panel-scroll"
       scroll-y="{{!scrollLocked}}"
-      type="list"
       scroll-top="{{commentScrollTop}}"
       bindscroll="onCommentScroll"
       bindscrolltolower="onScrollToLower"
     >
       <view class="image-section image-slot" id="image-slot" style="height:{{imageSlotHeight}}px;" bindtap="onImageTap">
-        <view class="panel-photo-wrap {{flyDone ? 'photo-visible' : ''}}">
+        <view class="panel-photo-wrap photo-visible">
           <swiper
             wx:if="{{post}}"
             class="photo-swiper"
@@ -66,7 +67,13 @@
             duration="300"
           >
             <swiper-item wx:for="{{post.photos}}" wx:key="order">
-              <image class="photo-image" src="{{item.imageUrl}}" mode="{{photoMode}}" bindload="onPhotoLoad" />
+              <image
+                class="photo-image"
+                src="{{item.imageUrl}}"
+                mode="{{photoMode}}"
+                data-index="{{index}}"
+                bindload="onPhotoLoad"
+              />
             </swiper-item>
           </swiper>
           <view class="progress-bar" wx:if="{{post && post.photos.length > 1}}">
@@ -89,13 +96,7 @@
         bindtouchend="onDismissTouchEnd"
         bindtouchcancel="onDismissTouchEnd"
       >
-      <view class="content-section title-slot" id="title-slot" wx:if="{{!flyDone && (titleText || descText)}}">
-        <text class="card-title" wx:if="{{titleText}}">{{titleText}}</text>
-        <text wx:if="{{titleText && descText}}"> </text>
-        <text class="card-desc" wx:if="{{descText}}">{{descText}}</text>
-      </view>
-
-      <view class="panel-loading" wx:if="{{loading && flyDone}}">加载中...</view>
+      <view class="panel-loading" wx:if="{{loading}}">加载中...</view>
 
       <block wx:if="{{flyDone && post && !loading}}">
         <view class="content-section content-reveal {{contentReveal ? 'show' : ''}}">
@@ -186,8 +187,8 @@
     </scroll-view>
 
     <view
-      class="bottom-bar content-reveal dismiss-zone {{contentReveal && post ? 'show' : ''}}"
-      wx:if="{{post}}"
+      class="bottom-bar dismiss-zone {{flyDone && post ? 'bottom-bar--show' : ''}}"
+      wx:if="{{flyDone && post}}"
       bindtouchstart="onDismissTouchStart"
       bindtouchmove="onDismissTouchMove"
       bindtouchend="onDismissTouchEnd"

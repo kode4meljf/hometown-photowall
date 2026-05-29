@@ -1,6 +1,11 @@
 const {
   aspectFillCenter,
+  aspectFitCenter,
   rectToStyle,
+  flyTransformStyle,
+  rectToSlotLocal,
+  getDetailSlotHeight,
+  getDetailImageRect,
 } = require('../../utils/heroLayout');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
 const postDetailBehavior = require('../../behaviors/post-detail-behavior');
@@ -39,6 +44,8 @@ Component({
     headerPaddingRight: 96,
     imageSlotHeight: 300,
     scrollClass: 'panel-scroll',
+    handoffDone: false,
+    flyImageMode: 'aspectFit',
   },
 
   lifetimes: {
@@ -57,7 +64,7 @@ Component({
     visible(v) {
       if (v) {
         this.postId = this.properties.postId;
-        this._enter();
+        this._scheduleEnter();
       } else {
         this._resetState();
       }
@@ -67,13 +74,43 @@ Component({
   methods: {
     noop() {},
 
+    _feedLayer(opacity, animate = true) {
+      this.triggerEvent('feedlayer', { opacity, animate, duration: ANIM_MS });
+    },
+
+    _scheduleEnter() {
+      clearTimeout(this._enterSchedule);
+      const run = (attempt) => {
+        if (!this.properties.visible) return;
+        const hasRect = !!this.properties.imgRect;
+        if (hasRect || attempt >= 3) {
+          this._enter();
+          return;
+        }
+        this._enterSchedule = setTimeout(() => run(attempt + 1), 16);
+      };
+      wx.nextTick(() => run(0));
+    },
+
+    /** 标题只在卡片原位淡入淡出，不跟图做位移动画（避免白底块与图不同步） */
+    _titleFlyStyle(rect, opacity, fadeMs = 0) {
+      if (!rect) return 'opacity:0;';
+      const op = `opacity:${opacity};`;
+      const tr = fadeMs ? `transition:opacity ${fadeMs}ms ease;` : '';
+      return `${rectToStyle(rect)}${op}${tr}`;
+    },
+
     _resetState() {
+      clearTimeout(this._enterSchedule);
       clearTimeout(this._enterTimer);
+      clearTimeout(this._enterFallbackTimer);
       clearTimeout(this._exitTimer);
+      clearTimeout(this._handoffTimer);
       this._closing = false;
       this._flyPhase = '';
       this._dismissStart = null;
       this._dismissMode = null;
+      this._dismissExit = false;
       this.setData({
         flyDone: false,
         flyAnimating: false,
@@ -94,30 +131,54 @@ Component({
         previewTransform: 'translate(0px, 0px) scale(1, 1)',
         previewBgStyle: '',
         previewDismissDragging: false,
+        handoffDone: false,
+        slotCoverStyle: '',
+        flyImageMode: 'aspectFit',
       });
+      this._feedLayer(1, false);
     },
 
-    _measureTargets(callback) {
-      const q = wx.createSelectorQuery().in(this);
-      q.select('#image-slot').boundingClientRect();
-      q.select('#title-slot').boundingClientRect();
-      q.exec((res) => {
-        callback({
-          image: res[0],
-          title: res[1],
-        });
+    _resolveFlyEndRects(slotRect, imgAR, nav) {
+      const slot =
+        slotRect ||
+        getDetailImageRect(this._windowWidth, nav.navBarHeight, imgAR);
+      const fit = aspectFitCenter(slot, imgAR) || slot;
+      return {
+        slotRect: slot,
+        fitRect: fit,
+        slotCoverStyle: rectToSlotLocal(fit, slot),
+      };
+    },
+
+    _preloadCover(url) {
+      if (!url) return;
+      wx.getImageInfo({
+        src: url,
+        success: () => {},
+        fail: () => {},
       });
     },
 
     _enter() {
+      clearTimeout(this._enterTimer);
+      clearTimeout(this._enterFallbackTimer);
       const { imgRect, titleRect, coverUrl, titleText, descText, aspectRatio } =
         this.properties;
       const imgAR = aspectRatio > 0 ? aspectRatio : 1;
-      const startImg = aspectFillCenter(imgRect, imgAR) || imgRect;
       const nav = getNavBarLayout();
-      const imageSlotHeight = Math.round(this._windowWidth * 4 / 3);
+      const slotFallback = getDetailImageRect(
+        this._windowWidth,
+        nav.navBarHeight,
+        imgAR
+      );
+      const startImg =
+        (imgRect && (aspectFillCenter(imgRect, imgAR) || imgRect)) ||
+        aspectFitCenter(slotFallback, imgAR) ||
+        slotFallback;
+      const imageSlotHeight = getDetailSlotHeight(this._windowWidth, imgAR);
 
       this._flyPhase = 'enter';
+      this._startFlyRect = startImg;
       this._indexAvatarUrl = this.properties.authorAvatar;
       this._navLayout = nav;
 
@@ -133,7 +194,7 @@ Component({
         headerPaddingRight: nav.paddingRight,
         imageSlotHeight,
         heroImgStyle: startImg ? rectToStyle(startImg) : '',
-        heroTitleStyle: titleRect ? rectToStyle(titleRect) : 'opacity:0;',
+        heroTitleStyle: this._titleFlyStyle(titleRect, 1),
         coverUrl,
         titleText,
         descText,
@@ -142,51 +203,50 @@ Component({
         scrollLocked: false,
         panelDragging: false,
         panelChromeStyle: '',
+        handoffDone: false,
+        flyImageMode: 'aspectFit',
       });
+      this._feedLayer(1, false);
 
+      this._preloadCover(coverUrl);
       this.loadPost();
 
       wx.nextTick(() => {
-        this._measureTargets((targets) => {
-          if (!targets.image) {
-            const top = nav.navBarHeight;
-            targets.image = {
-              left: 0,
-              top,
-              width: this._windowWidth,
-              height: imageSlotHeight,
-            };
-          }
-          if (!targets.title && (titleText || descText)) {
-            targets.title = {
-              left: 12,
-              top: targets.image.top + targets.image.height + 10,
-              width: this._windowWidth - 24,
-              height: 44,
-            };
-          }
-          this._targetImageRect = targets.image;
-          this._targetTitleRect = targets.title;
+        const { slotRect, fitRect } = this._resolveFlyEndRects(null, imgAR, nav);
+        this._targetSlotRect = slotRect;
+        this._targetImageRect = fitRect;
 
-          this.setData({ maskShow: true, maskStyle: 'background: rgba(0, 0, 0, 0.38);' });
-          setTimeout(() => {
-            this.setData({
-              flyAnimating: true,
-              heroImgStyle: rectToStyle(targets.image),
-              heroTitleStyle:
-                targets.title && (titleText || descText)
-                  ? rectToStyle(targets.title)
-                  : 'opacity:0;',
+        this.setData({
+          maskShow: true,
+          maskStyle: 'background: rgba(0, 0, 0, 0.38);',
+        });
+        setTimeout(() => {
+          this.setData({
+            flyAnimating: true,
+            heroImgStyle: flyTransformStyle(startImg, fitRect),
+          });
+          this._feedLayer(0, true);
+          if (titleRect && (titleText || descText)) {
+            wx.nextTick(() => {
+              this.setData({
+                heroTitleStyle: this._titleFlyStyle(titleRect, 0, 220),
+              });
             });
-          }, 32);
+          }
 
           this._enterTimer = setTimeout(() => {
             if (this._flyPhase === 'enter' && !this.data.flyDone) {
               this._finishEnter();
             }
           }, ANIM_MS + 80);
-        });
+        }, 32);
       });
+
+      this._enterFallbackTimer = setTimeout(() => {
+        if (this.properties.visible && !this.data.flyDone) {
+          this._finishEnter();
+        }
+      }, ANIM_MS + 200);
     },
 
     onFlyTransitionEnd() {
@@ -199,13 +259,31 @@ Component({
 
     _finishEnter() {
       clearTimeout(this._enterTimer);
+      clearTimeout(this._enterFallbackTimer);
       if (this.data.flyDone) return;
       this._flyPhase = '';
       this.setData({
         flyDone: true,
         flyAnimating: false,
         contentReveal: true,
+        handoffDone: true,
+        heroImgStyle: '',
+        heroTitleStyle: '',
       });
+    },
+
+    _completeCoverHandoff() {
+      if (!this.data.flyDone || this.data.handoffDone) return;
+      clearTimeout(this._handoffTimer);
+      this.setData({ handoffDone: true });
+    },
+
+    onPhotoLoad(e) {
+      if (!this.data.flyDone) return;
+      const idx = e.currentTarget.dataset.index;
+      if (idx === 0 || idx === '0') {
+        this._completeCoverHandoff();
+      }
     },
 
     _exit(cb) {
@@ -214,36 +292,54 @@ Component({
       clearTimeout(this._enterTimer);
 
       const { imgRect, titleRect, aspectRatio, titleText, descText } = this.properties;
-      const imgAR = aspectRatio > 0 ? aspectRatio : 1;
-      const endImg = aspectFillCenter(imgRect, imgAR) || imgRect;
+      const fromRect = this._targetImageRect || this._startFlyRect;
+      const endCard = imgRect || this._startFlyRect;
 
       this._flyPhase = 'exit';
       this._exitCallback = cb;
+      if (!this._dismissExit) {
+        this._feedLayer(0, false);
+      }
+      this._dismissExit = false;
 
       this.setData({
         contentReveal: false,
         flyDone: false,
-        flyAnimating: true,
+        handoffDone: false,
+        flyAnimating: false,
+        flyImageMode: 'aspectFill',
         panelTransformStyle: '',
         panelDragging: false,
         panelChromeStyle: '',
-        maskStyle: '',
-        heroImgStyle: this._targetImageRect
-          ? rectToStyle(this._targetImageRect)
-          : this.data.heroImgStyle,
+        maskShow: true,
+        maskStyle: 'background: rgba(0, 0, 0, 0.38);',
+        heroImgStyle: fromRect ? rectToStyle(fromRect) : '',
         heroTitleStyle:
-          this._targetTitleRect && (titleText || descText)
-            ? rectToStyle(this._targetTitleRect)
+          titleRect && (titleText || descText)
+            ? this._titleFlyStyle(titleRect, 0)
             : 'opacity:0;',
       });
 
       wx.nextTick(() => {
         setTimeout(() => {
           this.setData({
-            maskShow: false,
-            heroImgStyle: endImg ? rectToStyle(endImg) : '',
-            heroTitleStyle: titleRect ? rectToStyle(titleRect) : 'opacity:0;',
+            maskShow: true,
+            maskStyle: 'background: rgba(0, 0, 0, 0.38);',
+            flyAnimating: true,
+            heroImgStyle:
+              fromRect && endCard
+                ? flyTransformStyle(fromRect, endCard, false)
+                : '',
           });
+          this._feedLayer(1, true);
+          if (titleRect && (titleText || descText)) {
+            this.setData({ heroTitleStyle: this._titleFlyStyle(titleRect, 0) });
+            wx.nextTick(() => {
+              this.setData({
+                heroTitleStyle: this._titleFlyStyle(titleRect, 1, 260),
+              });
+            });
+          }
         }, 32);
 
         this._exitTimer = setTimeout(() => {
@@ -257,6 +353,8 @@ Component({
     _finishExit() {
       clearTimeout(this._exitTimer);
       this._flyPhase = '';
+      this._feedLayer(1, false);
+      this.setData({ maskShow: false, maskStyle: '' });
       const cb = this._exitCallback;
       this._exitCallback = null;
       this._closing = false;

@@ -43,6 +43,18 @@ module.exports = Behavior({
       return false;
     },
 
+    /** 详情首图与首页传入 cover 同源，避免 FLIP 结束后 swiper 换图闪烁 */
+    _alignFirstPhotoWithCover(post) {
+      const cover =
+        (this.properties && this.properties.coverUrl) ||
+        this.data.coverUrl ||
+        '';
+      if (!cover || !post.photos || !post.photos.length) return post;
+      const photos = post.photos.slice();
+      photos[0] = { ...photos[0], imageUrl: cover };
+      return { ...post, photos };
+    },
+
     async loadPost() {
       const postId = this._getPostId();
       if (!postId) return;
@@ -57,7 +69,12 @@ module.exports = Behavior({
           if (post.description) titleParts.push(post.description);
           post.titleDesc = titleParts.join(' ');
           if (!post.photos || post.photos.length === 0) {
-            post.photos = [{ imageUrl: post.imageUrl || '', width: 1, height: 1, order: 0 }];
+            const cover =
+              (this.properties && this.properties.coverUrl) ||
+              this.data.coverUrl ||
+              post.imageUrl ||
+              '';
+            post.photos = [{ imageUrl: cover, width: 1, height: 1, order: 0 }];
           }
           post.comments = (post.comments || []).map((c) => ({
             ...c,
@@ -74,11 +91,12 @@ module.exports = Behavior({
           const avatar = this.properties.authorAvatar || this._indexAvatarUrl;
           if (avatar) post.authorAvatar = avatar;
           post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
-          const canDelete = !!post.canDelete;
+          const finalPost = this._alignFirstPhotoWithCover(post);
+          const canDelete = !!finalPost.canDelete;
           const hasMoreComments = res.data.hasMore || false;
-          const commentsCountText = formatLikeCount(post.commentsCount || 0).text;
+          const commentsCountText = formatLikeCount(finalPost.commentsCount || 0).text;
           this.setData({
-            post,
+            post: finalPost,
             canDelete,
             loading: false,
             hasMoreComments,
