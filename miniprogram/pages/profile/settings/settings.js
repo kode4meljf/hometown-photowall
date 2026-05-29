@@ -1,4 +1,7 @@
 // pages/settings/settings.js
+const { isLoggedIn, ensureSession } = require('../../../utils/session');
+const { showLoading, hideLoading } = require('../../../utils/util');
+
 const app = getApp();
 
 Page({
@@ -20,22 +23,22 @@ Page({
 
   updateLoginState() {
     const user = app.globalData.userInfo;
-    const isLoggedIn = app.checkLogin();
+    const loggedIn = isLoggedIn();
     let securitySummary = '';
-    if (isLoggedIn && user) {
+    if (loggedIn && user) {
       securitySummary = user.hasPhone || user.phone
         ? (user.phone || '已绑定手机')
         : '未绑定手机';
     }
-    this.setData({ isLoggedIn, securitySummary });
+    this.setData({ isLoggedIn: loggedIn, securitySummary });
   },
 
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: -1 });
     }
-    if (app.globalData.isLoggedIn) {
-      app.syncSession().then(() => {
+    if (isLoggedIn()) {
+      ensureSession().then(() => {
         this.updateLoginState();
       });
     } else {
@@ -127,7 +130,7 @@ Page({
       confirmColor: '#ff4444',
       success: (res) => {
         if (res.confirm) {
-          wx.showLoading({ title: '清理中...' });
+          showLoading('清理中...');
           // 清理 Storage
           wx.clearStorage({
             success: () => {
@@ -158,7 +161,7 @@ Page({
               });
             },
             fail: () => {
-              wx.hideLoading();
+              hideLoading();
               wx.showToast({ title: '清理失败', icon: 'none' });
             },
           });
@@ -168,7 +171,7 @@ Page({
   },
 
   afterClear(fileCount) {
-    wx.hideLoading();
+    hideLoading();
     if (fileCount > 0) {
       wx.showToast({ title: `已清理 ${fileCount} 个缓存文件`, icon: 'none' });
     } else {
@@ -187,13 +190,7 @@ Page({
       confirmColor: '#ff4444',
       success: (res) => {
         if (res.confirm) {
-          // 清除登录态
-          app.globalData.userInfo = null;
-          app.globalData.isLoggedIn = false;
-          wx.removeStorageSync('token');
-          wx.removeStorageSync('userInfo');
-          wx.removeStorageSync('openid');
-          // 跳到登录页
+          app.logout();
           wx.switchTab({ url: '/pages/profile/profile/profile' });
         }
       },

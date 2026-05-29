@@ -4,7 +4,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const usersCollection = db.collection('users');
-const identity = require('./common/identity');
+const identity = require('hometown-common');
 
 // 云函数入口
 exports.main = async (event, context) => {

@@ -1,6 +1,7 @@
 const { postApi } = require('../utils/api');
 const { getDetailSlotHeight } = require('../utils/heroLayout');
 const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatLikeCount } = require('../utils/util');
+const { requireLogin } = require('../utils/session');
 const app = getApp();
 
 /**
@@ -46,10 +47,10 @@ module.exports = Behavior({
     },
 
     _ensureLogin() {
-      if (app.checkLogin && app.checkLogin()) return true;
-      if (app.globalData.isLoggedIn) return true;
-      this.setData({ loginModalShow: true });
-      return false;
+      return requireLogin({
+        toast: false,
+        onUnauthenticated: () => this.setData({ loginModalShow: true }),
+      });
     },
 
     /** 与详情接口 canDelete 规则一致，用于骨架阶段预占位避免行高跳动 */
@@ -156,8 +157,6 @@ module.exports = Behavior({
         this.setData({ loading: false });
       }
     },
-
-    onPhotoLoad() {},
 
     onSwiperChange(e) {
       const index = e.detail.current;

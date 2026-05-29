@@ -1,5 +1,5 @@
 // pages/profile/signin/signin.js
-const { callFunction } = require('../../../utils/api');
+const { signinApi } = require('../../../utils/api');
 
 function buildProgressDots(streakDays, signedToday) {
   const dots = [];
@@ -143,7 +143,7 @@ Page({
 
   async loadSigninData(silent = false) {
     try {
-      const res = await callFunction('signin', 'getSigninInfo');
+      const res = await signinApi.getSigninInfo();
       if (res.success) {
         const weekDays = (res.data.weekDays || []).map((item) => ({
           ...item,
@@ -177,7 +177,7 @@ Page({
 
     this.setData({ checkingIn: true });
     try {
-      const res = await callFunction('signin', 'checkin');
+      const res = await signinApi.checkin();
       if (res.success) {
         const streakDays = res.data.streak;
         const signedToday = true;

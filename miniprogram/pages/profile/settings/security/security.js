@@ -1,6 +1,7 @@
 // pages/profile/settings/security/security.js
 const { userApi } = require('../../../../utils/api');
-const { formatRegisterTime } = require('../../../../utils/util');
+const { formatRegisterTime, showLoading, hideLoading } = require('../../../../utils/util');
+const { ensureSession } = require('../../../../utils/session');
 const app = getApp();
 
 Page({
@@ -17,11 +18,8 @@ Page({
   },
 
   async loadUser() {
-    const valid = await app.syncSession({ toast: true });
-    if (!valid) {
-      setTimeout(() => wx.navigateBack(), 500);
-      return;
-    }
+    const valid = await ensureSession({ toast: true, navigateBack: true });
+    if (!valid) return;
     const user = app.globalData.userInfo;
     if (user) {
       this.applyUser(user);
@@ -52,10 +50,10 @@ Page({
   },
 
   doDeleteAccount() {
-    wx.showLoading({ title: '正在注销…' });
+    showLoading('正在注销…');
     userApi.deleteAccount()
       .then((res) => {
-        wx.hideLoading();
+        hideLoading();
         if (res.success) {
           app.logout();
           wx.clearStorageSync();
@@ -66,7 +64,7 @@ Page({
         }
       })
       .catch(() => {
-        wx.hideLoading();
+        hideLoading();
         wx.showToast({ title: '注销失败，请重试', icon: 'none' });
       });
   },

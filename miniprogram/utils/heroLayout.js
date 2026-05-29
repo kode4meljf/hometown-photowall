@@ -93,15 +93,6 @@ function getDetailImageRect(windowWidth, headerTop, aspectRatio) {
   return { left: 0, top, width, height };
 }
 
-function getDetailTitleRect(imageRect, paddingX) {
-  return {
-    left: paddingX,
-    top: imageRect.top + imageRect.height + 10,
-    width: imageRect.width - paddingX * 2,
-    height: 48,
-  };
-}
-
 module.exports = {
   aspectFillCenter,
   aspectFitCenter,
@@ -110,7 +101,4 @@ module.exports = {
   rectToSlotLocal,
   getDetailSlotHeight,
   getDetailImageRect,
-  getDetailTitleRect,
-  DETAIL_SLOT_MAX_RATIO,
-  DETAIL_SLOT_MIN_RATIO,
 };

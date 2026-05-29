@@ -1,4 +1,5 @@
 const { postApi } = require('../utils/api');
+const { showLoading, hideLoading } = require('../utils/util');
 
 const PREVIEW_DIR_LOCK_PX = 12;
 const PREVIEW_DIR_BIAS = 1.4;
@@ -743,7 +744,7 @@ module.exports = Behavior({
       if (!post || !post.photos) return;
       const photo = post.photos[this.data.currentPhotoIndex];
       if (!photo?.imageUrl) return;
-      wx.showLoading({ title: '保存中' });
+      showLoading('保存中');
       try {
         const res = await wx.cloud.downloadFile({ fileID: photo.imageUrl });
         await wx.saveImageToPhotosAlbum({ filePath: res.tempFilePath });
@@ -751,7 +752,7 @@ module.exports = Behavior({
       } catch (e) {
         wx.showToast({ title: '保存失败', icon: 'none' });
       } finally {
-        wx.hideLoading();
+        hideLoading();
       }
     },
   },

@@ -1,6 +1,7 @@
 // pages/upload/upload.js
 const { postApi, uploadImage } = require('../../utils/api');
-const { showLoading, hideLoading, showToast, showSuccess } = require('../../utils/util');
+const { showToast, showLoading, hideLoading, showSuccess } = require('../../utils/util');
+const { chooseMedia } = require('../../utils/mediaPicker');
 
 Page({
   data: {
@@ -41,10 +42,8 @@ Page({
 
   // 选择图片（多选）
   chooseImage() {
-    wx.chooseMedia({
+    chooseMedia({
       count: 9,
-      mediaType: ['image'],
-      sourceType: ['album', 'camera'],
       success: (res) => {
         const newFiles = res.tempFiles || [];
         if (!newFiles.length) return;
@@ -76,37 +75,6 @@ Page({
             }
           );
         });
-      },
-      fail: (err) => {
-        const errMsg = (err && err.errMsg) || '';
-        console.error('[upload] chooseMedia fail:', errMsg);
-        if (/cancel/i.test(errMsg)) return;
-
-        if (/privacy|scope|隐私/i.test(errMsg) && wx.openPrivacyContract) {
-          wx.showModal({
-            title: '需要同意隐私协议',
-            content: '选图前需同意《用户隐私保护指引》',
-            confirmText: '查看协议',
-            success: (r) => {
-              if (r.confirm) wx.openPrivacyContract();
-            },
-          });
-          return;
-        }
-
-        if (/auth deny|permission denied/i.test(errMsg)) {
-          wx.showModal({
-            title: '需要相册权限',
-            content: '请在设置中允许访问相册和相机',
-            confirmText: '去设置',
-            success: (r) => {
-              if (r.confirm) wx.openSetting();
-            },
-          });
-          return;
-        }
-
-        showToast('无法打开相册，请重试');
       },
     });
   },

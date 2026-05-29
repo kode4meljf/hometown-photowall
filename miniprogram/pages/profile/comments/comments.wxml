@@ -24,7 +24,7 @@
           <!-- 发出评论列表 -->
           <view wx:for="{{sentList}}" wx:key="id" class="sent-card" bindtap="goToDetail" data-postid="{{item.postId}}">
             <view class="sent-thumb-wrap">
-              <image class="sent-thumb" src="{{item.postThumb || '/assets/icons/default-img.png'}}" mode="aspectFill" />
+              <image class="sent-thumb" src="{{item.postThumb || '/assets/icons/liked-empty.svg'}}" mode="aspectFill" />
             </view>
             <view class="sent-body">
               <text class="sent-title">{{item.postTitle || '帖子'}}</text>
@@ -93,7 +93,7 @@
               </view>
               <text class="comment-text">{{item.content}}</text>
               <view class="post-ref" catchtap="goToDetail" data-postid="{{item.postId}}">
-                <image class="post-thumb" src="{{item.postThumb || '/assets/icons/default-img.png'}}" mode="aspectFill" />
+                <image class="post-thumb" src="{{item.postThumb || '/assets/icons/liked-empty.svg'}}" mode="aspectFill" />
                 <text class="post-title">{{item.postTitle || '帖子'}}</text>
                 <text class="post-arrow">›</text>
               </view>

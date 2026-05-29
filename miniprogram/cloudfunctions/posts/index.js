@@ -8,7 +8,7 @@ const _ = db.command;
 const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
-const identity = require('./common/identity');
+const identity = require('hometown-common');
 
 async function getActor(openId) {
   return identity.resolveActor(db, openId);
@@ -59,38 +59,20 @@ exports.main = async (event, context) => {
       return await likePost(data.id, openId);
     case 'comment':
       return await addComment(data, openId);
-    case 'timeline':
-      return await getTimeline(openId);
     case 'locations':
       return await getLocations();
-    case 'stats':
-      return await getStats();
-    case 'fixCommentAvatars':
-      return await fixCommentAvatars();
     case 'myWorks':
       return await getMyWorks(openId, data);
     case 'myLiked':
       return await getMyLiked(openId, data);
     case 'moreComments':
       return await getMoreComments(data, openId);
-    case 'update': {
-      // 加日志看清楚前端到底传了什么
-      console.log('[update] event.full:', JSON.stringify(event));
-      const { postId, ...rest } = event;
-      const payload = { postId, ...event.data };
-      console.log('[update] payload:', JSON.stringify(payload));
-      console.log('[update] event.data.updates:', JSON.stringify(event.data?.updates));
-      console.log('[update] event.data.data:', JSON.stringify(event.data?.data));
-      return await updatePost(payload, openId);
-    }
-    case 'incrementShares':
-      return await incrementShares(data, openId);
+    case 'update':
+      return await updatePost(event.data || {}, openId);
     case 'toggleCommentLike':
       return await toggleCommentLike(data, openId);
     case 'getCommentReplies':
       return await getCommentReplies(data, openId);
-    case 'migrateHidden':
-      return await migrateHiddenField();
     case 'myComments':
       return await getMyComments(openId, data);
     case 'receivedComments':
@@ -211,10 +193,8 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
   try {
     // 只返回一级评论（parentId 为空/null），按热度排序
     const query = { postId, parentId: _.or(_.eq(null), _.exists(false)) };
-    console.log('[getCommentsWithAuthors] postId:', postId, 'query:', JSON.stringify(query));
     const countResult = await commentsCollection.where(query).count();
     const total = countResult.total;
-    console.log('[getCommentsWithAuthors] total comments:', total);
 
     const commentsResult = await commentsCollection
       .where(query)
@@ -272,7 +252,6 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
       c.authorAvatar = avatarMap[c.authorId] || '/assets/icons/default-avatar.png';
     });
 
-    console.log('[getCommentsWithAuthors] returning comments count:', comments.length);
     return { comments, hasMore: offset + limit < total, total };
   } catch (e) {
     console.error('查询评论失败:', e);
@@ -349,7 +328,6 @@ async function createPost(data, openId) {
 async function deletePost(id, openId) {
   const actor = await getActor(openId);
   try {
-    console.log('[deletePost] id:', id, 'openId:', openId);
     if (!id) {
       return { success: false, message: '缺少帖子ID' };
     }
@@ -371,7 +349,6 @@ async function deletePost(id, openId) {
 // 更新帖子
 async function updatePost(data, openId) {
   const actor = await getActor(openId);
-  console.log('[updatePost] received data:', JSON.stringify(data), 'openId:', openId);
   try {
     // 兼容三种调用格式：
     // 1. { id, updates } — 标准格式
@@ -573,36 +550,22 @@ async function addComment(data, openId) {
       replyToAuthor: ''                   // 默认空；根据被回复评论类型决定是否设置
     };
 
-    console.log('[addComment] ===== START =====');
-    console.log('[addComment] data.replyTo:', data.replyTo, 'data.replyToAuthor:', data.replyToAuthor);
-
-    // 如果有 replyTo（回复某条评论），查出被回复评论，判断是否需要设置 replyToAuthor
     if (data.replyTo) {
       try {
         const parentCommentRes = await commentsCollection.doc(data.replyTo).get();
-        console.log('[addComment] parentComment found:', JSON.stringify(parentCommentRes.data));
         if (parentCommentRes.data) {
-          // 只有被回复的评论本身是子评论时（parentComment.data.replyTo 有值）才有 › 引用
-          console.log('[addComment] parentComment.data.replyTo:', parentCommentRes.data.replyTo);
           if (parentCommentRes.data.replyTo) {
             commentData.replyToAuthor = parentCommentRes.data.author;
-            console.log('[addComment] SET replyToAuthor =', parentCommentRes.data.author);
-          } else {
-            console.log('[addComment] parent is top-level comment, keep replyToAuthor = empty');
           }
         }
       } catch (e) {
-        console.warn('[addComment] 查被回复评论失败:', e);
+        console.error('[addComment] 查被回复评论失败:', e);
       }
-    } else {
-      console.log('[addComment] no data.replyTo, keep replyToAuthor = empty');
     }
-    console.log('[addComment] FINAL commentData.replyToAuthor:', commentData.replyToAuthor);
 
     const result = await commentsCollection.add({
       data: commentData
     });
-    console.log('[addComment] success, commentId:', result._id, 'postId:', data.postId);
 
     return {
       success: true,
@@ -619,44 +582,6 @@ async function addComment(data, openId) {
   }
 }
 
-// 获取时间线（读 posts 集合）
-async function getTimeline(openId) {
-  const actor = await getActor(openId);
-  try {
-    const result = await postsCollection
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
-
-    let posts = result.data.map(post => ({
-      ...normalizePost(post),
-      liked: identity.isLikedBy(post.likedUsers, actor)
-    }));
-
-    const authorIds = [...new Set(posts.map(p => p.authorId).filter(Boolean))];
-    const { avatarMap, nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
-    identity.applyAuthorToPosts(posts, avatarMap, nicknameMap);
-
-
-    const timeline = {};
-    posts.forEach(post => {
-      const year = new Date(post.createdAt).getFullYear();
-      if (!timeline[year]) {
-        timeline[year] = { year, photos: [] };
-      }
-      timeline[year].photos.push(post);
-    });
-
-    return {
-      success: true,
-      data: Object.values(timeline).sort((a, b) => b.year - a.year)
-    };
-  } catch (e) {
-    console.error('获取时间线失败:', e);
-    return { success: false, message: '获取失败' };
-  }
-}
-
 // 获取地点列表（从 posts 集合）
 async function getLocations() {
   try {
@@ -670,34 +595,6 @@ async function getLocations() {
     return { success: true, data: locations };
   } catch (e) {
     return { success: false, data: [] };
-  }
-}
-
-// 获取统计数据（posts 集合）
-async function getStats() {
-  try {
-    const [postCount, userCount] = await Promise.all([
-      postsCollection.count(),
-      db.collection('users').count()
-    ]);
-
-    const likesResult = await postsCollection.field({ likes: true }).get();
-    const totalLikes = likesResult.data.reduce((sum, p) => sum + (p.likes || 0), 0);
-
-    const commentsCount = await commentsCollection.count();
-
-    return {
-      success: true,
-      data: {
-        totalPhotos: postCount.total,
-        totalUsers: userCount.total,
-        totalLikes,
-        totalComments: commentsCount.total
-      }
-    };
-  } catch (e) {
-    console.error('获取统计失败:', e);
-    return { success: false, data: {} };
   }
 }
 
@@ -773,60 +670,6 @@ async function getMyLiked(openId, params = {}) {
   } catch (e) {
     console.error('获取赞过的照片失败:', e);
     return { success: false, data: { posts: [], hasMore: false, total: 0 } };
-  }
-}
-
-// 一次性迁移：修复旧评论缺失的 authorAvatar
-async function fixCommentAvatars() {
-  let fixed = 0;
-  let batch = 0;
-  try {
-    while (true) {
-      const allComments = await commentsCollection
-        .where({ authorAvatar: '' })
-        .limit(20)
-        .field({ _id: true, authorId: true })
-        .get();
-
-      if (allComments.data.length === 0) break;
-
-      const userIds = [...new Set(allComments.data.map(c => c.authorId).filter(Boolean))];
-      let userMap = {};
-      if (userIds.length > 0) {
-        const users = await usersCollection
-          .where({ _id: _.in(userIds) })
-          .field({ _id: true, avatar: true })
-          .get();
-        users.data.forEach(u => { userMap[u._id] = u.avatar || ''; });
-      }
-
-      await Promise.all(allComments.data.map(async (c) => {
-        const avatar = userMap[c.authorId] || '';
-        if (avatar) {
-          await commentsCollection.doc(c._id).update({ data: { authorAvatar: avatar } });
-          fixed++;
-        }
-      }));
-
-      batch++;
-      if (batch >= 50) break;
-    }
-    return { success: true, fixed };
-  } catch (e) {
-    console.error('[fixCommentAvatars] failed:', e);
-    return { success: false, message: e.message };
-  }
-}
-
-async function incrementShares(data, openId) {
-  try {
-    const id = data.id;
-    if (!id) return { success: false, message: "缺少帖子ID" };
-    await postsCollection.doc(id).update({ data: { shares: _.inc(1) } });
-    return { success: true };
-  } catch (e) {
-    console.error("[incrementShares] failed:", e);
-    return { success: false, message: e.message };
   }
 }
 

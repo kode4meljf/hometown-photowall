@@ -1,6 +1,7 @@
 // pages/edit-profile/edit-profile.js
 const { userApi } = require('../../../utils/api');
-const { showToast } = require('../../../utils/util');
+const { showToast, showLoading, hideLoading } = require('../../../utils/util');
+const { ensureSession } = require('../../../utils/session');
 
 Page({
   data: {
@@ -36,15 +37,12 @@ Page({
 
   // 加载用户信息
   async loadUserInfo() {
-    wx.showLoading({ title: '加载中...', mask: true });
+    showLoading('加载中...');
     try {
+      const valid = await ensureSession({ toast: true, navigateBack: true });
+      hideLoading();
+      if (!valid) return;
       const app = getApp();
-      const valid = await app.syncSession({ toast: true });
-      wx.hideLoading();
-      if (!valid) {
-        setTimeout(() => wx.navigateBack(), 500);
-        return;
-      }
       const u = app.globalData.userInfo;
       if (!u) return;
       this.setData({
@@ -59,7 +57,7 @@ Page({
         bioLength: (u.bio || '').length
       });
     } catch (e) {
-      wx.hideLoading();
+      hideLoading();
       console.error('加载用户信息失败:', e);
       showToast('加载失败');
     }
@@ -75,12 +73,12 @@ Page({
 
   // 上传头像（选完即生效）
   async _uploadAvatar(filePath) {
-    wx.showLoading({ title: '上传中...', mask: true });
+    showLoading('上传中...');
     try {
       const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
       const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath });
       if (!uploadRes.fileID) {
-        wx.hideLoading();
+        hideLoading();
         showToast('上传失败');
         return;
       }
@@ -94,10 +92,11 @@ Page({
         // 兜底：用 fileID 本地更新
         this.setData({ 'formData.avatar': uploadRes.fileID });
       }
-      wx.hideLoading();
+      hideLoading();
       showToast('头像已更新');
+      getApp().globalData.profileNeedUserRefresh = true;
     } catch (e) {
-      wx.hideLoading();
+      hideLoading();
       showToast('头像保存失败');
       console.error('上传头像失败:', e);
     }
@@ -158,7 +157,7 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: '保存中...', mask: true });
+    showLoading('保存中...');
     try {
       // avatar 已通过 _uploadAvatar 单独存库，此处只更新文字类内容
       const payload = {
@@ -169,10 +168,11 @@ Page({
       };
       const res = await userApi.updateUserProfile(payload);
 
-      wx.hideLoading();
+      hideLoading();
       this.setData({ saving: false });
 
       if (res.success) {
+        getApp().globalData.profileNeedUserRefresh = true;
         showToast('保存成功');
         // 延迟返回，让用户看到提示
         setTimeout(() => {
@@ -182,7 +182,7 @@ Page({
         showToast(res.message || '保存失败');
       }
     } catch (e) {
-      wx.hideLoading();
+      hideLoading();
       this.setData({ saving: false });
       showToast('保存失败');
       console.error('保存失败:', e);

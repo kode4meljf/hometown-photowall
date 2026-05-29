@@ -3,7 +3,8 @@ App({
   globalData: {
     userInfo: null,
     isLoggedIn: false,
-    homeNeedRefresh: false
+    homeNeedRefresh: false,
+    profileNeedUserRefresh: false,
   },
 
   onLaunch() {
@@ -60,24 +61,6 @@ App({
   wechatLogin() {
     return this._callAuth('wechatLogin').then((result) => {
       this._applyLoginUser(result.data.user);
-      return result;
-    });
-  },
-
-  // 手机号找回登录（换微信后，需已绑定过手机）
-  phoneLogin(phoneCode) {
-    return this._callAuth('phoneLogin', { phoneCode }).then((result) => {
-      this._applyLoginUser(result.data.user);
-      return result;
-    });
-  },
-
-  // 绑定手机号到当前账号
-  bindPhone(phoneCode) {
-    return this._callAuth('bindPhone', { phoneCode }).then((result) => {
-      if (result.data && result.data.user) {
-        this._applyLoginUser(result.data.user);
-      }
       return result;
     });
   },

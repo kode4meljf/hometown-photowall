@@ -3,15 +3,10 @@ node_modules/
 *.log
 *.bak
 
-# backend
-backend/.env
-backend/uploads/*
-!backend/uploads/.gitkeep
-
-# frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.env
+# web admin
+web/node_modules/
+web/dist/
+web/.env
 
 # miniprogram
 miniprogram/miniprogram_npm/

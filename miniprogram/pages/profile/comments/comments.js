@@ -63,10 +63,8 @@ Page({
     if (this.data.sentLoading || !this.data.sentHasMore) return;
     this.setData({ sentLoading: true });
     const limit = this._getLimit(this.data.sentList);
-    console.log('[comments] loadSent called, offset:', this.data.sentOffset, 'limit:', limit);
     postApi.getMyComments({ offset: this.data.sentOffset, limit })
       .then(res => {
-        console.log('[comments] getMyComments res:', JSON.stringify(res));
         if (res.success) {
           const { comments, hasMore } = res.data;
           const list = this.data.sentOffset === 0
@@ -93,10 +91,8 @@ Page({
     if (this.data.receivedLoading || !this.data.receivedHasMore) return;
     this.setData({ receivedLoading: true });
     const limit = this._getLimit(this.data.receivedList);
-    console.log('[comments] loadReceived called, offset:', this.data.receivedOffset, 'limit:', limit);
     postApi.getReceivedComments({ offset: this.data.receivedOffset, limit })
       .then(res => {
-        console.log('[comments] getReceivedComments res:', JSON.stringify(res));
         if (res.success) {
           const { comments, hasMore, total, newCount } = res.data;
           const list = this.data.receivedOffset === 0

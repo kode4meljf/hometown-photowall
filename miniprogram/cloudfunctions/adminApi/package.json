@@ -1,7 +1,7 @@
 {
-  "name": "stats",
+  "name": "adminApi",
   "version": "1.0.0",
-  "description": "用户数据统计云函数",
+  "description": "Web 管理后台云函数",
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "~2.6.3",

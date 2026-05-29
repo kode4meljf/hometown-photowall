@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "openapi": [],
+    "db": {
+      "posts": { "read": true, "write": true },
+      "post_comments": { "read": true, "write": true },
+      "users": { "read": true, "write": true }
+    }
+  }
+}

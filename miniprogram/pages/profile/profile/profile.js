@@ -1,6 +1,7 @@
 // pages/profile/profile.js
 const { postApi } = require('../../../utils/api');
-const { showToast } = require('../../../utils/util');
+const { showToast, showLoading, hideLoading } = require('../../../utils/util');
+const { isLoggedIn, ensureSession } = require('../../../utils/session');
 const app = getApp();
 
 Page({
@@ -49,8 +50,8 @@ Page({
     this.updateUserStatus();
     if (this.data.isLoggedIn && !this._loaded) {
       this.loadData();
-    }
-    if (this.data.isLoggedIn && this._loaded) {
+    } else if (this.data.isLoggedIn && app.globalData.profileNeedUserRefresh) {
+      app.globalData.profileNeedUserRefresh = false;
       this._fetchUserInfoWithAvatar();
     }
   },
@@ -73,19 +74,19 @@ Page({
   },
 
   async refreshData() {
-    if (app.checkLogin()) {
+    if (isLoggedIn()) {
       await this.fetchLatestUserInfo();
     }
-    if (app.checkLogin()) {
+    if (isLoggedIn()) {
       await this.loadData();
     }
     wx.stopPullDownRefresh();
   },
 
   updateUserStatus() {
-    const isLoggedIn = app.checkLogin();
-    this.setData({ isLoggedIn });
-    if (isLoggedIn) {
+    const loggedIn = isLoggedIn();
+    this.setData({ isLoggedIn: loggedIn });
+    if (loggedIn) {
       this._fetchUserInfoWithAvatar();
     } else {
       this.setData({
@@ -105,9 +106,9 @@ Page({
   },
 
   async _fetchUserInfoWithAvatar() {
-    const wasLoggedIn = app.checkLogin();
+    const wasLoggedIn = isLoggedIn();
     try {
-      const valid = await app.syncSession({ toast: wasLoggedIn });
+      const valid = await ensureSession({ toast: wasLoggedIn });
       if (!valid) {
         this.updateUserStatus();
         return;
@@ -130,7 +131,7 @@ Page({
       this.setData({ userInfo });
     } catch (e) {
       console.error('获取用户信息失败:', e);
-      if (!app.checkLogin()) {
+      if (!isLoggedIn()) {
         this.updateUserStatus();
         return;
       }
@@ -253,8 +254,6 @@ Page({
     }
   },
 
-  noop() {},
-
   onWorksFilterChange(e) {
     const filter = e.currentTarget.dataset.filter;
     if (filter === this.data.worksFilter && this.data.worksDropdownOpen) {
@@ -332,10 +331,6 @@ Page({
       this._likedNeedsRefresh = false;
       this.loadLiked(true);
     }
-  },
-
-  onNeedRefresh() {
-    this._likedNeedsRefresh = true;
   },
 
   goToDetail(e) {
@@ -419,10 +414,6 @@ Page({
     }
   },
 
-  buyPoints() {
-    showToast('购买积分功能开发中');
-  },
-
   freePoints() {
     showToast('免费领积分功能开发中');
   },
@@ -502,13 +493,13 @@ Page({
       return;
     }
 
-    wx.showLoading({ title: '保存中...', mask: true });
+    showLoading('保存中...');
     try {
       const result = await postApi.updatePost(id, {
         title: newTitle,
         description: newDescription,
       });
-      wx.hideLoading();
+      hideLoading();
       if (result.success) {
         const works = this.data.works.map((item) =>
           item.id === id
@@ -524,14 +515,13 @@ Page({
         showToast(result.message || '保存失败');
       }
     } catch (e) {
-      wx.hideLoading();
+      hideLoading();
       showToast('保存失败');
       console.error('编辑作品失败:', e);
     }
   },
 
-  toggleHidePost() {
-    console.log('[toggleHidePost] _postId:', this._postId, 'currentPhotoHidden:', this.data.currentPhotoHidden);
+  async toggleHidePost() {
     const id = this._postId;
     if (!id) {
       showToast('缺少帖子ID');
@@ -540,15 +530,11 @@ Page({
     const currentlyHidden = this.data.currentPhotoHidden;
     this.hidePhotoAction();
 
-    wx.showLoading({ title: currentlyHidden ? '显示中...' : '隐藏中...', mask: true });
-    const callData = { action: 'update', postId: id, data: { hidden: !currentlyHidden } };
-    console.log('[toggleHidePost] calling cloud with:', JSON.stringify(callData));
-    wx.cloud.callFunction({
-      name: 'posts',
-      data: callData
-    }).then(res => {
-      wx.hideLoading();
-      if (res.result && res.result.success) {
+    showLoading(currentlyHidden ? '显示中...' : '隐藏中...');
+    try {
+      const res = await postApi.updatePost(id, { hidden: !currentlyHidden });
+      hideLoading();
+      if (res && res.success) {
         const filter = this.data.worksFilter;
         const setData = {};
         if (filter === 'all') {
@@ -569,13 +555,13 @@ Page({
         this.setData(setData);
         showToast(currentlyHidden ? '已显示' : '已隐藏');
       } else {
-        showToast(res.result?.message || '操作失败');
+        showToast(res?.message || '操作失败');
       }
-    }).catch(err => {
-      wx.hideLoading();
+    } catch (err) {
+      hideLoading();
       showToast('操作失败');
       console.error('[toggleHidePost]', err);
-    });
+    }
   },
 
   deletePost() {
@@ -589,10 +575,10 @@ Page({
       confirmColor: '#e02020',
       success: async (res) => {
         if (res.confirm) {
-          wx.showLoading({ title: '删除中...', mask: true });
+          showLoading('删除中...');
           try {
             const result = await postApi.deletePost(id);
-            wx.hideLoading();
+            hideLoading();
             if (result.success) {
               const works = this.data.works.filter(item => item.id !== id);
               this.setData({ works, worksCount: Math.max(0, this.data.worksCount - 1) });
@@ -603,7 +589,7 @@ Page({
               showToast(result.message || '删除失败');
             }
           } catch (e) {
-            wx.hideLoading();
+            hideLoading();
             console.error('[deletePost] 调用异常:', e);
             showToast('删除失败: ' + (e.errMsg || e.message || '网络错误'));
           }

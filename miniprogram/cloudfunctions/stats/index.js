@@ -7,7 +7,7 @@ const _ = db.command;
 const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
-const identity = require('./common/identity');
+const identity = require('hometown-common');
 
 const GRADES = [
   [90, 'A'],

@@ -71,11 +71,6 @@ function resolveLayout(windowWidth, nav, imgRect, aspectRatio) {
   };
 }
 
-function heroOpacityStyle(opacity, fadeMs = 0) {
-  const tr = fadeMs ? `transition:opacity ${fadeMs}ms ease;` : '';
-  return `opacity:${opacity};${tr}`;
-}
-
 module.exports = {
   PHASE,
   ANIM_MS,
@@ -87,6 +82,4 @@ module.exports = {
   cardHandoffScaleAtProgress,
   resolveLayout,
   rectToStyle,
-  flyTransformStyle,
-  heroOpacityStyle,
 };

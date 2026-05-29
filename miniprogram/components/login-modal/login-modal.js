@@ -1,4 +1,5 @@
 const { userApi } = require('../../utils/api');
+const { showLoading, hideLoading } = require('../../utils/util');
 const app = getApp();
 
 Component({
@@ -52,11 +53,11 @@ Component({
     },
 
     onWechatLogin() {
-      wx.showLoading({ title: '登录中...', mask: true });
+      showLoading('登录中...');
 
       app.wechatLogin()
         .then((result) => {
-          wx.hideLoading();
+          hideLoading();
           if (result.data && result.data.isNewUser) {
             this.setData({ step: 'nickname', nicknameDraft: '' });
             return;
@@ -65,7 +66,7 @@ Component({
           this.finishLogin();
         })
         .catch((err) => {
-          wx.hideLoading();
+          hideLoading();
           wx.showToast({ title: err.message || '登录失败', icon: 'none' });
         });
     },
@@ -86,10 +87,10 @@ Component({
         return;
       }
 
-      wx.showLoading({ title: '保存中...', mask: true });
+      showLoading('保存中...');
       try {
         const res = await userApi.updateUserProfile({ nickname });
-        wx.hideLoading();
+        hideLoading();
         if (res.success) {
           const user = { ...app.globalData.userInfo, nickname };
           app.globalData.userInfo = user;
@@ -100,7 +101,7 @@ Component({
           wx.showToast({ title: res.message || '保存失败', icon: 'none' });
         }
       } catch (e) {
-        wx.hideLoading();
+        hideLoading();
         wx.showToast({ title: '保存失败', icon: 'none' });
       }
     },

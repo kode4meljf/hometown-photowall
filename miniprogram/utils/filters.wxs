@@ -1,16 +1,19 @@
-// 格式化数字：万/亿缩写
+// 格式化数字：与 util.formatLikeCount / formatCompactNum 规则一致
 function formatCount(num) {
   if (num === null || num === undefined) return '0';
   num = +num;
   if (isNaN(num) || num < 0) return '0';
-  if (num < 10000) return '' + num;
-  if (num < 100000000) {
-    var w = num / 10000;
-    // 整数不补 .0
-    return (w === Math.floor(w) ? '' + w : '' + w.toFixed(1)) + '万';
+  if (num >= 100000000) {
+    var y = (num / 100000000).toFixed(1);
+    if (y.slice(-2) === '.0') y = y.slice(0, -2);
+    return y + '亿';
   }
-  var y = num / 100000000;
-  return (y === Math.floor(y) ? '' + y : '' + y.toFixed(1)) + '亿';
+  if (num >= 10000) {
+    var w = (num / 10000).toFixed(1);
+    if (w.slice(-2) === '.0') w = w.slice(0, -2);
+    return w + '万';
+  }
+  return '' + num;
 }
 
 /**

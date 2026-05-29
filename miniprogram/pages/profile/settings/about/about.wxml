@@ -1,7 +1,7 @@
 <view class="about-page">
   <view class="page-body">
     <view class="about-header">
-      <image class="app-icon" src="/assets/icons/logo.png" mode="aspectFit" />
+      <image class="app-icon" src="/assets/icons/icon-about.svg" mode="aspectFit" />
       <text class="app-name">故乡照片墙</text>
       <text class="app-version">v1.0.0</text>
     </view>
