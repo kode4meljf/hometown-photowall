@@ -10,17 +10,61 @@ export interface AdminUser {
   role: string;
 }
 
-export interface AdminPhoto {
+export interface PostImage {
+  imageUrl: string;
+  width?: number;
+  height?: number;
+  order?: number;
+}
+
+export interface AdminPostDetail {
   id: string;
   title: string;
-  imageUrl: string;
+  description: string;
   author: string;
+  authorId: string;
   location: string;
   category: string;
   likes: number;
   views: number;
   commentCount: number;
   createdAt: string;
+  photos: PostImage[];
+}
+
+export interface AdminPhoto {
+  id: string;
+  title: string;
+  imageUrl: string;
+  description?: string;
+  author: string;
+  authorId?: string;
+  location: string;
+  category: string;
+  likes: number;
+  views: number;
+  commentCount: number;
+  createdAt: string;
+  photos?: PostImage[];
+}
+
+export function toPostDetail(photo: AdminPhoto): AdminPostDetail {
+  return {
+    id: photo.id,
+    title: photo.title || '无标题',
+    description: photo.description || '',
+    author: photo.author,
+    authorId: photo.authorId || '',
+    location: photo.location || '-',
+    category: photo.category || '-',
+    likes: photo.likes || 0,
+    views: photo.views || 0,
+    commentCount: photo.commentCount || 0,
+    createdAt: photo.createdAt,
+    photos: photo.photos?.length
+      ? photo.photos
+      : (photo.imageUrl ? [{ imageUrl: photo.imageUrl }] : [])
+  };
 }
 
 export interface AdminStats {
@@ -93,6 +137,14 @@ export const adminAuth = {
 export const adminApi = {
   async getPhotos(params: { page?: number; pageSize?: number } = {}) {
     return callFunction<{ photos: AdminPhoto[]; total: number }>('adminApi', 'getPhotos', withToken(params));
+  },
+
+  async getPostDetail(id: string) {
+    return callFunction<AdminPostDetail>('adminApi', 'getPostDetail', withToken({ id }));
+  },
+
+  async updatePost(id: string, updates: Pick<AdminPostDetail, 'title' | 'description' | 'location'>) {
+    return callFunction<AdminPostDetail>('adminApi', 'updatePost', withToken({ id, updates }));
   },
 
   async getUsers() {

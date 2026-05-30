@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { adminApi, adminAuth, type AdminPhoto, type AdminStats, type AdminUser, type ManagedUser } from '../api/admin';
+import { adminApi, adminAuth, toPostDetail, type AdminPhoto, type AdminPostDetail, type AdminStats, type AdminUser, type ManagedUser } from '../api/admin';
+import PostDetailModal from '../components/PostDetailModal.vue';
 import { toast } from '../utils/toast.js';
 
 const emit = defineEmits<{
@@ -17,6 +18,9 @@ const users = ref<ManagedUser[]>([]);
 const stats = ref<AdminStats | null>(null);
 const loading = ref(false);
 const deleteId = ref<string | null>(null);
+const detailShow = ref(false);
+const detailLoading = ref(false);
+const detailPost = ref<AdminPostDetail | null>(null);
 
 const loadPhotos = async () => {
   loading.value = true;
@@ -61,6 +65,44 @@ const handleDelete = (id: string) => {
   deleteId.value = id;
 };
 
+const openDetail = async (photo: AdminPhoto) => {
+  detailShow.value = true;
+  detailPost.value = toPostDetail(photo);
+  detailLoading.value = true;
+  try {
+    const res = await adminApi.getPostDetail(photo.id);
+    if (res.success && res.data) {
+      detailPost.value = res.data;
+    } else if (res.message && res.message !== '未知操作') {
+      toast.warning(res.message);
+    }
+  } catch (e) {
+    toast.warning(e instanceof Error ? e.message : '详情加载失败，已显示基础信息');
+  } finally {
+    detailLoading.value = false;
+  }
+};
+
+const closeDetail = () => {
+  detailShow.value = false;
+  detailPost.value = null;
+};
+
+const handlePostUpdated = (post: AdminPostDetail) => {
+  detailPost.value = post;
+  const idx = photos.value.findIndex((p) => p.id === post.id);
+  if (idx >= 0) {
+    photos.value[idx] = {
+      ...photos.value[idx],
+      title: post.title,
+      description: post.description,
+      location: post.location,
+      imageUrl: post.photos[0]?.imageUrl || photos.value[idx].imageUrl,
+      photos: post.photos
+    };
+  }
+};
+
 const confirmDelete = async () => {
   const id = deleteId.value;
   if (!id) return;
@@ -69,6 +111,7 @@ const confirmDelete = async () => {
   const res = await adminApi.deletePhoto(id);
   if (res.success) {
     photos.value = photos.value.filter((p) => p.id !== id);
+    if (detailPost.value?.id === id) closeDetail();
     loadStats();
     toast.success('删除成功');
   } else {
@@ -154,7 +197,7 @@ onMounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="photo in photos" :key="photo.id">
+            <tr v-for="photo in photos" :key="photo.id" class="photo-row" @click="openDetail(photo)">
               <td>
                 <img v-if="photo.imageUrl" :src="photo.imageUrl" alt="" class="thumb" />
                 <span v-else class="no-thumb">无图</span>
@@ -168,7 +211,7 @@ onMounted(() => {
               <td>{{ photo.commentCount }}</td>
               <td>{{ formatDate(photo.createdAt) }}</td>
               <td>
-                <button class="danger-btn" @click="handleDelete(photo.id)">删除</button>
+                <button class="danger-btn" @click.stop="handleDelete(photo.id)">删除</button>
               </td>
             </tr>
           </tbody>
@@ -209,6 +252,14 @@ onMounted(() => {
         <p v-if="!users.length" class="empty">暂无用户</p>
       </div>
     </div>
+
+    <PostDetailModal
+      :show="detailShow"
+      :post="detailPost"
+      :loading="detailLoading"
+      @close="closeDetail"
+      @updated="handlePostUpdated"
+    />
 
     <div v-if="deleteId" class="confirm-overlay" @click.self="deleteId = null">
       <div class="confirm-box">
@@ -366,6 +417,15 @@ th {
 .no-thumb {
   color: #94a3b8;
   font-size: 12px;
+}
+
+.photo-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.photo-row:hover {
+  background: #f8fafc;
 }
 
 .role {

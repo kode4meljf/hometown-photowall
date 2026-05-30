@@ -178,6 +178,65 @@ async function handleVerifySession(adminToken) {
   };
 }
 
+function formatLocation(location) {
+  if (!location) return '-';
+  if (typeof location === 'string') return location;
+  if (typeof location === 'object') {
+    if (location.name) return location.name;
+    if (location.address) return location.address;
+  }
+  return '-';
+}
+
+function formatCreatedAt(value) {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object' && value.$date) return value.$date;
+  try {
+    return new Date(value).toISOString();
+  } catch (e) {
+    return '';
+  }
+}
+
+async function resolvePostPhotos(post) {
+  const normalized = normalizePost(post);
+  const rawPhotos = Array.isArray(post.photos) && post.photos.length
+    ? [...post.photos].sort((a, b) => (a.order || 0) - (b.order || 0))
+    : (normalized.imageUrl ? [{ imageUrl: normalized.imageUrl, order: 0 }] : []);
+
+  return Promise.all(rawPhotos.map(async (item) => ({
+    ...item,
+    imageUrl: await resolveImageUrl(item.imageUrl)
+  })));
+}
+
+async function buildPostDetail(post, id) {
+  const normalized = normalizePost(post);
+  const authorIds = normalized.authorId ? [normalized.authorId] : [];
+  const { nicknameMap, avatarMap } = await identity.resolveAuthorsMap(db, authorIds);
+  identity.applyAuthorToPosts([normalized], avatarMap, nicknameMap);
+
+  const photos = await resolvePostPhotos(post);
+  const commentCount = await db.collection('post_comments').where({ postId: id }).count();
+
+  return {
+    id: normalized.id,
+    title: normalized.title || '无标题',
+    description: normalized.description || normalized.content || '',
+    author: normalized.author || '未知用户',
+    authorId: normalized.authorId || '',
+    location: formatLocation(normalized.location),
+    category: normalized.category || '-',
+    likes: normalized.likes || 0,
+    views: normalized.views || 0,
+    commentCount: commentCount.total,
+    createdAt: formatCreatedAt(normalized.createdAt),
+    photos
+  };
+}
+
 async function getAllPhotos(params = {}) {
   try {
     const { page = 1, pageSize = 50 } = params;
@@ -190,19 +249,25 @@ async function getAllPhotos(params = {}) {
         .get()
     ]);
 
-    const posts = listResult.data.map(normalizePost);
-    const authorIds = [...new Set(posts.map((p) => p.authorId).filter(Boolean))];
-    const { nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
-    identity.applyAuthorToPosts(posts, {}, nicknameMap);
+    const photos = await Promise.all(listResult.data.map(async (rawPost) => {
+      const photo = normalizePost(rawPost);
+      const authorIds = photo.authorId ? [photo.authorId] : [];
+      const { nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
+      identity.applyAuthorToPosts([photo], {}, nicknameMap);
 
-    const photos = await Promise.all(posts.map(async (photo) => {
-      const [imageUrl, commentCount] = await Promise.all([
-        resolveImageUrl(photo.imageUrl),
+      const [resolvedPhotos, commentCount] = await Promise.all([
+        resolvePostPhotos(rawPost),
         db.collection('post_comments').where({ postId: photo.id }).count()
       ]);
+      const coverUrl = resolvedPhotos[0]?.imageUrl || await resolveImageUrl(photo.imageUrl);
+
       return {
         ...photo,
-        imageUrl,
+        imageUrl: coverUrl,
+        description: photo.description || photo.content || '',
+        location: formatLocation(photo.location),
+        createdAt: formatCreatedAt(photo.createdAt),
+        photos: resolvedPhotos,
         author: photo.author || '未知用户',
         commentCount: commentCount.total
       };
@@ -220,6 +285,27 @@ async function getAllPhotos(params = {}) {
   } catch (e) {
     console.error('[adminApi] getPhotos failed:', e);
     return { success: false, message: '获取照片失败' };
+  }
+}
+
+async function getPostDetail(id) {
+  if (!id) {
+    return { success: false, message: '缺少帖子 ID' };
+  }
+  try {
+    const postResult = await db.collection('posts').doc(id).get();
+    const post = postResult.data;
+    if (!post) {
+      return { success: false, message: '帖子不存在' };
+    }
+
+    return {
+      success: true,
+      data: await buildPostDetail(post, id)
+    };
+  } catch (e) {
+    console.error('[adminApi] getPostDetail failed:', e);
+    return { success: false, message: '获取详情失败' };
   }
 }
 
@@ -264,6 +350,48 @@ async function getUsers() {
   } catch (e) {
     console.error('[adminApi] getUsers failed:', e);
     return { success: false, message: '获取用户失败' };
+  }
+}
+
+async function updatePost(id, updates = {}) {
+  if (!id) {
+    return { success: false, message: '缺少帖子 ID' };
+  }
+
+  const allowedFields = ['title', 'description', 'location'];
+  const updateData = {};
+
+  for (const field of allowedFields) {
+    if (updates[field] !== undefined) {
+      updateData[field] = String(updates[field]).trim();
+    }
+  }
+
+  if (updateData.title !== undefined && !updateData.title) {
+    return { success: false, message: '标题不能为空' };
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return { success: false, message: '没有可更新的字段' };
+  }
+
+  try {
+    const postResult = await db.collection('posts').doc(id).get();
+    if (!postResult.data) {
+      return { success: false, message: '帖子不存在' };
+    }
+
+    await db.collection('posts').doc(id).update({ data: updateData });
+
+    const freshResult = await db.collection('posts').doc(id).get();
+    return {
+      success: true,
+      message: '更新成功',
+      data: await buildPostDetail(freshResult.data, id)
+    };
+  } catch (e) {
+    console.error('[adminApi] updatePost failed:', e);
+    return { success: false, message: '更新失败' };
   }
 }
 
@@ -314,6 +442,10 @@ async function dispatch(payload, wxContext) {
       switch (action) {
         case 'getPhotos':
           return await getAllPhotos(data);
+        case 'getPostDetail':
+          return await getPostDetail(data.id);
+        case 'updatePost':
+          return await updatePost(data.id, data.updates);
         case 'deletePost':
           return await deletePost(data.id);
         case 'getUsers':
@@ -328,23 +460,32 @@ async function dispatch(payload, wxContext) {
 }
 
 exports.main = async (event, context) => {
-  const parsed = parseEvent(event);
+  try {
+    const parsed = parseEvent(event);
 
-  if (parsed.isOptions) {
-    return httpResponse({ success: true });
-  }
-  if (parsed.parseError) {
-    return httpResponse({ success: false, message: '请求格式错误' }, 400);
-  }
+    if (parsed.isOptions) {
+      return httpResponse({ success: true });
+    }
+    if (parsed.parseError) {
+      return httpResponse({ success: false, message: '请求格式错误' }, 400);
+    }
 
-  const wxContext = cloud.getWXContext();
-  const result = await dispatch(
-    { action: parsed.action, data: parsed.data },
-    wxContext
-  );
+    const wxContext = cloud.getWXContext();
+    const result = await dispatch(
+      { action: parsed.action, data: parsed.data },
+      wxContext
+    );
 
-  if (parsed.isHttp) {
-    return httpResponse(result);
+    if (parsed.isHttp) {
+      return httpResponse(result);
+    }
+    return result;
+  } catch (e) {
+    console.error('[adminApi] unhandled error:', e);
+    const message = e && e.message ? e.message : '服务内部错误';
+    if (event && event.httpMethod) {
+      return httpResponse({ success: false, message }, 500);
+    }
+    return { success: false, message };
   }
-  return result;
 };
