@@ -19,10 +19,9 @@ miniprogram/
 │   ├── upload/          # 发布作品
 │   └── profile/         # 我的、编辑资料、设置、签到、统计、评论
 ├── components/
-│   ├── custom-tab-bar/  # 自定义底栏（实现）
-│   ├── login-modal/
-│   └── post-detail-overlay/
-├── custom-tab-bar/      # 框架固定入口（薄封装，指向 components/custom-tab-bar）
+│   ├── login-modal/     # 登录弹窗
+│   └── post-detail-overlay/  # 帖子详情浮层
+├── custom-tab-bar/      # 自定义底栏
 └── utils/
     ├── api.js           # 云函数 API 封装
     ├── util.js          # 通用工具（loading、格式化等）
