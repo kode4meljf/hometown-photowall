@@ -6,7 +6,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
 const feedbackCollection = db.collection('feedbacks');
 const usersCollection = db.collection('users');
-const { contentSecurity: sec } = require('hometown-common');
+const sec = require('./common/contentSecurity');
 
 const CONTENT_MIN = 5;
 const CONTENT_MAX = 500;

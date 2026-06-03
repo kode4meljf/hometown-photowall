@@ -1,6 +1,7 @@
 // pages/index/index.js - 新设计:标签组筛选 + 自定义 TabBar
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
+const { isLoggedIn } = require('../../utils/session');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
 const { cardHandoffScaleAtProgress } = require('../../utils/heroController');
 const app = getApp();
@@ -132,7 +133,7 @@ Page({
         detailCardLikes: inFeed?.likes || pending.likes || 0,
         detailCardCommentsCount:
           inFeed?.commentsCount || pending.commentsCount || 0,
-        detailCardLiked: !!(inFeed?.liked || pending.liked),
+        detailCardLiked: isLoggedIn() && !!(inFeed?.liked || pending.liked),
         detailCardDate: inFeed?._formattedDate || pending.cardDate || '',
         detailCardPhotoCount:
           (inFeed?.photos && inFeed.photos.length) ||
@@ -307,6 +308,7 @@ Page({
 
       return {
         ...post,
+        liked: isLoggedIn() ? !!post.liked : false,
         cardHeight,
         slotHeight,
         _formattedDate,
@@ -470,7 +472,7 @@ Page({
           detailSlotHold: true,
           detailCardLikes: post.likes || 0,
           detailCardCommentsCount: post.commentsCount || 0,
-          detailCardLiked: !!post.liked,
+          detailCardLiked: isLoggedIn() && !!post.liked,
           detailCardDate: post._formattedDate || '',
           detailCardPhotoCount:
             (post.photos && post.photos.length) || post.photoCount || 1,

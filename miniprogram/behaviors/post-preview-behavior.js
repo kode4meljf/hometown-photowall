@@ -5,6 +5,8 @@ const PREVIEW_DIR_LOCK_PX = 12;
 const PREVIEW_DIR_BIAS = 1.4;
 const PREVIEW_VERTICAL_EXIT_RATIO = 0.12;
 const PREVIEW_PINCH_EXIT_SCALE = 0.94;
+/** 与 .preview-image-wrapper.animating-exit 的 transition 时长一致 */
+const PREVIEW_EXIT_MS = 280;
 
 /**
  * 全屏图片预览（详情浮层内使用）
@@ -440,29 +442,25 @@ module.exports = Behavior({
           this.setData({
             previewTransform: `translate(${endTx.toFixed(2)}px, ${endTy.toFixed(2)}px) scale(${endSx.toFixed(4)}, ${endSy.toFixed(4)})`,
             previewAnimClass: '',
+            isPreviewMode: false,
+            previewOpacity: 1,
+            previewBgBlack: false,
+            previewBgStyle: '',
+            previewDismissDragging: false,
+            previewTouchCapture: false,
+            previewProgressStyle: '',
+            previewProgressVisible: false,
+            indexBadgeVisible: false,
           });
-          setTimeout(() => {
-            this.setData({
-              isPreviewMode: false,
-              previewOpacity: 1,
-              previewBgBlack: false,
-              previewBgStyle: '',
-              previewDismissDragging: false,
-              previewProgressStyle: '',
-              previewProgressVisible: false,
-              indexBadgeVisible: false,
-            });
-            this._previewAnimating = false;
-            this._currentTx = 0;
-            this._currentTy = 0;
-            this._currentScale = 1;
-            this._currentSy = 1;
-            this._rectY = null;
-            this._flipParams = null;
-            this._exitRequested = false;
-            this.setData({ previewTouchCapture: false });
-          }, 16);
-        }, 300);
+          this._previewAnimating = false;
+          this._currentTx = 0;
+          this._currentTy = 0;
+          this._currentScale = 1;
+          this._currentSy = 1;
+          this._rectY = null;
+          this._flipParams = null;
+          this._exitRequested = false;
+        }, PREVIEW_EXIT_MS);
       });
     },
 

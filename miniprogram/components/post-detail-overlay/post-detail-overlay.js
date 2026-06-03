@@ -5,6 +5,7 @@ const {
   CARD_EXIT_HANDOFF_RATIO,
 } = require('../../utils/heroController');
 const { formatLikeCount } = require('../../utils/util');
+const { isLoggedIn } = require('../../utils/session');
 const { getDetailSlotHeight } = require('../../utils/heroLayout');
 const { rectToStyle } = require('../../utils/heroLayout');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
@@ -138,7 +139,7 @@ Component({
         photos: [],
         comments: [],
         likes: this.properties.cardLikes || 0,
-        liked: !!this.properties.cardLiked,
+        liked: isLoggedIn() && !!this.properties.cardLiked,
         shares: 0,
         commentsCount: this.properties.cardCommentsCount || 0,
         _shellPreview: true,

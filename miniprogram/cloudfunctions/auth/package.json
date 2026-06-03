@@ -4,7 +4,6 @@
   "description": "用户认证云函数",
   "main": "index.js",
   "dependencies": {
-    "wx-server-sdk": "~2.6.3",
-    "hometown-common": "file:../common"
+    "wx-server-sdk": "~2.6.3"
   }
 }

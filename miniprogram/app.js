@@ -71,6 +71,7 @@ App({
     this.globalData.userInfo = null;
     this.globalData.isLoggedIn = false;
     wx.removeStorageSync('userInfo');
+    this.globalData.homeNeedRefresh = true;
   },
 
   /**

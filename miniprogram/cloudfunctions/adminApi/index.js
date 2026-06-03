@@ -5,7 +5,8 @@ const crypto = require('crypto');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
-const { identity, POST_STATUS, POST_STATUS_LIST } = require('hometown-common');
+const identity = require('./common/identity');
+const { POST_STATUS, POST_STATUS_LIST } = require('./common/postStatus');
 
 const TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || 'hometown_admin_token_secret';
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;

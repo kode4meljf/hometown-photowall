@@ -1,7 +1,7 @@
 const { postApi } = require('../utils/api');
 const { getDetailSlotHeight } = require('../utils/heroLayout');
 const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatLikeCount } = require('../utils/util');
-const { requireLogin } = require('../utils/session');
+const { requireLogin, isLoggedIn } = require('../utils/session');
 const app = getApp();
 
 /**
@@ -131,6 +131,9 @@ module.exports = Behavior({
           if (avatar) post.authorAvatar = avatar;
           post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
           const finalPost = this._alignFirstPhotoWithCover(post);
+          if (!isLoggedIn()) {
+            finalPost.liked = false;
+          }
           const canDelete = !!finalPost.canDelete;
           const canAdminDelete = this._canAdminDeleteHint();
           const hasMoreComments = res.data.hasMore || false;

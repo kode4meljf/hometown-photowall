@@ -8,7 +8,9 @@ const _ = db.command;
 const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
-const { identity, contentSecurity: sec, POST_STATUS, POST_STATUS_LIST } = require('hometown-common');
+const identity = require('./common/identity');
+const sec = require('./common/contentSecurity');
+const { POST_STATUS, POST_STATUS_LIST } = require('./common/postStatus');
 
 async function getActor(openId) {
   return identity.resolveActor(db, openId);
