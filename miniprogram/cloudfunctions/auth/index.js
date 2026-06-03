@@ -4,7 +4,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const usersCollection = db.collection('users');
-const identity = require('hometown-common');
+const { identity, contentSecurity: sec } = require('hometown-common');
 
 // 云函数入口
 exports.main = async (event, context) => {
@@ -50,6 +50,15 @@ async function handleRegister(username, password, nickname, openId) {
     const existUser = await usersCollection.where({ username }).get();
     if (existUser.data.length > 0) {
       return { success: false, message: '用户名已存在' };
+    }
+
+    const textCheck = await sec.checkText(cloud, openId, {
+      content: nickname,
+      scene: sec.SCENE.PROFILE,
+      nickname,
+    });
+    if (!textCheck.ok) {
+      return { success: false, message: textCheck.message };
     }
 
     const result = await usersCollection.add({
@@ -151,6 +160,23 @@ async function handleUpdateUserInfo(avatar, nickname, openId) {
     if (nickname) updateData.nickname = nickname;
     updateData.updatedAt = db.serverDate();
 
+    if (nickname) {
+      const textCheck = await sec.checkText(cloud, openId, {
+        content: nickname,
+        scene: sec.SCENE.PROFILE,
+        nickname,
+      });
+      if (!textCheck.ok) {
+        return { success: false, message: textCheck.message };
+      }
+    }
+    if (avatar) {
+      const imageCheck = await sec.checkImages(cloud, openId, [avatar], sec.SCENE.PROFILE);
+      if (!imageCheck.ok) {
+        return { success: false, message: imageCheck.message };
+      }
+    }
+
     await usersCollection.doc(userId).update({ data: updateData });
 
     return { success: true, data: { avatar, nickname } };
@@ -179,6 +205,31 @@ async function handleUpdateUserProfile(params, openId) {
     if (region !== undefined) updateData.region = region;
     if (bio !== undefined) updateData.bio = bio;
     updateData.updatedAt = db.serverDate();
+
+    const textItems = [];
+    if (nickname !== undefined) {
+      textItems.push({
+        content: nickname,
+        scene: sec.SCENE.PROFILE,
+        nickname,
+      });
+    }
+    if (bio !== undefined) {
+      textItems.push({ content: bio, scene: sec.SCENE.PROFILE, nickname });
+    }
+    if (textItems.length) {
+      const textCheck = await sec.checkTexts(cloud, openId, textItems);
+      if (!textCheck.ok) {
+        return { success: false, message: textCheck.message };
+      }
+    }
+
+    if (avatar !== undefined && avatar) {
+      const imageCheck = await sec.checkImages(cloud, openId, [avatar], sec.SCENE.PROFILE);
+      if (!imageCheck.ok) {
+        return { success: false, message: imageCheck.message };
+      }
+    }
 
     const updateRes = await usersCollection.doc(userId).update({ data: updateData });
 

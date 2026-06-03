@@ -17,6 +17,8 @@ export interface PostImage {
   order?: number;
 }
 
+export type PostStatus = 'released' | 'reviewing' | 'hidden' | 'rejected';
+
 export interface AdminPostDetail {
   id: string;
   title: string;
@@ -28,6 +30,9 @@ export interface AdminPostDetail {
   likes: number;
   views: number;
   commentCount: number;
+  status: PostStatus;
+  mediaTraceIds?: string[];
+  reviewAdminNote?: string;
   createdAt: string;
   photos: PostImage[];
 }
@@ -44,6 +49,9 @@ export interface AdminPhoto {
   likes: number;
   views: number;
   commentCount: number;
+  status: PostStatus;
+  mediaTraceIds?: string[];
+  reviewAdminNote?: string;
   createdAt: string;
   photos?: PostImage[];
 }
@@ -60,6 +68,9 @@ export function toPostDetail(photo: AdminPhoto): AdminPostDetail {
     likes: photo.likes || 0,
     views: photo.views || 0,
     commentCount: photo.commentCount || 0,
+    status: photo.status,
+    mediaTraceIds: photo.mediaTraceIds,
+    reviewAdminNote: photo.reviewAdminNote,
     createdAt: photo.createdAt,
     photos: photo.photos?.length
       ? photo.photos
@@ -73,6 +84,24 @@ export interface AdminStats {
   totalLikes: number;
   totalViews: number;
   totalComments: number;
+  pendingFeedbacks?: number;
+  reviewingPosts?: number;
+}
+
+export interface AdminFeedback {
+  id: string;
+  type: 'feedback' | 'report';
+  postId: string;
+  reason: string;
+  content: string;
+  contact: string;
+  userId: string;
+  authorNickname: string;
+  status: 'pending' | 'processing' | 'resolved';
+  adminNote: string;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string;
 }
 
 export interface ManagedUser {
@@ -135,7 +164,7 @@ export const adminAuth = {
 };
 
 export const adminApi = {
-  async getPhotos(params: { page?: number; pageSize?: number } = {}) {
+  async getPhotos(params: { page?: number; pageSize?: number; status?: PostStatus | 'all' } = {}) {
     return callFunction<{ photos: AdminPhoto[]; total: number }>('adminApi', 'getPhotos', withToken(params));
   },
 
@@ -145,6 +174,10 @@ export const adminApi = {
 
   async updatePost(id: string, updates: Pick<AdminPostDetail, 'title' | 'description' | 'location'>) {
     return callFunction<AdminPostDetail>('adminApi', 'updatePost', withToken({ id, updates }));
+  },
+
+  async updatePostStatus(id: string, status: PostStatus, reviewNote?: string) {
+    return callFunction<AdminPostDetail>('adminApi', 'updatePostStatus', withToken({ id, status, reviewNote }));
   },
 
   async getUsers() {
@@ -157,5 +190,20 @@ export const adminApi = {
 
   async deletePhoto(id: string) {
     return callFunction('adminApi', 'deletePost', withToken({ id }));
-  }
+  },
+
+  async getFeedbacks(params: { page?: number; pageSize?: number; status?: string; type?: string } = {}) {
+    return callFunction<{ feedbacks: AdminFeedback[]; total: number }>(
+      'adminApi',
+      'getFeedbacks',
+      withToken(params)
+    );
+  },
+
+  async updateFeedback(
+    id: string,
+    updates: { status?: AdminFeedback['status']; adminNote?: string }
+  ) {
+    return callFunction<AdminFeedback>('adminApi', 'updateFeedback', withToken({ id, updates }));
+  },
 };

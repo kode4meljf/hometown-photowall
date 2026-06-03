@@ -95,6 +95,16 @@
         <text class="dropdown-label">全部作品</text>
         <view class="dropdown-count {{worksFilter === 'all' ? 'active' : ''}}">{{worksCount || 0}}</view>
       </view>
+      <view class="dropdown-item {{worksFilter === 'reviewing' ? 'active' : ''}}" bindtap="onWorksFilterChange" data-filter="reviewing">
+        <view class="dropdown-dot"></view>
+        <text class="dropdown-label">审核中</text>
+        <view class="dropdown-count {{worksFilter === 'reviewing' ? 'active' : ''}}">{{reviewingCount || 0}}</view>
+      </view>
+      <view class="dropdown-item {{worksFilter === 'rejected' ? 'active' : ''}}" bindtap="onWorksFilterChange" data-filter="rejected">
+        <view class="dropdown-dot"></view>
+        <text class="dropdown-label">未通过</text>
+        <view class="dropdown-count {{worksFilter === 'rejected' ? 'active' : ''}}">{{rejectedCount || 0}}</view>
+      </view>
       <view class="dropdown-item {{worksFilter === 'hidden' ? 'active' : ''}}" bindtap="onWorksFilterChange" data-filter="hidden">
         <view class="dropdown-dot"></view>
         <text class="dropdown-label">已隐藏</text>
@@ -123,6 +133,9 @@
             data-id="{{item.id}}"
           >
             <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+            <view wx:if="{{item.status === 'reviewing' || item.status === 'rejected'}}" class="photo-status-badge photo-status-badge--{{item.status}}">
+              {{item.status === 'reviewing' ? '审核中' : '未通过'}}
+            </view>
             <view class="photo-overlay">
               <view class="photo-stats">
                 <image src="/assets/icons/icon-views.svg" class="views-icon" mode="aspectFit" />
@@ -137,15 +150,15 @@
               data-title="{{item.title}}"
               data-description="{{item.description}}"
               data-created-at="{{item.createdAt}}"
-              data-hidden="{{item.hidden}}"
+              data-status="{{item.status}}"
             >⋮</view>
           </view>
         </view>
         <view class="empty-state" wx:if="{{works.length === 0 && !loading}}">
           <image class="empty-icon-image" src="/assets/icons/camera-empty.png" mode="aspectFit" />
-          <text class="empty-text" wx:if="{{isLoggedIn}}">暂无作品</text>
+          <text class="empty-text" wx:if="{{isLoggedIn}}">{{emptyWorksText}}</text>
           <text class="empty-text" wx:if="{{!isLoggedIn}}">登录后查看更多内容</text>
-          <view class="empty-btn" wx:if="{{isLoggedIn}}" bindtap="goToUpload">去上传照片</view>
+          <view class="empty-btn" wx:if="{{isLoggedIn && worksFilter === 'all'}}" bindtap="goToUpload">去上传照片</view>
           <view class="empty-btn" wx:if="{{!isLoggedIn}}" bindtap="goToLogin">登录</view>
         </view>
         <view class="loading" wx:if="{{loading}}"><text>加载中...</text></view>
@@ -189,10 +202,15 @@
   <!-- 作品操作底部弹窗 - 微信原生 ActionSheet 风格 -->
   <view class="avatar-modal" wx:if="{{showPhotoAction}}" bindtap="hidePhotoAction">
     <view class="avatar-modal-content" catchtap="stopPropagation">
+      <view wx:if="{{statusTipText}}" class="modal-status-tip">
+        <text class="modal-status-tip-text">{{statusTipText}}</text>
+        <text class="modal-rules-link" catchtap="goToContentRules">了解内容规范</text>
+      </view>
       <!-- 选项组 -->
       <view class="modal-options-group">
-        <view class="modal-option" bindtap="editPhotoTitle">编辑标题与描述</view>
-        <view class="modal-option" bindtap="toggleHidePost">{{currentPhotoHidden ? '显示作品' : '隐藏作品'}}</view>
+        <view wx:if="{{currentPhotoStatus === 'rejected'}}" class="modal-option" bindtap="goResubmitPost">重新提交</view>
+        <view wx:elif="{{currentPhotoStatus !== 'reviewing'}}" class="modal-option" bindtap="editPhotoTitle">编辑标题与描述</view>
+        <view class="modal-option" wx:if="{{currentPhotoStatus === 'released' || currentPhotoStatus === 'hidden'}}" bindtap="toggleHidePost">{{currentPhotoStatus === 'hidden' ? '显示作品' : '隐藏作品'}}</view>
         <view class="modal-option modal-option-danger" bindtap="deletePost">删除</view>
       </view>
       <!-- 取消按钮 - 独立卡片 -->

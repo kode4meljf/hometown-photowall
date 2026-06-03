@@ -270,7 +270,7 @@ Page({
         isRefreshing: false
       });
       wx.showToast({
-        title: '加载失败',
+        title: (e && (e.errMsg || e.message)) || '加载失败',
         icon: 'none'
       });
     }

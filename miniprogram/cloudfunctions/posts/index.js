@@ -8,7 +8,7 @@ const _ = db.command;
 const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
-const identity = require('hometown-common');
+const { identity, contentSecurity: sec, POST_STATUS, POST_STATUS_LIST } = require('hometown-common');
 
 async function getActor(openId) {
   return identity.resolveActor(db, openId);
@@ -53,6 +53,8 @@ exports.main = async (event, context) => {
       return await getPostDetail(data.id, openId);
     case 'create':
       return await createPost(data, openId);
+    case 'resubmit':
+      return await resubmitPost(data, openId);
     case 'delete':
       return await deletePost(data.id, openId);
     case 'like':
@@ -87,7 +89,7 @@ async function getPosts(params, openId) {
   try {
     const actor = await getActor(openId);
     const { location, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
-    const conditions = {};
+    const conditions = { status: POST_STATUS.RELEASED };
     if (location) conditions.location = location;
     if (keyword) {
       conditions.title = db.RegExp({ regexp: keyword, options: 'i' });
@@ -312,15 +314,138 @@ async function createPost(data, openId) {
       likes: 0,
       views: 0,
       likedUsers: [],
-      hidden: false,  // 默认可见
+      status: POST_STATUS.RELEASED,
       createdAt: db.serverDate()
     };
 
+    const textCheck = await sec.checkTexts(cloud, openId, [
+      { content: addData.title, scene: sec.SCENE.SOCIAL, title: addData.title },
+      { content: addData.description, scene: sec.SCENE.SOCIAL },
+      { content: addData.location, scene: sec.SCENE.SOCIAL },
+    ]);
+    if (!textCheck.ok) {
+      return { success: false, message: textCheck.message };
+    }
+
+    const imageIds = photos.map((p) => p.imageUrl).filter(Boolean);
+    if (imageIds.length) {
+      const imageCheck = await sec.checkImages(cloud, openId, imageIds, sec.SCENE.SOCIAL);
+      if (!imageCheck.ok) {
+        return { success: false, message: imageCheck.message };
+      }
+      if (imageCheck.needsReview) {
+        addData.status = POST_STATUS.REVIEWING;
+        addData.mediaTraceIds = imageCheck.mediaTraceIds || [];
+      }
+    }
+
     const result = await postsCollection.add({ data: addData });
+    if (addData.status === POST_STATUS.REVIEWING) {
+      return {
+        success: true,
+        data: { id: result._id, status: POST_STATUS.REVIEWING },
+        message: '作品已提交，审核通过后将展示在首页',
+      };
+    }
     return { success: true, data: { id: result._id } };
   } catch (e) {
     console.error('[createPost] 失败:', e.message, e.stack);
     return { success: false, message: '发布失败: ' + e.message };
+  }
+}
+
+async function deleteCloudFiles(fileList) {
+  if (!fileList || !fileList.length) return;
+  try {
+    await cloud.deleteFile({ fileList });
+  } catch (e) {
+    console.error('[deleteCloudFiles] 失败:', e);
+  }
+}
+
+function normalizePhotosInput(rawPhotos) {
+  return (rawPhotos || []).map((p, idx) => ({
+    imageUrl: p.imageUrl || '',
+    width: parseInt(p.width, 10) || 1,
+    height: parseInt(p.height, 10) || 1,
+    order: p.order !== undefined ? p.order : idx,
+  })).filter((p) => p.imageUrl);
+}
+
+// 驳回作品重新提交：更新同一条记录，status 一律变为 reviewing
+async function resubmitPost(data, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+
+  const postId = data.postId || data.id;
+  if (!postId) {
+    return { success: false, message: '缺少作品信息' };
+  }
+
+  try {
+    const postResult = await postsCollection.doc(postId).get();
+    const post = postResult.data;
+    if (!post) {
+      return { success: false, message: '作品不存在' };
+    }
+    if (!identity.isAuthor(post.authorId, actor)) {
+      return { success: false, message: '无权操作' };
+    }
+    if (post.status !== POST_STATUS.REJECTED) {
+      return { success: false, message: '当前状态不可重新提交' };
+    }
+
+    const photos = normalizePhotosInput(data.photos);
+    if (!photos.length) {
+      return { success: false, message: '请至少保留一张图片' };
+    }
+
+    const title = (data.title || '').trim();
+    const description = (data.description || '').trim();
+    const location = (data.location || '').trim();
+
+    const textCheck = await sec.checkTexts(cloud, openId, [
+      { content: title, scene: sec.SCENE.SOCIAL, title },
+      { content: description, scene: sec.SCENE.SOCIAL },
+      { content: location, scene: sec.SCENE.SOCIAL },
+    ]);
+    if (!textCheck.ok) {
+      return { success: false, message: textCheck.message };
+    }
+
+    const imageIds = photos.map((p) => p.imageUrl);
+    const imageCheck = await sec.checkImages(cloud, openId, imageIds, sec.SCENE.SOCIAL);
+    if (!imageCheck.ok) {
+      return { success: false, message: imageCheck.message };
+    }
+
+    const oldFileIds = (post.photos || []).map((p) => p.imageUrl).filter(Boolean);
+    const newFileIds = photos.map((p) => p.imageUrl);
+    const removedFileIds = oldFileIds.filter((id) => !newFileIds.includes(id));
+
+    const updateData = {
+      title,
+      description,
+      location,
+      photos,
+      status: POST_STATUS.REVIEWING,
+      mediaTraceIds: imageCheck.mediaTraceIds || [],
+      updatedAt: db.serverDate(),
+    };
+
+    await postsCollection.doc(postId).update({ data: updateData });
+    await deleteCloudFiles(removedFileIds);
+
+    return {
+      success: true,
+      message: '已提交审核，通过后将展示在首页',
+      data: { id: postId, status: POST_STATUS.REVIEWING },
+    };
+  } catch (e) {
+    console.error('[resubmitPost] 失败:', e.message, e.stack);
+    return { success: false, message: '提交失败: ' + e.message };
   }
 }
 
@@ -352,10 +477,10 @@ async function updatePost(data, openId) {
   try {
     // 兼容三种调用格式：
     // 1. { id, updates } — 标准格式
-    // 2. { postId, data: { hidden/title/... } } — profile.js toggleHidePost 调用
-    // 3. { postId, hidden: true } — 前端直接传顶层字段
+    // 2. { postId, data: { status/title/... } } — profile.js toggleHidePost 调用
+    // 3. { postId, status: 'hidden' } — 前端直接传顶层字段
     const postId = data.id || data.postId;
-    const updates = data.updates || data.data || (data.hidden !== undefined || data.title !== undefined ? data : undefined);
+    const updates = data.updates || data.data || (data.status !== undefined || data.title !== undefined ? data : undefined);
 
     if (!postId) {
       return { success: false, message: '缺少帖子ID' };
@@ -383,7 +508,7 @@ async function updatePost(data, openId) {
     }
 
     // 只允许更新特定字段
-    const allowedFields = ['title', 'description', 'location', 'hidden'];
+    const allowedFields = ['title', 'description', 'location', 'status'];
     const updateData = {};
     for (const field of allowedFields) {
       if (updates && updates[field] !== undefined) {
@@ -393,6 +518,42 @@ async function updatePost(data, openId) {
 
     if (Object.keys(updateData).length === 0) {
       return { success: false, message: '没有可更新的字段' };
+    }
+
+    if (updateData.status !== undefined) {
+      if (!POST_STATUS_LIST.includes(updateData.status)) {
+        return { success: false, message: '无效的状态' };
+      }
+      const currentStatus = post.data.status;
+      if (!actor.isAdmin) {
+        const canToggle =
+          (currentStatus === POST_STATUS.RELEASED && updateData.status === POST_STATUS.HIDDEN) ||
+          (currentStatus === POST_STATUS.HIDDEN && updateData.status === POST_STATUS.RELEASED);
+        if (!canToggle) {
+          return { success: false, message: '当前状态不可修改' };
+        }
+      }
+    }
+
+    const textItems = [];
+    if (updateData.title !== undefined) {
+      textItems.push({
+        content: updateData.title,
+        scene: sec.SCENE.SOCIAL,
+        title: updateData.title,
+      });
+    }
+    if (updateData.description !== undefined) {
+      textItems.push({ content: updateData.description, scene: sec.SCENE.SOCIAL });
+    }
+    if (updateData.location !== undefined) {
+      textItems.push({ content: updateData.location, scene: sec.SCENE.SOCIAL });
+    }
+    if (textItems.length) {
+      const textCheck = await sec.checkTexts(cloud, openId, textItems);
+      if (!textCheck.ok) {
+        return { success: false, message: textCheck.message };
+      }
     }
 
     await postsCollection.doc(postId).update({ data: updateData });
@@ -563,6 +724,15 @@ async function addComment(data, openId) {
       }
     }
 
+    const textCheck = await sec.checkText(cloud, openId, {
+      content: data.content,
+      scene: sec.SCENE.COMMENT,
+      nickname: authorNickname,
+    });
+    if (!textCheck.ok) {
+      return { success: false, message: textCheck.message };
+    }
+
     const result = await commentsCollection.add({
       data: commentData
     });
@@ -604,10 +774,10 @@ async function getMyWorks(openId, params = {}) {
   if (!actor.userId) {
     return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
   }
-  const { page = 1, pageSize = 20, hidden } = params;
+  const { page = 1, pageSize = 20, status } = params;
   const whereCond = { ...identity.authorOwnerWhere(db, actor) };
-  if (hidden !== undefined) {
-    whereCond.hidden = hidden;
+  if (status && POST_STATUS_LIST.includes(status)) {
+    whereCond.status = status;
   }
   try {
     const countResult = await postsCollection.where(whereCond).count();
@@ -642,12 +812,12 @@ async function getMyLiked(openId, params = {}) {
   const userId = actor.userId;
   try {
     const countResult = await postsCollection
-      .where({ likedUsers: userId, hidden: false })
+      .where({ likedUsers: userId, status: POST_STATUS.RELEASED })
       .count();
     const total = countResult.total;
 
     const result = await postsCollection
-      .where({ likedUsers: userId, hidden: false })
+      .where({ likedUsers: userId, status: POST_STATUS.RELEASED })
       .orderBy('createdAt', 'desc')
       .skip((page - 1) * pageSize)
       .limit(pageSize)

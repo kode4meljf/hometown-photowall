@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, reactive } from 'vue';
-import { adminApi, type AdminPostDetail } from '../api/admin';
+import { adminApi, type AdminPostDetail, type PostStatus } from '../api/admin';
 import { toast } from '../utils/toast.js';
 
 const props = defineProps<{
   show: boolean;
   post: AdminPostDetail | null;
   loading?: boolean;
+  statusUpdating?: boolean;
 }>();
 
 const emit = defineEmits<{
   close: [];
   updated: [post: AdminPostDetail];
+  statusChange: [id: string, status: PostStatus];
 }>();
 
 const currentIndex = ref(0);
@@ -31,6 +33,18 @@ const hasMultiple = computed(() => images.value.length > 1);
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleString('zh-CN');
+};
+
+const postStatusLabel = (status: PostStatus) => {
+  if (status === 'released') return '已发布';
+  if (status === 'reviewing') return '审核中';
+  if (status === 'hidden') return '已隐藏';
+  return '未通过';
+};
+
+const changeStatus = (status: PostStatus) => {
+  if (!props.post || props.statusUpdating) return;
+  emit('statusChange', props.post.id, status);
 };
 
 const syncForm = () => {
@@ -196,7 +210,10 @@ onUnmounted(() => {
 
             <div class="detail-body">
               <div class="detail-head">
-                <h2 v-if="!editing">{{ post.title || '无标题' }}</h2>
+                <div class="detail-title-row">
+                  <h2 v-if="!editing">{{ post.title || '无标题' }}</h2>
+                  <span :class="['post-status', post.status]">{{ postStatusLabel(post.status) }}</span>
+                </div>
                 <button
                   v-if="!editing"
                   class="edit-btn"
@@ -241,6 +258,60 @@ onUnmounted(() => {
                 <div><span>浏览</span>{{ post.views }}</div>
                 <div><span>评论</span>{{ post.commentCount }}</div>
                 <div class="meta-wide"><span>发布时间</span>{{ formatDate(post.createdAt) }}</div>
+                <div v-if="post.mediaTraceIds?.length" class="meta-wide">
+                  <span>审核追踪 ID</span>{{ post.mediaTraceIds.join(', ') }}
+                </div>
+                <div v-if="post.reviewAdminNote" class="meta-wide admin-only-meta">
+                  <span>管理员备注</span>{{ post.reviewAdminNote }}
+                </div>
+              </div>
+
+              <div v-if="!editing" class="status-actions">
+                <button
+                  v-if="post.status === 'reviewing'"
+                  class="save-btn"
+                  type="button"
+                  :disabled="statusUpdating"
+                  @click="changeStatus('released')"
+                >
+                  审核通过
+                </button>
+                <button
+                  v-if="post.status === 'reviewing'"
+                  class="ghost-btn"
+                  type="button"
+                  :disabled="statusUpdating"
+                  @click="changeStatus('rejected')"
+                >
+                  驳回
+                </button>
+                <button
+                  v-if="post.status === 'rejected'"
+                  class="ghost-btn"
+                  type="button"
+                  :disabled="statusUpdating"
+                  @click="changeStatus('released')"
+                >
+                  重新发布
+                </button>
+                <button
+                  v-if="post.status === 'released'"
+                  class="ghost-btn"
+                  type="button"
+                  :disabled="statusUpdating"
+                  @click="changeStatus('hidden')"
+                >
+                  隐藏
+                </button>
+                <button
+                  v-if="post.status === 'hidden'"
+                  class="ghost-btn"
+                  type="button"
+                  :disabled="statusUpdating"
+                  @click="changeStatus('released')"
+                >
+                  公开
+                </button>
               </div>
             </div>
           </template>
@@ -396,6 +467,67 @@ onUnmounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1;
+}
+
+.detail-title-row h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.post-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.post-status.released {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.post-status.reviewing {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.post-status.hidden {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.post-status.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.status-actions .ghost-btn {
+  border: 1px solid #dbe3f0;
+  background: #fff;
+  color: #475569;
+  padding: 10px 14px;
+}
+
+.admin-only-meta {
+  color: #64748b;
+  font-size: 13px;
 }
 
 .detail-body h2 {

@@ -61,6 +61,10 @@ const postApi = {
     return callFunction('posts', 'create', data);
   },
 
+  resubmitPost(postId, data) {
+    return callFunction('posts', 'resubmit', { postId, ...data });
+  },
+
   deletePost(id) {
     return callFunction('posts', 'delete', { id });
   },
@@ -126,11 +130,22 @@ const signinApi = {
   }
 };
 
+const feedbackApi = {
+  submit(data) {
+    return callFunction('feedback', 'submit', data);
+  },
+
+  report(data) {
+    return callFunction('feedback', 'report', data);
+  },
+};
+
 module.exports = {
   callFunction,
   uploadImage,
   userApi,
   postApi,
   statsApi,
-  signinApi
+  signinApi,
+  feedbackApi,
 };

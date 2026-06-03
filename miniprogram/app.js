@@ -4,6 +4,7 @@ App({
     userInfo: null,
     isLoggedIn: false,
     homeNeedRefresh: false,
+    profileNeedRefresh: false,
     profileNeedUserRefresh: false,
   },
 

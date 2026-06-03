@@ -5,7 +5,7 @@ const crypto = require('crypto');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
-const identity = require('./common/identity');
+const { identity, POST_STATUS, POST_STATUS_LIST } = require('hometown-common');
 
 const TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || 'hometown_admin_token_secret';
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -232,6 +232,9 @@ async function buildPostDetail(post, id) {
     likes: normalized.likes || 0,
     views: normalized.views || 0,
     commentCount: commentCount.total,
+    status: normalized.status,
+    mediaTraceIds: normalized.mediaTraceIds || [],
+    reviewAdminNote: normalized.reviewAdminNote || '',
     createdAt: formatCreatedAt(normalized.createdAt),
     photos
   };
@@ -239,10 +242,16 @@ async function buildPostDetail(post, id) {
 
 async function getAllPhotos(params = {}) {
   try {
-    const { page = 1, pageSize = 50 } = params;
+    const { page = 1, pageSize = 50, status } = params;
+    const where = {};
+    if (status && status !== 'all' && POST_STATUS_LIST.includes(status)) {
+      where.status = status;
+    }
+
     const [totalResult, listResult] = await Promise.all([
-      db.collection('posts').count(),
+      db.collection('posts').where(where).count(),
       db.collection('posts')
+        .where(where)
         .orderBy('createdAt', 'desc')
         .skip((page - 1) * pageSize)
         .limit(pageSize)
@@ -266,6 +275,9 @@ async function getAllPhotos(params = {}) {
         imageUrl: coverUrl,
         description: photo.description || photo.content || '',
         location: formatLocation(photo.location),
+        status: photo.status,
+        mediaTraceIds: photo.mediaTraceIds || [],
+        reviewAdminNote: photo.reviewAdminNote || '',
         createdAt: formatCreatedAt(photo.createdAt),
         photos: resolvedPhotos,
         author: photo.author || '未知用户',
@@ -353,6 +365,39 @@ async function getUsers() {
   }
 }
 
+async function updatePostStatus(id, status, reviewNote) {
+  if (!id) {
+    return { success: false, message: '缺少帖子 ID' };
+  }
+  if (!POST_STATUS_LIST.includes(status)) {
+    return { success: false, message: '无效的状态' };
+  }
+
+  try {
+    const postResult = await db.collection('posts').doc(id).get();
+    if (!postResult.data) {
+      return { success: false, message: '帖子不存在' };
+    }
+
+    const patch = { status };
+    if (status === POST_STATUS.REJECTED && reviewNote !== undefined) {
+      patch.reviewAdminNote = String(reviewNote).trim().slice(0, 500);
+    }
+
+    await db.collection('posts').doc(id).update({ data: patch });
+
+    const freshResult = await db.collection('posts').doc(id).get();
+    return {
+      success: true,
+      message: '状态已更新',
+      data: await buildPostDetail(freshResult.data, id)
+    };
+  } catch (e) {
+    console.error('[adminApi] updatePostStatus failed:', e);
+    return { success: false, message: '更新失败' };
+  }
+}
+
 async function updatePost(id, updates = {}) {
   if (!id) {
     return { success: false, message: '缺少帖子 ID' };
@@ -397,10 +442,12 @@ async function updatePost(id, updates = {}) {
 
 async function getAdminStats() {
   try {
-    const [postCount, userCount, commentCount] = await Promise.all([
+    const [postCount, userCount, commentCount, pendingFeedbackCount, reviewingCount] = await Promise.all([
       db.collection('posts').count(),
       db.collection('users').count(),
-      db.collection('post_comments').count()
+      db.collection('post_comments').count(),
+      db.collection('feedbacks').where({ status: 'pending' }).count(),
+      db.collection('posts').where({ status: POST_STATUS.REVIEWING }).count(),
     ]);
 
     const postsResult = await db.collection('posts')
@@ -417,12 +464,120 @@ async function getAdminStats() {
         totalUsers: userCount.total,
         totalComments: commentCount.total,
         totalLikes,
-        totalViews
+        totalViews,
+        pendingFeedbacks: pendingFeedbackCount.total,
+        reviewingPosts: reviewingCount.total,
       }
     };
   } catch (e) {
     console.error('[adminApi] getStats failed:', e);
     return { success: false, data: {} };
+  }
+}
+
+function formatFeedbackItem(raw) {
+  const type = raw.type || 'feedback';
+  return {
+    id: raw._id,
+    type,
+    postId: raw.postId || '',
+    reason: raw.reason || '',
+    content: raw.content || '',
+    contact: raw.contact || '',
+    userId: raw.userId || '',
+    authorNickname: raw.authorNickname || '游客',
+    status: raw.status || 'pending',
+    adminNote: raw.adminNote || '',
+    createdAt: formatCreatedAt(raw.createdAt),
+    updatedAt: formatCreatedAt(raw.updatedAt),
+    resolvedAt: formatCreatedAt(raw.resolvedAt),
+  };
+}
+
+async function getFeedbacks(params = {}) {
+  try {
+    const { page = 1, pageSize = 30, status, type } = params;
+    const where = {};
+    if (status && status !== 'all') {
+      where.status = status;
+    }
+    if (type && type !== 'all') {
+      where.type = type;
+    }
+
+    const query = Object.keys(where).length
+      ? db.collection('feedbacks').where(where)
+      : db.collection('feedbacks');
+
+    const [totalResult, listResult] = await Promise.all([
+      query.count(),
+      query
+        .orderBy('createdAt', 'desc')
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .get(),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        feedbacks: listResult.data.map(formatFeedbackItem),
+        total: totalResult.total,
+        page,
+        pageSize,
+      },
+    };
+  } catch (e) {
+    console.error('[adminApi] getFeedbacks failed:', e);
+    return { success: false, message: '获取反馈失败' };
+  }
+}
+
+async function updateFeedback(id, updates = {}) {
+  if (!id) {
+    return { success: false, message: '缺少反馈 ID' };
+  }
+
+  const status = updates.status;
+  const adminNote = updates.adminNote;
+  const patch = { updatedAt: db.serverDate() };
+
+  if (status !== undefined) {
+    if (!['pending', 'processing', 'resolved'].includes(status)) {
+      return { success: false, message: '无效的状态' };
+    }
+    patch.status = status;
+    if (status === 'resolved') {
+      patch.resolvedAt = db.serverDate();
+    } else {
+      patch.resolvedAt = null;
+    }
+  }
+
+  if (adminNote !== undefined) {
+    patch.adminNote = String(adminNote).trim().slice(0, 500);
+  }
+
+  if (Object.keys(patch).length <= 1) {
+    return { success: false, message: '没有可更新的字段' };
+  }
+
+  try {
+    const doc = await db.collection('feedbacks').doc(id).get();
+    if (!doc.data) {
+      return { success: false, message: '反馈不存在' };
+    }
+
+    await db.collection('feedbacks').doc(id).update({ data: patch });
+    const fresh = await db.collection('feedbacks').doc(id).get();
+    return {
+      success: true,
+      message: '更新成功',
+      data: formatFeedbackItem(fresh.data),
+    };
+  } catch (e) {
+    console.error('[adminApi] updateFeedback failed:', e);
+    return { success: false, message: '更新失败' };
   }
 }
 
@@ -446,12 +601,18 @@ async function dispatch(payload, wxContext) {
           return await getPostDetail(data.id);
         case 'updatePost':
           return await updatePost(data.id, data.updates);
+        case 'updatePostStatus':
+          return await updatePostStatus(data.id, data.status, data.reviewNote);
         case 'deletePost':
           return await deletePost(data.id);
         case 'getUsers':
           return await getUsers();
         case 'getStats':
           return await getAdminStats();
+        case 'getFeedbacks':
+          return await getFeedbacks(data);
+        case 'updateFeedback':
+          return await updateFeedback(data.id, data.updates);
         default:
           return { success: false, message: '未知操作' };
       }

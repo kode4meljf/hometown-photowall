@@ -13,7 +13,13 @@ module.exports = Behavior({
     loading: true,
     commentContent: '',
     canDelete: false,
+    canAdminDelete: false,
     deleteBtnPressed: false,
+    reportBtnPressed: false,
+    showReportModal: false,
+    reportReason: '',
+    reportDetail: '',
+    reportSubmitting: false,
     showCommentInput: false,
     loginModalShow: false,
     showEmojiPanel: false,
@@ -53,13 +59,10 @@ module.exports = Behavior({
       });
     },
 
-    /** 与详情接口 canDelete 规则一致，用于骨架阶段预占位避免行高跳动 */
-    _canDeleteHint(authorId) {
+    /** 评论数行右侧：仅管理员显示删除 */
+    _canAdminDeleteHint() {
       const user = app.globalData?.userInfo;
-      if (!user) return false;
-      if (user.role === 'admin') return true;
-      const uid = user.id || user._id || user.userId;
-      return !!(authorId && uid && authorId === uid);
+      return !!(user && user.role === 'admin');
     },
 
     /** 详情首图与首页传入 cover 同源，避免 FLIP 结束后 swiper 换图闪烁 */
@@ -129,12 +132,14 @@ module.exports = Behavior({
           post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
           const finalPost = this._alignFirstPhotoWithCover(post);
           const canDelete = !!finalPost.canDelete;
+          const canAdminDelete = this._canAdminDeleteHint();
           const hasMoreComments = res.data.hasMore || false;
           const commentsCountText = formatLikeCount(finalPost.commentsCount || 0).text;
           const imageSlotHeight = this._imageSlotHeightForIndex(0);
           this.setData({
             post: finalPost,
             canDelete,
+            canAdminDelete,
             loading: false,
             hasMoreComments,
             commentsCountText,
@@ -279,9 +284,83 @@ module.exports = Behavior({
       }
     },
 
+    onReportBtnTouchStart() {
+      this.setData({ reportBtnPressed: true });
+    },
+
+    onReportBtnTouchEnd() {
+      if (this.data.reportBtnPressed) {
+        this.setData({ reportBtnPressed: false });
+      }
+    },
+
+    onReportPostTap() {
+      if (!this._ensureLogin()) return;
+      if (this.data.canAdminDelete) return;
+
+      const reasons = ['违法违规', '色情低俗', '垃圾广告', '侵犯权益', '其他'];
+      wx.showActionSheet({
+        itemList: reasons,
+        success: (res) => {
+          if (res.tapIndex < 0 || res.tapIndex >= reasons.length) return;
+          this.setData({
+            showReportModal: true,
+            reportReason: reasons[res.tapIndex],
+            reportDetail: '',
+          });
+        },
+      });
+    },
+
+    onReportDetailInput(e) {
+      this.setData({ reportDetail: e.detail.value });
+    },
+
+    closeReportModal() {
+      if (this.data.reportSubmitting) return;
+      this.setData({
+        showReportModal: false,
+        reportReason: '',
+        reportDetail: '',
+      });
+    },
+
+    async submitReport() {
+      if (this.data.reportSubmitting || !this.data.reportReason) return;
+      const postId = this._getPostId();
+      if (!postId) return;
+
+      const { feedbackApi } = require('../utils/api');
+      this.setData({ reportSubmitting: true });
+      showLoading('提交中...');
+      try {
+        const res = await feedbackApi.report({
+          postId,
+          reason: this.data.reportReason,
+          detail: (this.data.reportDetail || '').trim(),
+        });
+        hideLoading();
+        if (res.success) {
+          this.setData({
+            showReportModal: false,
+            reportReason: '',
+            reportDetail: '',
+          });
+          showToast('感谢举报，我们会尽快处理');
+        } else {
+          showToast(res.message || '提交失败');
+        }
+      } catch (e) {
+        hideLoading();
+        showToast('提交失败，请稍后重试');
+      } finally {
+        this.setData({ reportSubmitting: false });
+      }
+    },
+
     onDeletePost() {
       const post = this.data.post;
-      if (!post || !this.data.canDelete) return;
+      if (!post || !this.data.canAdminDelete) return;
       const id = post.id || post._id;
       if (!id) return;
       wx.showModal({

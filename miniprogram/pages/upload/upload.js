@@ -3,53 +3,114 @@ const { postApi, uploadImage } = require('../../utils/api');
 const { showToast, showLoading, hideLoading, showSuccess } = require('../../utils/util');
 const { chooseMedia } = require('../../utils/mediaPicker');
 
+const MAX_PHOTOS = 9;
+
 Page({
   data: {
-    imageList: [],        // 已选图片临时路径列表
-    imageInfoList: [],   // 图片尺寸信息 [{width, height}]
-    currentIndex: 0,     // 当前选中预览的图片索引
+    isResubmit: false,
+    submitBtnText: '发布照片',
+    imageList: [],
+    imageSources: [],
+    imageInfoList: [],
+    currentIndex: 0,
     isOverflow: false,
 
     form: {
       title: '',
       description: '',
-      location: ''
+      location: '',
     },
-    locations: [],       // 已有地点列表
+    locations: [],
     customLocation: '',
 
     submitting: false,
     highlightTitle: false,
-    focusTitle: false
+    focusTitle: false,
   },
 
-  onLoad() {
+  onLoad(options) {
+    const mode = options.mode;
+    const postId = options.postId;
+    if (mode === 'resubmit' && postId) {
+      this._resubmitPostId = postId;
+      this._originalCloudFileIds = [];
+      this.setData({ isResubmit: true, submitBtnText: '重新提交' });
+      wx.setNavigationBarTitle({ title: '重新提交' });
+      this.loadResubmitPost(postId);
+    }
     this.loadLocations();
+  },
+
+  async loadResubmitPost(postId) {
+    showLoading('加载中...');
+    try {
+      const res = await postApi.getPostDetail(postId);
+      hideLoading();
+      if (!res.success || !res.data) {
+        showToast(res.message || '加载失败');
+        setTimeout(() => wx.navigateBack(), 1500);
+        return;
+      }
+      if (res.data.status !== 'rejected') {
+        showToast('当前作品不可重新提交');
+        setTimeout(() => wx.navigateBack(), 1500);
+        return;
+      }
+
+      const photos = (res.data.photos || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (!photos.length && res.data.imageUrl) {
+        photos.push({ imageUrl: res.data.imageUrl, width: 1, height: 1, order: 0 });
+      }
+      const imageList = photos.map((p) => p.imageUrl).filter(Boolean);
+      this._originalCloudFileIds = imageList.slice();
+
+      this.setData({
+        imageList,
+        imageSources: imageList.map(() => 'cloud'),
+        imageInfoList: photos.map((p) => ({
+          width: p.width || 1,
+          height: p.height || 1,
+        })),
+        form: {
+          title: res.data.title || '',
+          description: res.data.description || '',
+          location: res.data.location || '',
+        },
+        currentIndex: 0,
+      }, () => this.checkOverflow());
+    } catch (e) {
+      hideLoading();
+      showToast('加载失败');
+      setTimeout(() => wx.navigateBack(), 1500);
+    }
   },
 
   async loadLocations() {
     try {
-      const res = await postApi.getPosts({ limit: 100 });
-      if (res.success && res.data) {
-        const locationSet = new Set();
-        res.data.forEach(post => {
-          if (post.location) locationSet.add(post.location);
-        });
-        this.setData({ locations: Array.from(locationSet) });
-      }
+      const res = await postApi.getPosts({ pageSize: 100 });
+      const posts = (res.success && res.data && res.data.posts) ? res.data.posts : [];
+      const locationSet = new Set();
+      posts.forEach((post) => {
+        if (post.location) locationSet.add(post.location);
+      });
+      this.setData({ locations: Array.from(locationSet) });
     } catch (e) {}
   },
 
-  // 选择图片（多选）
   chooseImage() {
+    const remain = MAX_PHOTOS - this.data.imageList.length;
+    if (remain <= 0) {
+      showToast(`最多 ${MAX_PHOTOS} 张图片`);
+      return;
+    }
+
     chooseMedia({
-      count: 9,
+      count: remain,
       success: (res) => {
         const newFiles = res.tempFiles || [];
         if (!newFiles.length) return;
 
         const newPaths = newFiles.map((f) => f.tempFilePath);
-
         const getInfoPromises = newPaths.map((path) => {
           return new Promise((resolve) => {
             wx.getImageInfo({
@@ -61,25 +122,20 @@ Page({
         });
 
         Promise.all(getInfoPromises).then((infos) => {
-          const newImageList = [...this.data.imageList, ...newPaths];
-          const newImageInfoList = [...this.data.imageInfoList, ...infos];
-
           this.setData(
             {
-              imageList: newImageList,
-              imageInfoList: newImageInfoList,
+              imageList: [...this.data.imageList, ...newPaths],
+              imageSources: [...this.data.imageSources, ...newPaths.map(() => 'local')],
+              imageInfoList: [...this.data.imageInfoList, ...infos],
               currentIndex: 0,
             },
-            () => {
-              this.checkOverflow();
-            }
+            () => this.checkOverflow()
           );
         });
       },
     });
   },
 
-  // swiper 滑动切换
   onSwiperChange(e) {
     const newIndex = e.detail.current;
     if (newIndex !== this.data.currentIndex) {
@@ -87,35 +143,32 @@ Page({
     }
   },
 
-  // 设为封面：把当前图移到数组第一位
   setAsCover(e) {
-    const idx = e.currentTarget.dataset.index;
-    if (idx === 0) return; // 已经是封面
+    const idx = Number(e.currentTarget.dataset.index);
+    if (idx === 0) return;
     const list = this.data.imageList.slice();
+    const sources = this.data.imageSources.slice();
     const infoList = this.data.imageInfoList.slice();
     const [item] = list.splice(idx, 1);
+    const [source] = sources.splice(idx, 1);
     const [info] = infoList.splice(idx, 1);
     list.unshift(item);
+    sources.unshift(source);
     infoList.unshift(info);
-    this.setData({
-      imageList: list,
-      imageInfoList: infoList,
-      currentIndex: 0
-    });
+    this.setData({ imageList: list, imageSources: sources, imageInfoList: infoList, currentIndex: 0 });
   },
 
-  // 点击缩略图切换预览
   selectImage(e) {
     const index = e.currentTarget.dataset.index;
     this.setData({ currentIndex: index });
   },
 
-  // 删除当前预览的图片（从预览区右上角按钮触发）
   deleteCurrentImage() {
-    const { imageList, imageInfoList, currentIndex } = this.data;
+    const { imageList, imageSources, imageInfoList, currentIndex } = this.data;
     if (imageList.length === 0) return;
 
     const newImageList = imageList.filter((_, i) => i !== currentIndex);
+    const newImageSources = imageSources.filter((_, i) => i !== currentIndex);
     const newImageInfoList = imageInfoList.filter((_, i) => i !== currentIndex);
 
     let newCurrentIndex = currentIndex;
@@ -125,43 +178,39 @@ Page({
       newCurrentIndex = newImageList.length - 1;
     }
 
-    this.setData({
-      imageList: newImageList,
-      imageInfoList: newImageInfoList,
-      currentIndex: Math.min(newCurrentIndex, newImageList.length - 1)
-    }, () => {
-      this.checkOverflow();
-    });
+    this.setData(
+      {
+        imageList: newImageList,
+        imageSources: newImageSources,
+        imageInfoList: newImageInfoList,
+        currentIndex: Math.min(newCurrentIndex, Math.max(newImageList.length - 1, 0)),
+      },
+      () => this.checkOverflow()
+    );
   },
 
-  // 检测缩略图是否超出：量 wrapper 宽度和屏幕宽度对比
   checkOverflow() {
     const query = wx.createSelectorQuery().in(this);
     query.select('.thumbnail-wrapper').boundingClientRect();
     query.exec((res) => {
       const wrapperRect = res[0];
       if (!wrapperRect) return;
-      // 获取屏幕宽度（注意这是整个窗口宽度，不是bar宽度）
       const screenWidth = wx.getSystemInfoSync().windowWidth;
-      // 转换 rpx → px: 1rpx = screenWidth / 750
       const rpx2px = screenWidth / 750;
-      // bar 左右 padding: 32rpx × 2 = 64rpx
       const barPadding = 64 * rpx2px;
       const maxWidth = screenWidth - barPadding;
       this.setData({ isOverflow: wrapperRect.width > maxWidth });
     });
   },
 
-  // 大图点击全屏预览
   previewFullScreen() {
     if (this.data.imageList.length === 0) return;
     wx.previewImage({
       current: this.data.imageList[this.data.currentIndex],
-      urls: this.data.imageList
+      urls: this.data.imageList,
     });
   },
 
-  // 表单输入
   onTitleInput(e) {
     this.setData({ 'form.title': e.detail.value });
   },
@@ -172,9 +221,7 @@ Page({
 
   selectLocation(e) {
     const location = e.currentTarget.dataset.location;
-    this.setData({
-      'form.location': location,
-    });
+    this.setData({ 'form.location': location });
   },
 
   onCustomLocationInput(e) {
@@ -194,17 +241,42 @@ Page({
     this.setData({ 'form.location': '' });
   },
 
-  // 提交发布
+  _cleanupCloudFiles(fileIds) {
+    if (!fileIds || !fileIds.length) return Promise.resolve();
+    return wx.cloud.deleteFile({ fileList: fileIds }).catch(() => {});
+  },
+
+  async _buildPhotosPayload() {
+    const { imageList, imageSources, imageInfoList } = this.data;
+    const photos = [];
+    const newUploadedIds = [];
+
+    for (let i = 0; i < imageList.length; i++) {
+      let fileId = imageList[i];
+      if (imageSources[i] === 'local') {
+        fileId = await uploadImage(imageList[i]);
+        newUploadedIds.push(fileId);
+      }
+      photos.push({
+        imageUrl: fileId,
+        width: imageInfoList[i].width,
+        height: imageInfoList[i].height,
+        order: i,
+      });
+    }
+
+    return { photos, newUploadedIds };
+  },
+
   async handleSubmit() {
     if (this.data.submitting) return;
 
-    // 如果自定义地点输入框有值但未确认（未按键盘完成），自动补写到 form.location
     const customLoc = this.data.customLocation && this.data.customLocation.trim();
     if (customLoc && !this.data.form.location) {
       this.data.form.location = customLoc;
       this.data.customLocation = '';
     }
-    const { imageList, imageInfoList, form } = this.data;
+    const { imageList, form } = this.data;
 
     if (imageList.length === 0) {
       showToast('请先选择图片');
@@ -212,47 +284,60 @@ Page({
     }
 
     this.setData({ submitting: true });
-    showLoading('发布中...');
+    const loadingText = this.data.isResubmit ? '提交中...' : '发布中...';
+    showLoading(loadingText);
+
+    let newUploadedIds = [];
 
     try {
-      const uploadPromises = imageList.map((path) => {
-        return uploadImage(path);
-      });
-      const fileIds = await Promise.all(uploadPromises);
+      const { photos, newUploadedIds: uploaded } = await this._buildPhotosPayload();
+      newUploadedIds = uploaded;
 
-      const photos = fileIds.map((fileId, index) => ({
-        imageUrl: fileId,
-        width: imageInfoList[index].width,
-        height: imageInfoList[index].height,
-        order: index
-      }));
-
-      const createData = {
+      const payload = {
         title: form.title.trim(),
         description: form.description.trim(),
         location: form.location.trim(),
-        photos: photos
+        photos,
       };
 
-      const res = await postApi.createPost(createData);
+      let res;
+      if (this._resubmitPostId) {
+        res = await postApi.resubmitPost(this._resubmitPostId, payload);
+      } else {
+        res = await postApi.createPost(payload);
+      }
 
       hideLoading();
 
       if (res.success) {
-        showSuccess('发布成功');
-        getApp().globalData.homeNeedRefresh = true;
-        setTimeout(() => {
-          wx.switchTab({ url: '/pages/index/index' });
-        }, 1500);
+        if (this._resubmitPostId) {
+          getApp().globalData.profileNeedRefresh = true;
+          showSuccess(res.message || '已提交审核');
+          setTimeout(() => {
+            wx.switchTab({ url: '/pages/profile/profile/profile' });
+          }, 1500);
+        } else {
+          if (res.message) {
+            showSuccess(res.message);
+          } else {
+            showSuccess('发布成功');
+          }
+          getApp().globalData.homeNeedRefresh = true;
+          setTimeout(() => {
+            wx.switchTab({ url: '/pages/index/index' });
+          }, 1500);
+        }
       } else {
-        showToast(res.message || '发布失败');
+        await this._cleanupCloudFiles(newUploadedIds);
+        showToast(res.message || '提交失败');
       }
     } catch (e) {
       console.error('[upload] handleSubmit 失败:', e);
       hideLoading();
-      showToast('发布失败：' + (e.message || '网络错误'));
+      await this._cleanupCloudFiles(newUploadedIds);
+      showToast('提交失败：' + (e.message || '网络错误'));
     } finally {
       this.setData({ submitting: false });
     }
-  }
+  },
 });

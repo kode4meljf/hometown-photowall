@@ -1,8 +1,11 @@
 <view class="about-page">
   <view class="page-body">
     <view class="about-header">
-      <image class="app-icon" src="/assets/icons/icon-about.svg" mode="aspectFit" />
-      <text class="app-name">故乡照片墙</text>
+      <view class="app-icon-placeholder">
+        <text class="placeholder-text">Logo</text>
+        <text class="placeholder-hint">待选定</text>
+      </view>
+      <text class="app-name">老根茶村</text>
       <text class="app-version">v1.0.0</text>
     </view>
     <view class="about-content">

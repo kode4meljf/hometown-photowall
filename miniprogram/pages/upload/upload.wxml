@@ -149,7 +149,7 @@
   <view class="submit-bar">
     <view class="submit-btn {{submitting ? 'submitting' : ''}}" bindtap="handleSubmit">
       <image class="submit-icon" src="/assets/icons/camera-empty.png" mode="aspectFit" wx:if="{{!submitting}}" />
-      <text>{{submitting ? '发布中…' : '发布照片'}}</text>
+      <text>{{submitting ? (isResubmit ? '提交中…' : '发布中…') : submitBtnText}}</text>
     </view>
   </view>
 </view>

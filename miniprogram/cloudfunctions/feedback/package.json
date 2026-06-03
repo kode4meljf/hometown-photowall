@@ -1,7 +1,7 @@
 {
-  "name": "adminApi",
+  "name": "feedback",
   "version": "1.0.0",
-  "description": "Web 管理后台云函数",
+  "description": "用户意见反馈",
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "~2.6.3",

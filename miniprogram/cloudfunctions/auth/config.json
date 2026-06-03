@@ -1,7 +1,10 @@
 {
   "permissions": {
     "openapi": [
-      "phonenumber.getPhoneNumber"
+      "phonenumber.getPhoneNumber",
+      "security.msgSecCheck",
+      "security.imgSecCheck",
+      "security.mediaCheckAsync"
     ]
   }
 }

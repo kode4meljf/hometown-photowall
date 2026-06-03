@@ -143,8 +143,8 @@ Component({
         commentsCount: this.properties.cardCommentsCount || 0,
         _shellPreview: true,
       };
-      const canDelete = this._canDeleteHint(this.properties.postAuthorId);
-      this.setData({ commentsCountText, canDelete });
+      const canAdminDelete = this._canAdminDeleteHint();
+      this.setData({ commentsCountText, canDelete: canAdminDelete, canAdminDelete });
       return post;
     },
 
