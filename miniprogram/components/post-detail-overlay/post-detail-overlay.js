@@ -58,7 +58,6 @@ Component({
     headerPaddingRight: 96,
     imageSlotHeight: 300,
     scrollClass: 'panel-scroll',
-    panelScrollHeight: 400,
   },
 
   lifetimes: {

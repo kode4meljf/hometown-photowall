@@ -50,7 +50,6 @@
     <scroll-view
       wx:if="{{shellReady}}"
       class="panel-scroll"
-      style="height: {{panelScrollHeight}}px;"
       scroll-y="{{!scrollLocked}}"
       scroll-top="{{commentScrollTop}}"
       bindscroll="onCommentScroll"
@@ -150,7 +149,7 @@
     </scroll-view>
 
     <view
-      class="panel-bottom-bar dismiss-zone"
+      class="dismiss-zone"
       bindtouchstart="onDismissTouchStart"
       bindtouchmove="onDismissTouchMove"
       bindtouchend="onDismissTouchEnd"

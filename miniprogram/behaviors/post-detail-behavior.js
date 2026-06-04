@@ -200,6 +200,7 @@ module.exports = Behavior({
             post: finalPost,
             canDelete,
             canAdminDelete,
+            loading: false,
             hasMoreComments,
             ...countTexts,
             currentPhotoIndex,
@@ -214,14 +215,12 @@ module.exports = Behavior({
           }
         } else {
           showToast(res.message || '加载失败');
+          if (!silent) this.setData({ loading: false });
         }
       } catch (e) {
         console.error('[loadPost]', e);
         showToast('加载失败');
-      } finally {
-        if (!silent) {
-          this.setData({ loading: false });
-        }
+        if (!silent) this.setData({ loading: false });
       }
     },
 

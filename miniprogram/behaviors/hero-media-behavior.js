@@ -149,10 +149,6 @@ module.exports = Behavior({
         Math.max(this.properties.cardPhotoCount || 1, 1),
         12
       );
-      const panelScrollHeight = Math.max(
-        200,
-        this._windowHeight - nav.navBarHeight - this._bottomBarH
-      );
 
       if (typeof this._onHeroFlyStart === 'function') {
         this._onHeroFlyStart();
@@ -194,7 +190,6 @@ module.exports = Behavior({
         navBarHeight: nav.navBarHeight,
         headerPaddingRight: nav.paddingRight,
         imageSlotHeight: layout.imageSlotHeight,
-        panelScrollHeight,
         panelTransformStyle: '',
         panelChromeStyle: enterFrom,
         scrollLocked: false,
@@ -227,8 +222,9 @@ module.exports = Behavior({
     },
 
     onHeroPhotoLoad(e) {
-      const idx = e.currentTarget.dataset.index;
-      if (idx !== 0 && idx !== '0') return;
+      const idx = Number(e.currentTarget.dataset.index);
+      const cur = this.data.currentPhotoIndex || 0;
+      if (idx !== cur && idx !== 0) return;
       if (
         this._heroPhase === PHASE.DOCKED ||
         this._heroPhase === PHASE.HANDOFF

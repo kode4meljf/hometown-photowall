@@ -230,6 +230,7 @@
 
   <!-- 浮层与首页同级，避免 feed 渐隐时把飞行层/详情一并透明掉 -->
   <post-detail-overlay
+    id="detailOverlay"
     visible="{{detailOpen}}"
     post-id="{{detailPostId}}"
     cover-url="{{detailCoverUrl}}"

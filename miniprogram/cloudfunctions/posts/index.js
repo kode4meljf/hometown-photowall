@@ -135,10 +135,105 @@ exports.main = async (event, context) => {
       return await getReceivedComments(openId, data);
     case 'getShareQrCode':
       return await getShareQrCode(data);
+    case 'seedTestComments':
+      return await seedTestComments(data);
     default:
       return { success: false, message: '未知操作' };
   }
 };
+
+const DEV_SEED_KEY = 'photowall-dev-seed';
+const DEV_SEED_MARKER = 'photowall-dev-seed-v1';
+
+/** 开发/自动化测试：为帖子写入 30 条评论（含楼中楼），可重复执行 */
+async function seedTestComments(data) {
+  const { postId, devKey } = data || {};
+  if (devKey !== DEV_SEED_KEY) {
+    return { success: false, message: '无权限' };
+  }
+  if (!postId) {
+    return { success: false, message: '缺少 postId' };
+  }
+  const gate = await requireReleasedPost(postId, '写入测试评论');
+  if (!gate.ok) {
+    return { success: false, message: gate.message };
+  }
+
+  try {
+    const oldRes = await commentsCollection
+      .where({ postId, _devSeedBatch: DEV_SEED_MARKER })
+      .get();
+    for (const doc of oldRes.data) {
+      await commentsCollection.doc(doc._id).remove();
+    }
+
+    const authors = ['阿茶', '老根', '村民甲', '摄影人', '回乡客'];
+    const topCount = 18;
+    const replyCount = 12;
+    const topIds = [];
+    const replyIds = [];
+    const baseTs = Date.now() - topCount * 120000;
+
+    for (let i = 0; i < topCount; i++) {
+      const addRes = await commentsCollection.add({
+        data: {
+          postId,
+          content: `测试主评论 ${i + 1}：这条评论用于详情页验收`,
+          author: authors[i % authors.length],
+          authorId: `dev_seed_user_${i % authors.length}`,
+          createdAt: new Date(baseTs + i * 120000),
+          likes: (i * 3) % 17,
+          likedUsers: [],
+          parentId: null,
+          replyTo: null,
+          replyToAuthor: '',
+          _devSeedBatch: DEV_SEED_MARKER,
+        },
+      });
+      topIds.push(addRes._id);
+    }
+
+    for (let i = 0; i < replyCount; i++) {
+      const parentId = topIds[i % topIds.length];
+      let replyTo = parentId;
+      let replyToAuthor = '';
+      if (i >= 6 && replyIds.length > 0) {
+        replyTo = replyIds[i % replyIds.length];
+        replyToAuthor = authors[i % authors.length];
+      }
+      const addRes = await commentsCollection.add({
+        data: {
+          postId,
+          content: `测试回复 ${i + 1}：同意，拍得很好`,
+          author: authors[(i + 2) % authors.length],
+          authorId: `dev_seed_reply_${i % authors.length}`,
+          createdAt: new Date(baseTs + (topCount + i) * 60000),
+          likes: i % 5,
+          likedUsers: [],
+          parentId,
+          replyTo,
+          replyToAuthor,
+          _devSeedBatch: DEV_SEED_MARKER,
+        },
+      });
+      replyIds.push(addRes._id);
+    }
+
+    const cntRes = await commentsCollection.where({ postId }).count();
+    return {
+      success: true,
+      data: {
+        inserted: topCount + replyCount,
+        totalOnPost: cntRes.total || 0,
+        topLevel: topCount,
+        replies: replyCount,
+      },
+    };
+  } catch (e) {
+    console.error('[seedTestComments]', e);
+    return { success: false, message: '写入失败' };
+  }
+}
 
 // 获取照片列表（读 posts 集合）
 async function getPosts(params, openId) {

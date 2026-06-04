@@ -9,6 +9,7 @@ module.exports = Behavior({
     showSharePoster: false,
     sharePosterPath: '',
     sharePosterGenerating: false,
+    sharePosterError: '',
   },
 
   methods: {
@@ -27,7 +28,7 @@ module.exports = Behavior({
       }
 
       this._posterGenerating = true;
-      this.setData({ sharePosterGenerating: true });
+      this.setData({ sharePosterGenerating: true, sharePosterError: '' });
       showLoading('生成中');
 
       const drawPoster = async () => {
@@ -51,10 +52,13 @@ module.exports = Behavior({
           this.setData({
             showSharePoster: true,
             sharePosterPath: posterPath,
+            sharePosterError: '',
           });
         } catch (e) {
+          const msg = (e && e.message) || '生成失败，请重试';
           console.error('[generatePoster]', e);
-          showToast((e && e.message) || '生成失败，请重试');
+          this.setData({ sharePosterError: msg });
+          showToast(msg);
         } finally {
           hideLoading();
           this._posterGenerating = false;
@@ -98,6 +102,7 @@ module.exports = Behavior({
         showSharePoster: false,
         sharePosterPath: '',
         sharePosterGenerating: false,
+        sharePosterError: '',
       });
     },
   },
