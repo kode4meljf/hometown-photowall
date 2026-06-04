@@ -20,6 +20,7 @@
 
 .input-area {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10rpx;
@@ -43,7 +44,7 @@
 
 .action-buttons {
   display: flex;
-  gap: 20rpx;
+  gap: 12rpx;
   flex-shrink: 0;
 }
 
@@ -52,7 +53,7 @@
   flex-direction: column;
   align-items: center;
   gap: 2rpx;
-  min-width: 72rpx;
+  min-width: 56rpx;
 }
 
 .action-icon-img {
@@ -68,4 +69,14 @@
 
 .action-num.liked {
   color: #fe2c55;
+}
+
+.action-icon-img--share {
+  width: 44rpx;
+  height: 44rpx;
+  margin: 4rpx 0;
+}
+
+.action-item--disabled {
+  opacity: 0.45;
 }

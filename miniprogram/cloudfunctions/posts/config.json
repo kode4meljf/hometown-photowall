@@ -3,7 +3,8 @@
     "openapi": [
       "security.msgSecCheck",
       "security.imgSecCheck",
-      "security.mediaCheckAsync"
+      "security.mediaCheckAsync",
+      "wxacode.getUnlimited"
     ],
     "db": {
       "posts": {

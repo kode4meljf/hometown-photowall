@@ -184,15 +184,25 @@ module.exports = Behavior({
           const canAdminDelete = this._canAdminDeleteHint();
           const hasMoreComments = res.data.hasMore || false;
           const countTexts = formatPostCountTexts(finalPost);
-          const imageSlotHeight = this._imageSlotHeightForIndex(0);
+          let currentPhotoIndex = 0;
+          let imageSlotHeight = this._imageSlotHeightForIndex(0);
+          const pendingIdx = this._pendingInitialPhotoIndex || 0;
+          if (
+            pendingIdx > 0 &&
+            finalPost.photos &&
+            pendingIdx < finalPost.photos.length
+          ) {
+            currentPhotoIndex = pendingIdx;
+            imageSlotHeight = this._imageSlotHeightForIndex(pendingIdx);
+          }
+          this._pendingInitialPhotoIndex = 0;
           this.setData({
             post: finalPost,
             canDelete,
             canAdminDelete,
-            loading: false,
             hasMoreComments,
             ...countTexts,
-            currentPhotoIndex: 0,
+            currentPhotoIndex,
             imageSlotHeight,
           });
           if (
@@ -204,11 +214,14 @@ module.exports = Behavior({
           }
         } else {
           showToast(res.message || '加载失败');
-          if (!silent) this.setData({ loading: false });
         }
       } catch (e) {
+        console.error('[loadPost]', e);
         showToast('加载失败');
-        if (!silent) this.setData({ loading: false });
+      } finally {
+        if (!silent) {
+          this.setData({ loading: false });
+        }
       }
     },
 

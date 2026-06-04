@@ -58,9 +58,37 @@ Page({
     detailCardHandoff: false,
     detailCardTransformStyle: '',
     feedLayerStyle: '',
+    detailInitialPhotoIndex: 0,
   },
 
-  onLoad() {
+  _parseShareEntry(options = {}) {
+    let raw = options.postId || options.scene || '';
+    if (!raw) return null;
+    if (options.scene) {
+      try {
+        raw = decodeURIComponent(options.scene);
+      } catch (e) {
+        raw = options.scene;
+      }
+    }
+    const [postId, photoIndexStr] = String(raw).split(',');
+    const trimmedId = (postId || '').trim();
+    if (!trimmedId) return null;
+    const photoIndex = photoIndexStr ? parseInt(photoIndexStr, 10) : 0;
+    return {
+      postId: trimmedId,
+      photoIndex: Number.isFinite(photoIndex) && photoIndex > 0 ? photoIndex : 0,
+    };
+  },
+
+  onLoad(options) {
+    const share = this._parseShareEntry(options);
+    if (share) {
+      app.globalData.pendingDetail = {
+        postId: share.postId,
+        photoIndex: share.photoIndex,
+      };
+    }
     this.initSystemInfo();
     this.loadLocations();
     this.loadPosts(true);
@@ -149,6 +177,7 @@ Page({
           pending.photoCount ||
           1,
         detailPostAuthorId: inFeed?.authorId || pending.authorId || '',
+        detailInitialPhotoIndex: pending.photoIndex || 0,
       },
       () => {
         this.setData({ detailOpen: true }, () => {
@@ -597,6 +626,7 @@ Page({
       detailCardHandoff: false,
       detailCardTransformStyle: '',
       feedLayerStyle: '',
+      detailInitialPhotoIndex: 0,
     });
     this._setTabBarHidden(false);
     if (detail.deleted) {

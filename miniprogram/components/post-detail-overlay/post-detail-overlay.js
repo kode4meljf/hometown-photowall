@@ -13,6 +13,7 @@ const postDetailBehavior = require('../../behaviors/post-detail-behavior');
 const postPreviewBehavior = require('../../behaviors/post-preview-behavior');
 const postDismissBehavior = require('../../behaviors/post-dismiss-behavior');
 const heroMediaBehavior = require('../../behaviors/hero-media-behavior');
+const sharePosterBehavior = require('../../behaviors/share-poster-behavior');
 const Z_INDEX = require('../../utils/zIndex');
 
 Component({
@@ -21,6 +22,7 @@ Component({
     postPreviewBehavior,
     postDismissBehavior,
     heroMediaBehavior,
+    sharePosterBehavior,
   ],
 
   properties: {
@@ -42,6 +44,7 @@ Component({
     cardDate: { type: String, value: '' },
     cardPhotoCount: { type: Number, value: 1 },
     postAuthorId: { type: String, value: '' },
+    initialPhotoIndex: { type: Number, value: 0 },
   },
 
   data: {
@@ -55,6 +58,7 @@ Component({
     headerPaddingRight: 96,
     imageSlotHeight: 300,
     scrollClass: 'panel-scroll',
+    panelScrollHeight: 400,
   },
 
   lifetimes: {
@@ -63,7 +67,7 @@ Component({
       this._windowWidth = sys.windowWidth;
       this._windowHeight = sys.windowHeight;
       this._bottomBarH =
-        (84 / 750) * sys.windowWidth + (sys.safeArea?.insetBottom || 0);
+        Math.round((100 / 750) * sys.windowWidth) + (sys.safeArea?.insetBottom || 0);
       this._emojiPanelHeight =
         Math.round(sys.windowHeight * 0.36) + (sys.safeArea?.insetBottom || 0);
       this._indexAvatarUrl = this.properties.authorAvatar;
@@ -76,6 +80,7 @@ Component({
     visible(v) {
       if (v) {
         this.postId = this.properties.postId;
+        this._pendingInitialPhotoIndex = this.properties.initialPhotoIndex || 0;
         this._slotMirrorReady = false;
         this._scheduleHeroEnter();
       } else {
@@ -173,6 +178,9 @@ Component({
       this._dismissMode = null;
       this._dismissExit = false;
       this._slotMirrorReady = false;
+      if (typeof this._resetSharePosterState === 'function') {
+        this._resetSharePosterState();
+      }
       this.setData({
         heroTitleStyle: '',
         maskShow: false,
@@ -217,6 +225,10 @@ Component({
     },
 
     onBack() {
+      if (this.data.showSharePoster) {
+        this.closeSharePoster();
+        return;
+      }
       if (this.data.isPreviewMode) {
         this.exitPreview();
         return;

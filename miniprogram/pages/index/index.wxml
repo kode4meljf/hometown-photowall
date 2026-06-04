@@ -248,6 +248,7 @@
     card-date="{{detailCardDate}}"
     card-photo-count="{{detailCardPhotoCount}}"
     post-author-id="{{detailPostAuthorId}}"
+    initial-photo-index="{{detailInitialPhotoIndex}}"
     bind:close="onDetailClose"
     bind:feedlayer="onFeedLayer"
     bind:herofly="onDetailHeroFly"

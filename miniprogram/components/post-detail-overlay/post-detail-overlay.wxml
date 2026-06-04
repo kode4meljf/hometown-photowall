@@ -50,6 +50,7 @@
     <scroll-view
       wx:if="{{shellReady}}"
       class="panel-scroll"
+      style="height: {{panelScrollHeight}}px;"
       scroll-y="{{!scrollLocked}}"
       scroll-top="{{commentScrollTop}}"
       bindscroll="onCommentScroll"
@@ -149,7 +150,7 @@
     </scroll-view>
 
     <view
-      class="dismiss-zone"
+      class="panel-bottom-bar dismiss-zone"
       bindtouchstart="onDismissTouchStart"
       bindtouchmove="onDismissTouchMove"
       bindtouchend="onDismissTouchEnd"
@@ -161,8 +162,10 @@
         panelExitChrome="{{panelExitChrome}}"
         likesCountText="{{likesCountText}}"
         commentsCountText="{{commentsCountText}}"
+        shareGenerating="{{sharePosterGenerating}}"
         bind:focuscomment="focusCommentInput"
         bind:like="handleLike"
+        bind:share="generatePoster"
       />
     </view>
   </view>
@@ -231,4 +234,14 @@
       bind:success="onLoginSuccess"
     />
   </view>
+
+  <view class="share-poster-mask" wx:if="{{showSharePoster}}" catchtouchmove="noop">
+    <view class="share-poster-backdrop">
+      <view class="share-poster-close" catchtap="closeSharePoster">×</view>
+      <image class="share-poster-preview" src="{{sharePosterPath}}" mode="widthFix" show-menu-by-longpress="{{false}}" />
+      <view class="share-poster-save" catchtap="saveSharePoster">保存到相册</view>
+    </view>
+  </view>
+
+  <canvas wx:if="{{sharePosterGenerating || showSharePoster}}" type="2d" id="sharePosterCanvas" class="share-poster-canvas" />
 </view>

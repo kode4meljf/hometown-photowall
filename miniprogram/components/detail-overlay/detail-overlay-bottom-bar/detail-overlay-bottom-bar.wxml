@@ -12,5 +12,9 @@
       <image class="action-icon-img" src="/assets/icons/comment.png" mode="aspectFit" />
       <text class="action-num">{{commentsCountText}}</text>
     </view>
+    <view class="action-item {{shareGenerating ? 'action-item--disabled' : ''}}" catchtap="handleShare">
+      <image class="action-icon-img action-icon-img--share" src="/assets/icons/icon-share.svg" mode="aspectFit" />
+      <text class="action-num">分享</text>
+    </view>
   </view>
 </view>

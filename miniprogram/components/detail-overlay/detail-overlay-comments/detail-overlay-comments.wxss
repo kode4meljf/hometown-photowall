@@ -1,4 +1,15 @@
 /* 评论区（与 detail 页一致） */
+.content-reveal {
+  opacity: 0;
+  transform: translateY(12rpx);
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+
+.content-reveal.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .comment-count-row {
   display: flex;
   align-items: center;

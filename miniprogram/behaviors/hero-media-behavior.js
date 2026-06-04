@@ -149,6 +149,10 @@ module.exports = Behavior({
         Math.max(this.properties.cardPhotoCount || 1, 1),
         12
       );
+      const panelScrollHeight = Math.max(
+        200,
+        this._windowHeight - nav.navBarHeight - this._bottomBarH
+      );
 
       if (typeof this._onHeroFlyStart === 'function') {
         this._onHeroFlyStart();
@@ -190,6 +194,7 @@ module.exports = Behavior({
         navBarHeight: nav.navBarHeight,
         headerPaddingRight: nav.paddingRight,
         imageSlotHeight: layout.imageSlotHeight,
+        panelScrollHeight,
         panelTransformStyle: '',
         panelChromeStyle: enterFrom,
         scrollLocked: false,
