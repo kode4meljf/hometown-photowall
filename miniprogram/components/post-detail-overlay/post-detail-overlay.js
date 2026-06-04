@@ -4,7 +4,7 @@ const {
   SHELL_SCALE_MS,
   CARD_EXIT_HANDOFF_RATIO,
 } = require('../../utils/heroController');
-const { formatLikeCount } = require('../../utils/util');
+const { formatPostCountTexts } = require('../../utils/util');
 const { isLoggedIn } = require('../../utils/session');
 const { getDetailSlotHeight } = require('../../utils/heroLayout');
 const { rectToStyle } = require('../../utils/heroLayout');
@@ -13,6 +13,7 @@ const postDetailBehavior = require('../../behaviors/post-detail-behavior');
 const postPreviewBehavior = require('../../behaviors/post-preview-behavior');
 const postDismissBehavior = require('../../behaviors/post-dismiss-behavior');
 const heroMediaBehavior = require('../../behaviors/hero-media-behavior');
+const Z_INDEX = require('../../utils/zIndex');
 
 Component({
   behaviors: [
@@ -44,6 +45,7 @@ Component({
   },
 
   data: {
+    loginModalZIndex: Z_INDEX.DETAIL_LOGIN,
     heroTitleStyle: '',
     maskShow: false,
     panelShow: false,
@@ -85,10 +87,8 @@ Component({
       const photoCount = p.photos?.length > 0 ? p.photos.length : 1;
       const segments = [];
       for (let i = 0; i < Math.min(photoCount, 12); i++) segments.push(i);
-      const commentsCountText = formatLikeCount(
-        p.commentsCount != null ? p.commentsCount : 0
-      ).text;
-      this.setData({ photoCount, skeletonSegments: segments, commentsCountText });
+      const countTexts = formatPostCountTexts(p);
+      this.setData({ photoCount, skeletonSegments: segments, ...countTexts });
       if (
         this.data.heroPhase === PHASE.DOCKED &&
         !this._handoffStarted &&
@@ -126,9 +126,10 @@ Component({
       if (this.properties.titleText) titleParts.push(this.properties.titleText);
       if (this.properties.descText) titleParts.push(this.properties.descText);
       const cover = this.properties.coverUrl || '';
-      const commentsCountText = formatLikeCount(
-        this.properties.cardCommentsCount || 0
-      ).text;
+      const countTexts = formatPostCountTexts({
+        likes: this.properties.cardLikes || 0,
+        commentsCount: this.properties.cardCommentsCount || 0,
+      });
       const post = {
         id: this.properties.postId,
         author: this.properties.authorName || '',
@@ -145,7 +146,7 @@ Component({
         _shellPreview: true,
       };
       const canAdminDelete = this._canAdminDeleteHint();
-      this.setData({ commentsCountText, canDelete: canAdminDelete, canAdminDelete });
+      this.setData({ ...countTexts, canDelete: canAdminDelete, canAdminDelete });
       return post;
     },
 
@@ -221,7 +222,7 @@ Component({
         return;
       }
       this._heroExit(() => {
-        this.triggerEvent('close', { likedChanged: !!this._likedChanged });
+        this.triggerEvent('close', this._buildCloseDetail());
       });
     },
 

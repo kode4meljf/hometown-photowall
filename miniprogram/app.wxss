@@ -9,6 +9,18 @@ page {
   --text-secondary: #666666;
   --text-hint: #999999;
   --border-color: #e0e0e0;
+
+  /* z-index 刻度 — 详见 utils/zIndex.js */
+  --z-dropdown-mask: 990;
+  --z-dropdown: 991;
+  --z-tab-bar: 1000;
+  --z-page-sheet: 9999;
+  --z-modal: 10000;
+  --z-detail-overlay: 10001;
+  --z-detail-comment: 10010;
+  --z-detail-like: 10011;
+  --z-detail-preview: 10020;
+  --z-detail-login: 10030;
   
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 28rpx;

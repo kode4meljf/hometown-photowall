@@ -1,7 +1,8 @@
 // pages/edit-profile/edit-profile.js
-const { userApi } = require('../../../utils/api');
+const { userApi, uploadImage } = require('../../../utils/api');
 const { showToast, showLoading, hideLoading } = require('../../../utils/util');
 const { ensureSession } = require('../../../utils/session');
+const { ensurePrivacyAuthorized } = require('../../../utils/privacy');
 
 Page({
   data: {
@@ -17,6 +18,7 @@ Page({
     avatarVersion: '',
     bioLength: 0,
     saving: false,
+    avatarPickerReady: false,
   },
 
 
@@ -64,10 +66,16 @@ Page({
   },
 
   // 头像选择
+  async onAvatarTapPrepare() {
+    const privacyOk = await ensurePrivacyAuthorized();
+    if (!privacyOk) return;
+    this.setData({ avatarPickerReady: true });
+  },
+
   onChooseAvatar(e) {
     const { avatarUrl } = e.detail;
     if (!avatarUrl) return;
-    this.setData({ 'formData.avatar': avatarUrl });
+    this.setData({ 'formData.avatar': avatarUrl, avatarPickerReady: false });
     this._uploadAvatar(avatarUrl);
   },
 
@@ -75,22 +83,18 @@ Page({
   async _uploadAvatar(filePath) {
     showLoading('上传中...');
     try {
-      const cloudPath = `avatars/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
-      const uploadRes = await wx.cloud.uploadFile({ cloudPath, filePath });
-      if (!uploadRes.fileID) {
+      const fileID = await uploadImage(filePath, 'avatars');
+      if (!fileID) {
         hideLoading();
         showToast('上传失败');
         return;
       }
-      // 立即持久化到数据库
-      await userApi.updateUserProfile({ avatar: uploadRes.fileID });
-      // 重新拉取用户信息（含解析后的 avatar URL）
+      await userApi.updateUserProfile({ avatar: fileID });
       const fresh = await userApi.getCurrentUser();
       if (fresh.success && fresh.data) {
-        this.setData({ 'formData.avatar': fresh.data.avatar || uploadRes.fileID });
+        this.setData({ 'formData.avatar': fresh.data.avatar || fileID });
       } else {
-        // 兜底：用 fileID 本地更新
-        this.setData({ 'formData.avatar': uploadRes.fileID });
+        this.setData({ 'formData.avatar': fileID });
       }
       hideLoading();
       showToast('头像已更新');

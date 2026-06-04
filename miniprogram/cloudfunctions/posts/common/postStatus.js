@@ -1,3 +1,5 @@
+/** 帖子状态 — 与 miniprogram/utils/postStatus.js、web/src/constants/postStatus.ts 保持同步 */
+
 const POST_STATUS = {
   RELEASED: 'released',
   REVIEWING: 'reviewing',
@@ -11,8 +13,13 @@ function isPublicStatus(status) {
   return status === POST_STATUS.RELEASED;
 }
 
+function isUserToggleableStatus(status) {
+  return status === POST_STATUS.RELEASED || status === POST_STATUS.HIDDEN;
+}
+
 module.exports = {
   POST_STATUS,
   POST_STATUS_LIST,
   isPublicStatus,
+  isUserToggleableStatus,
 };

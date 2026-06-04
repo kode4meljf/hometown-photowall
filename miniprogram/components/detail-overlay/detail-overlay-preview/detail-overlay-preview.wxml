@@ -1,0 +1,70 @@
+<view
+  class="preview-layer {{previewBgBlack ? 'bg-black' : 'bg-transparent'}}"
+  style="{{previewBgStyle}}"
+  wx:if="{{visible}}"
+>
+  <view class="preview-image-area">
+    <view class="preview-drag-overlay" style="opacity: {{overlayOpacity}};"></view>
+    <view
+      class="preview-image-wrapper {{previewAnimClass}} {{previewDismissDragging ? 'preview-dismiss-dragging' : ''}}"
+      style="transform: {{previewTransform}}; opacity: {{previewOpacity !== 0 ? 1 : 0}};"
+      bindtouchstart="onPreviewTouchStart"
+      bindtouchmove="onPreviewTouchMove"
+      bindtouchend="onPreviewTouchEnd"
+      bindtouchcancel="onPreviewTouchEnd"
+    >
+      <swiper
+        class="preview-swiper"
+        current="{{currentPhotoIndex}}"
+        bindchange="onPreviewSwiperChange"
+        duration="300"
+        easing-function="easeOutCubic"
+      >
+        <swiper-item wx:for="{{post.photos}}" wx:key="order">
+          <image
+            class="preview-image"
+            src="{{item.imageUrl}}"
+            mode="aspectFit"
+            data-index="{{index}}"
+            bindload="onPreviewPhotoLoad"
+          />
+        </swiper-item>
+      </swiper>
+      <view
+        class="preview-touch-catcher"
+        wx:if="{{previewTouchCapture}}"
+        catchtouchstart="onPreviewTouchStart"
+        catchtouchmove="onPreviewTouchMove"
+        catchtouchend="onPreviewTouchEnd"
+        catchtouchcancel="onPreviewTouchEnd"
+      ></view>
+      <view
+        class="preview-progress-bar {{previewProgressVisible ? 'progress-show' : ''}}"
+        style="{{previewProgressStyle}}"
+        wx:if="{{post.photos.length > 1}}"
+      >
+        <view
+          wx:for="{{post.photos}}"
+          wx:key="order"
+          class="preview-progress-segment {{index <= currentPhotoIndex ? 'done' : 'todo'}}"
+        ></view>
+      </view>
+      <view class="preview-index-badge {{indexBadgeVisible ? 'badge-show' : ''}}" wx:if="{{post.photos.length > 1}}">
+        <text class="preview-badge-text">{{currentPhotoIndex + 1}}/{{post.photos.length}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="like-animation {{showLikeAnim ? 'show' : ''}}" wx:if="{{showLikeAnim}}">
+    <text>❤️</text>
+  </view>
+  <view class="preview-bottom-bar">
+    <view class="preview-actions {{bottomBarVisible ? 'fade-in' : ''}}">
+      <view class="preview-action-item preview-close-btn" catchtap="exitPreview">
+        <text class="preview-action-icon">×</text>
+      </view>
+      <view class="preview-action-item preview-download-btn" catchtap="downloadPreviewImage">
+        <text class="preview-action-icon">↓</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -44,8 +44,23 @@ const formatLikeCount = (num) => {
   return { text: num.toString(), cls: '' };
 };
 
-// 与 formatLikeCount 规则一致，仅返回展示文本（统计页等）
-const formatCompactNum = (num) => formatLikeCount(num).text;
+/** 展示用数字文本；WXS filters.formatCount 须保持相同规则 */
+const formatCountText = (num) => formatLikeCount(num).text;
+
+const formatCompactNum = formatCountText;
+
+function formatPostCountTexts(post) {
+  if (!post) {
+    return { commentsCountText: '0', likesCountText: '0' };
+  }
+  const commentsCount = post.commentsCount != null
+    ? post.commentsCount
+    : (post.comments ? post.comments.length : 0);
+  return {
+    commentsCountText: formatCountText(commentsCount),
+    likesCountText: formatCountText(post.likes || 0),
+  };
+}
 
 module.exports = {
   formatDateTime,
@@ -55,5 +70,7 @@ module.exports = {
   showLoading,
   hideLoading,
   formatLikeCount,
+  formatCountText,
   formatCompactNum,
+  formatPostCountTexts,
 };

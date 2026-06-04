@@ -82,6 +82,10 @@
 }
 .avatar-btn::after { display: none; }
 
+.avatar-btn-view {
+  overflow: hidden;
+}
+
 .avatar-img {
   width: 120rpx;
   height: 120rpx;

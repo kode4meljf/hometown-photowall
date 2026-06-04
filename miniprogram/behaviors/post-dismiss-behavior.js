@@ -166,7 +166,7 @@ module.exports = Behavior({
       });
       if (typeof this._exit === 'function') {
         this._exit(() => {
-          this.triggerEvent('close', { likedChanged: !!this._likedChanged });
+          this.triggerEvent('close', this._buildCloseDetail());
         });
       }
     },

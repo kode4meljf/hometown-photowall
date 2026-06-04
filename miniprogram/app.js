@@ -1,4 +1,6 @@
 // app.js - 云开发版本
+const { invokeCloud } = require('./utils/api');
+
 App({
   globalData: {
     userInfo: null,
@@ -42,20 +44,19 @@ App({
   },
 
   _callAuth(action, data = {}) {
-    return new Promise((resolve, reject) => {
-      wx.cloud.callFunction({
-        name: 'auth',
-        data: { action, data },
-        success: (res) => {
-          if (res.result && res.result.success) {
-            resolve(res.result);
-          } else {
-            reject(res.result || { message: '请求失败' });
-          }
-        },
-        fail: () => reject({ message: '网络错误，请重试' })
+    return invokeCloud('auth', action, data)
+      .then((result) => {
+        if (result && result.success) {
+          return result;
+        }
+        return Promise.reject(result || { message: '请求失败' });
+      })
+      .catch((err) => {
+        if (err && err.message && !err.errMsg) {
+          return Promise.reject(err);
+        }
+        return Promise.reject({ message: '网络错误，请重试' });
       });
-    });
   },
 
   // 微信授权登录
@@ -72,6 +73,7 @@ App({
     this.globalData.isLoggedIn = false;
     wx.removeStorageSync('userInfo');
     this.globalData.homeNeedRefresh = true;
+    this.globalData.profileNeedRefresh = true;
   },
 
   /**

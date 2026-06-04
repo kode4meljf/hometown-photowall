@@ -1,5 +1,7 @@
 const { userApi } = require('../../utils/api');
 const { showLoading, hideLoading } = require('../../utils/util');
+const { ensurePrivacyAuthorized } = require('../../utils/privacy');
+const Z_INDEX = require('../../utils/zIndex');
 const app = getApp();
 
 Component({
@@ -23,6 +25,10 @@ Component({
     cancelText: {
       type: String,
       value: '继续浏览'
+    },
+    zIndex: {
+      type: Number,
+      value: Z_INDEX.MODAL
     }
   },
 
@@ -52,7 +58,10 @@ Component({
       wx.navigateTo({ url: '/pages/profile/settings/privacy/privacy' });
     },
 
-    onWechatLogin() {
+    async onWechatLogin() {
+      const privacyOk = await ensurePrivacyAuthorized();
+      if (!privacyOk) return;
+
       showLoading('登录中...');
 
       app.wechatLogin()

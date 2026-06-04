@@ -5,25 +5,93 @@ const crypto = require('crypto');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
+const _ = db.command;
+const $ = db.command.aggregate;
 const identity = require('./common/identity');
+const pwd = require('./common/password');
 const { POST_STATUS, POST_STATUS_LIST } = require('./common/postStatus');
+const { normalizePostForAdmin: normalizePost, deleteCloudFiles } = require('./common/postHelpers');
 
-const TOKEN_SECRET = process.env.ADMIN_TOKEN_SECRET || 'hometown_admin_token_secret';
+const TOKEN_SECRET = (process.env.ADMIN_TOKEN_SECRET || '').trim();
+const TOKEN_SECRET_MIN_LEN = 16;
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const CORS_HEADERS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-};
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:5174',
+  'http://127.0.0.1:5174',
+];
 
-function httpResponse(result, statusCode = 200) {
+function parseCorsOrigins() {
+  const raw = (process.env.ADMIN_CORS_ORIGINS || '').trim();
+  if (!raw) return DEFAULT_CORS_ORIGINS;
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+const ALLOWED_CORS_ORIGINS = parseCorsOrigins();
+
+const PAGE_SIZE_MAX = 50;
+const PAGE_SIZE_DEFAULT = 50;
+
+function normalizePagePagination(params = {}, defaultPageSize = PAGE_SIZE_DEFAULT) {
+  const pageRaw = parseInt(params.page, 10);
+  const sizeRaw = parseInt(params.pageSize, 10);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
+  const pageSizeBase = Number.isFinite(sizeRaw) && sizeRaw >= 1 ? sizeRaw : defaultPageSize;
+  return { page, pageSize: Math.min(pageSizeBase, PAGE_SIZE_MAX) };
+}
+
+async function sumPostsField(field) {
+  try {
+    const res = await db.collection('posts').aggregate()
+      .group({
+        _id: null,
+        total: $.sum(`$${field}`),
+      })
+      .end();
+    return res.list[0]?.total || 0;
+  } catch (e) {
+    console.error(`[adminApi] sumPostsField(${field}) failed:`, e);
+    return 0;
+  }
+}
+
+function resolveCorsOrigin(requestOrigin) {
+  if (!requestOrigin) return ALLOWED_CORS_ORIGINS[0] || null;
+  if (ALLOWED_CORS_ORIGINS.includes(requestOrigin)) return requestOrigin;
+  return null;
+}
+
+function getRequestOrigin(event) {
+  const headers = (event && event.headers) || {};
+  return headers.origin || headers.Origin || '';
+}
+
+function httpResponse(result, statusCode = 200, requestOrigin) {
+  const origin = resolveCorsOrigin(requestOrigin);
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+  if (origin) {
+    headers['Access-Control-Allow-Origin'] = origin;
+    headers.Vary = 'Origin';
+  }
   return {
     statusCode,
-    headers: CORS_HEADERS,
-    body: JSON.stringify(result)
+    headers,
+    body: JSON.stringify(result),
   };
+}
+
+function getTokenSecretError() {
+  if (!TOKEN_SECRET) {
+    return '未配置 ADMIN_TOKEN_SECRET 环境变量，请在云函数环境变量中设置';
+  }
+  if (TOKEN_SECRET.length < TOKEN_SECRET_MIN_LEN) {
+    return `ADMIN_TOKEN_SECRET 长度不足（至少 ${TOKEN_SECRET_MIN_LEN} 位）`;
+  }
+  return null;
 }
 
 function parseEvent(event) {
@@ -63,6 +131,7 @@ function signToken(userId) {
 }
 
 function verifyToken(token) {
+  if (getTokenSecretError()) return null;
   if (!token) return null;
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf8');
@@ -90,55 +159,54 @@ async function resolveImageUrl(url) {
   }
 }
 
-function normalizePost(post) {
-  const firstPhoto = (post.photos && post.photos.length > 0) ? post.photos[0] : null;
-  return {
-    ...post,
-    id: post._id,
-    imageUrl: firstPhoto ? firstPhoto.imageUrl : (post.imageUrl || ''),
-    category: post.category || post.tag || '-',
-    likes: post.likes || 0,
-    views: post.views || 0
-  };
-}
-
-async function verifyAdmin(payload, wxContext) {
+async function verifyAdmin(payload) {
   const token = payload.data && payload.data.adminToken;
-  if (token) {
-    const userId = verifyToken(token);
-    if (!userId) {
-      return { ok: false, message: '登录已过期，请重新登录' };
-    }
-    const user = await identity.findUserById(db, userId);
-    if (!user || user.role !== 'admin') {
-      return { ok: false, message: '无权限访问' };
-    }
-    return { ok: true, user };
-  }
-
-  const openId = wxContext.OPENID;
-  if (!openId) {
+  if (!token) {
     return { ok: false, message: '未登录' };
   }
-  const actor = await identity.resolveActor(db, openId);
-  if (!actor.isAdmin) {
+  const secretErr = getTokenSecretError();
+  if (secretErr) {
+    console.error('[adminApi] adminToken auth blocked:', secretErr);
+    return { ok: false, message: '管理后台认证未就绪，请联系管理员' };
+  }
+  const userId = verifyToken(token);
+  if (!userId) {
+    return { ok: false, message: '登录已过期，请重新登录' };
+  }
+  const user = await identity.findUserById(db, userId);
+  if (!user || user.role !== 'admin') {
     return { ok: false, message: '无权限访问' };
   }
-  return { ok: true, user: actor.user };
+  return { ok: true, user };
 }
 
 async function handleLogin(username, password) {
+  const secretErr = getTokenSecretError();
+  if (secretErr) {
+    console.error('[adminApi] login blocked:', secretErr);
+    return { success: false, message: '管理后台认证未就绪，请联系管理员' };
+  }
   if (!username || !password) {
     return { success: false, message: '请输入用户名和密码' };
   }
   try {
-    const result = await db.collection('users').where({ username, password }).limit(1).get();
+    const result = await db.collection('users').where({ username }).limit(1).get();
     if (result.data.length === 0) {
       return { success: false, message: '用户名或密码错误' };
     }
     const user = result.data[0];
+    const passwordOk = await pwd.verifyPassword(password, user.password);
+    if (!passwordOk) {
+      return { success: false, message: '用户名或密码错误' };
+    }
     if (user.role !== 'admin') {
       return { success: false, message: '需要管理员权限' };
+    }
+    if (pwd.needsPasswordUpgrade(user.password)) {
+      const passwordHash = await pwd.hashPassword(password);
+      await db.collection('users').doc(user._id).update({
+        data: { password: passwordHash, updatedAt: db.serverDate() },
+      });
     }
     const token = signToken(user._id);
     return {
@@ -243,7 +311,8 @@ async function buildPostDetail(post, id) {
 
 async function getAllPhotos(params = {}) {
   try {
-    const { page = 1, pageSize = 50, status } = params;
+    const { page, pageSize } = normalizePagePagination(params);
+    const { status } = params;
     const where = {};
     if (status && status !== 'all' && POST_STATUS_LIST.includes(status)) {
       where.status = status;
@@ -259,29 +328,29 @@ async function getAllPhotos(params = {}) {
         .get()
     ]);
 
-    const photos = await Promise.all(listResult.data.map(async (rawPost) => {
-      const photo = normalizePost(rawPost);
-      const authorIds = photo.authorId ? [photo.authorId] : [];
+    const posts = await Promise.all(listResult.data.map(async (rawPost) => {
+      const post = normalizePost(rawPost);
+      const authorIds = post.authorId ? [post.authorId] : [];
       const { nicknameMap } = await identity.resolveAuthorsMap(db, authorIds);
-      identity.applyAuthorToPosts([photo], {}, nicknameMap);
+      identity.applyAuthorToPosts([post], {}, nicknameMap);
 
       const [resolvedPhotos, commentCount] = await Promise.all([
         resolvePostPhotos(rawPost),
-        db.collection('post_comments').where({ postId: photo.id }).count()
+        db.collection('post_comments').where({ postId: post.id }).count()
       ]);
-      const coverUrl = resolvedPhotos[0]?.imageUrl || await resolveImageUrl(photo.imageUrl);
+      const coverUrl = resolvedPhotos[0]?.imageUrl || await resolveImageUrl(post.imageUrl);
 
       return {
-        ...photo,
+        ...post,
         imageUrl: coverUrl,
-        description: photo.description || photo.content || '',
-        location: formatLocation(photo.location),
-        status: photo.status,
-        mediaTraceIds: photo.mediaTraceIds || [],
-        reviewAdminNote: photo.reviewAdminNote || '',
-        createdAt: formatCreatedAt(photo.createdAt),
+        description: post.description || post.content || '',
+        location: formatLocation(post.location),
+        status: post.status,
+        mediaTraceIds: post.mediaTraceIds || [],
+        reviewAdminNote: post.reviewAdminNote || '',
+        createdAt: formatCreatedAt(post.createdAt),
         photos: resolvedPhotos,
-        author: photo.author || '未知用户',
+        author: post.author || '未知用户',
         commentCount: commentCount.total
       };
     }));
@@ -289,7 +358,7 @@ async function getAllPhotos(params = {}) {
     return {
       success: true,
       data: {
-        photos,
+        posts,
         total: totalResult.total,
         page,
         pageSize
@@ -327,6 +396,14 @@ async function deletePost(id) {
     return { success: false, message: '缺少照片 ID' };
   }
   try {
+    const postRes = await db.collection('posts').doc(id).get();
+    const fileIds = (postRes.data?.photos || [])
+      .map((p) => p.imageUrl)
+      .filter((url) => url && url.startsWith('cloud://'));
+    if (fileIds.length) {
+      await deleteCloudFiles(cloud, fileIds);
+    }
+
     await db.collection('posts').doc(id).remove();
     await db.collection('post_comments').where({ postId: id }).remove();
     return { success: true, message: '删除成功' };
@@ -343,20 +420,32 @@ async function getUsers() {
       .limit(200)
       .get();
 
-    const users = await Promise.all(usersResult.data.map(async (user) => {
-      const [photoCount, commentCount] = await Promise.all([
-        db.collection('posts').where({ authorId: user._id }).count(),
-        db.collection('post_comments').where({ authorId: user._id }).count()
-      ]);
-      return {
-        id: user._id,
-        username: user.username || '',
-        nickname: user.nickname || '未命名',
-        role: user.role || 'user',
-        photoCount: photoCount.total,
-        commentCount: commentCount.total,
-        createdAt: user.createdAt
-      };
+    const [postsAgg, commentsAgg] = await Promise.all([
+      db.collection('posts').aggregate()
+        .group({ _id: '$authorId', count: $.sum(1) })
+        .end(),
+      db.collection('post_comments').aggregate()
+        .group({ _id: '$authorId', count: $.sum(1) })
+        .end(),
+    ]);
+
+    const postCountByAuthor = {};
+    for (const row of postsAgg.list || []) {
+      if (row._id) postCountByAuthor[row._id] = row.count || 0;
+    }
+    const commentCountByAuthor = {};
+    for (const row of commentsAgg.list || []) {
+      if (row._id) commentCountByAuthor[row._id] = row.count || 0;
+    }
+
+    const users = usersResult.data.map((user) => ({
+      id: user._id,
+      username: user.username || '',
+      nickname: user.nickname || '未命名',
+      role: user.role || 'user',
+      postCount: postCountByAuthor[user._id] || 0,
+      commentCount: commentCountByAuthor[user._id] || 0,
+      createdAt: user.createdAt,
     }));
 
     return { success: true, data: users };
@@ -451,17 +540,15 @@ async function getAdminStats() {
       db.collection('posts').where({ status: POST_STATUS.REVIEWING }).count(),
     ]);
 
-    const postsResult = await db.collection('posts')
-      .field({ likes: true, views: true })
-      .limit(1000)
-      .get();
-    const totalLikes = postsResult.data.reduce((sum, p) => sum + (p.likes || 0), 0);
-    const totalViews = postsResult.data.reduce((sum, p) => sum + (p.views || 0), 0);
+    const [totalLikes, totalViews] = await Promise.all([
+      sumPostsField('likes'),
+      sumPostsField('views'),
+    ]);
 
     return {
       success: true,
       data: {
-        totalPhotos: postCount.total,
+        totalPosts: postCount.total,
         totalUsers: userCount.total,
         totalComments: commentCount.total,
         totalLikes,
@@ -497,7 +584,8 @@ function formatFeedbackItem(raw) {
 
 async function getFeedbacks(params = {}) {
   try {
-    const { page = 1, pageSize = 30, status, type } = params;
+    const { page, pageSize } = normalizePagePagination(params, 30);
+    const { status, type } = params;
     const where = {};
     if (status && status !== 'all') {
       where.status = status;
@@ -582,8 +670,12 @@ async function updateFeedback(id, updates = {}) {
   }
 }
 
-async function dispatch(payload, wxContext) {
+async function dispatch(payload, { isHttp }) {
   const { action, data } = payload;
+
+  if (!isHttp) {
+    return { success: false, message: '请通过管理后台访问' };
+  }
 
   switch (action) {
     case 'login':
@@ -591,7 +683,7 @@ async function dispatch(payload, wxContext) {
     case 'verifySession':
       return await handleVerifySession(data.adminToken);
     default: {
-      const auth = await verifyAdmin(payload, wxContext);
+      const auth = await verifyAdmin(payload);
       if (!auth.ok) {
         return { success: false, message: auth.message };
       }
@@ -624,29 +716,32 @@ async function dispatch(payload, wxContext) {
 exports.main = async (event, context) => {
   try {
     const parsed = parseEvent(event);
+    const requestOrigin = getRequestOrigin(event);
 
     if (parsed.isOptions) {
-      return httpResponse({ success: true });
+      if (!resolveCorsOrigin(requestOrigin)) {
+        return httpResponse({ success: false, message: '不允许的来源' }, 403, requestOrigin);
+      }
+      return httpResponse({ success: true }, 200, requestOrigin);
     }
     if (parsed.parseError) {
-      return httpResponse({ success: false, message: '请求格式错误' }, 400);
+      return httpResponse({ success: false, message: '请求格式错误' }, 400, requestOrigin);
     }
 
-    const wxContext = cloud.getWXContext();
     const result = await dispatch(
       { action: parsed.action, data: parsed.data },
-      wxContext
+      { isHttp: !!parsed.isHttp }
     );
 
     if (parsed.isHttp) {
-      return httpResponse(result);
+      return httpResponse(result, 200, requestOrigin);
     }
     return result;
   } catch (e) {
     console.error('[adminApi] unhandled error:', e);
     const message = e && e.message ? e.message : '服务内部错误';
     if (event && event.httpMethod) {
-      return httpResponse({ success: false, message }, 500);
+      return httpResponse({ success: false, message }, 500, getRequestOrigin(event));
     }
     return { success: false, message };
   }

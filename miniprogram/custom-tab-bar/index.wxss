@@ -12,7 +12,7 @@
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
   box-shadow: 0 -2rpx 20rpx rgba(0, 0, 0, 0.06);
-  z-index: 1000;
+  z-index: var(--z-tab-bar);
 }
 
 /* 三个格子等宽 */

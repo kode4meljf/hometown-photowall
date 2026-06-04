@@ -1,7 +1,44 @@
-import { callFunction } from './cloud';
+import { invokeAdminApi, AdminApiError } from './cloud';
+import type { PostStatus } from '../constants/postStatus';
+
+export type { PostStatus } from '../constants/postStatus';
+export { AdminApiError } from './cloud';
 
 const TOKEN_KEY = 'admin_token';
 const USER_KEY = 'admin_user';
+
+const AUTH_FAILURE_HINTS = ['未登录', '登录已过期', '无权限访问'];
+
+export class AdminAuthError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AdminAuthError';
+  }
+}
+
+export function isAdminAuthMessage(message?: string) {
+  if (!message) return false;
+  return AUTH_FAILURE_HINTS.some((hint) => message.includes(hint));
+}
+
+function notifySessionExpired(message?: string) {
+  window.dispatchEvent(
+    new CustomEvent('admin:session-expired', { detail: { message: message || '登录已过期，请重新登录' } })
+  );
+}
+
+async function invokeAdminApiAuthed<T>(action: string, data: Record<string, unknown> = {}) {
+  try {
+    return await invokeAdminApi<T>(action, data);
+  } catch (e) {
+    if (e instanceof AdminApiError && isAdminAuthMessage(e.message)) {
+      adminAuth.logout();
+      notifySessionExpired(e.message);
+      throw new AdminAuthError(e.message || '登录已过期，请重新登录');
+    }
+    throw e;
+  }
+}
 
 export interface AdminUser {
   id: string;
@@ -16,8 +53,6 @@ export interface PostImage {
   height?: number;
   order?: number;
 }
-
-export type PostStatus = 'released' | 'reviewing' | 'hidden' | 'rejected';
 
 export interface AdminPostDetail {
   id: string;
@@ -37,7 +72,8 @@ export interface AdminPostDetail {
   photos: PostImage[];
 }
 
-export interface AdminPhoto {
+/** 管理后台列表项（作品摘要） */
+export interface AdminPost {
   id: string;
   title: string;
   imageUrl: string;
@@ -56,30 +92,30 @@ export interface AdminPhoto {
   photos?: PostImage[];
 }
 
-export function toPostDetail(photo: AdminPhoto): AdminPostDetail {
+export function toPostDetail(post: AdminPost): AdminPostDetail {
   return {
-    id: photo.id,
-    title: photo.title || '无标题',
-    description: photo.description || '',
-    author: photo.author,
-    authorId: photo.authorId || '',
-    location: photo.location || '-',
-    category: photo.category || '-',
-    likes: photo.likes || 0,
-    views: photo.views || 0,
-    commentCount: photo.commentCount || 0,
-    status: photo.status,
-    mediaTraceIds: photo.mediaTraceIds,
-    reviewAdminNote: photo.reviewAdminNote,
-    createdAt: photo.createdAt,
-    photos: photo.photos?.length
-      ? photo.photos
-      : (photo.imageUrl ? [{ imageUrl: photo.imageUrl }] : [])
+    id: post.id,
+    title: post.title || '无标题',
+    description: post.description || '',
+    author: post.author,
+    authorId: post.authorId || '',
+    location: post.location || '-',
+    category: post.category || '-',
+    likes: post.likes || 0,
+    views: post.views || 0,
+    commentCount: post.commentCount || 0,
+    status: post.status,
+    mediaTraceIds: post.mediaTraceIds,
+    reviewAdminNote: post.reviewAdminNote,
+    createdAt: post.createdAt,
+    photos: post.photos?.length
+      ? post.photos
+      : (post.imageUrl ? [{ imageUrl: post.imageUrl }] : [])
   };
 }
 
 export interface AdminStats {
-  totalPhotos: number;
+  totalPosts: number;
   totalUsers: number;
   totalLikes: number;
   totalViews: number;
@@ -109,7 +145,7 @@ export interface ManagedUser {
   username: string;
   nickname: string;
   role: string;
-  photoCount: number;
+  postCount: number;
   commentCount: number;
   createdAt: string;
 }
@@ -130,31 +166,46 @@ export const adminAuth = {
   },
 
   async login(username: string, password: string) {
-    const res = await callFunction<{ token: string; user: AdminUser }>('adminApi', 'login', {
-      username,
-      password
-    });
-    if (res.success && res.data) {
-      localStorage.setItem(TOKEN_KEY, res.data.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+    try {
+      const res = await invokeAdminApi<{ token: string; user: AdminUser }>('login', {
+        username,
+        password
+      });
+      if (res.data) {
+        localStorage.setItem(TOKEN_KEY, res.data.token);
+        localStorage.setItem(USER_KEY, JSON.stringify(res.data.user));
+      }
+      return res;
+    } catch (e) {
+      if (e instanceof AdminApiError) {
+        return { success: false as const, message: e.message };
+      }
+      throw e;
     }
-    return res;
   },
 
   async verifySession() {
     const token = getToken();
     if (!token) {
-      return { success: true, data: null };
+      return { success: true as const, data: null };
     }
-    const res = await callFunction<AdminUser | null>('adminApi', 'verifySession', {
-      adminToken: token
-    });
-    if (res.success && res.data) {
-      localStorage.setItem(USER_KEY, JSON.stringify(res.data));
-    } else if (res.success && !res.data) {
-      this.logout();
+    try {
+      const res = await invokeAdminApi<AdminUser | null>('verifySession', {
+        adminToken: token
+      });
+      if (res.data) {
+        localStorage.setItem(USER_KEY, JSON.stringify(res.data));
+      } else {
+        this.logout();
+      }
+      return res;
+    } catch (e) {
+      if (e instanceof AdminApiError && isAdminAuthMessage(e.message)) {
+        this.logout();
+        return { success: false as const, message: e.message };
+      }
+      throw e;
     }
-    return res;
   },
 
   logout() {
@@ -164,37 +215,36 @@ export const adminAuth = {
 };
 
 export const adminApi = {
-  async getPhotos(params: { page?: number; pageSize?: number; status?: PostStatus | 'all' } = {}) {
-    return callFunction<{ photos: AdminPhoto[]; total: number }>('adminApi', 'getPhotos', withToken(params));
+  async getPosts(params: { page?: number; pageSize?: number; status?: PostStatus | 'all' } = {}) {
+    return invokeAdminApiAuthed<{ posts: AdminPost[]; total: number }>('getPhotos', withToken(params));
   },
 
   async getPostDetail(id: string) {
-    return callFunction<AdminPostDetail>('adminApi', 'getPostDetail', withToken({ id }));
+    return invokeAdminApiAuthed<AdminPostDetail>('getPostDetail', withToken({ id }));
   },
 
   async updatePost(id: string, updates: Pick<AdminPostDetail, 'title' | 'description' | 'location'>) {
-    return callFunction<AdminPostDetail>('adminApi', 'updatePost', withToken({ id, updates }));
+    return invokeAdminApiAuthed<AdminPostDetail>('updatePost', withToken({ id, updates }));
   },
 
   async updatePostStatus(id: string, status: PostStatus, reviewNote?: string) {
-    return callFunction<AdminPostDetail>('adminApi', 'updatePostStatus', withToken({ id, status, reviewNote }));
+    return invokeAdminApiAuthed<AdminPostDetail>('updatePostStatus', withToken({ id, status, reviewNote }));
   },
 
   async getUsers() {
-    return callFunction<ManagedUser[]>('adminApi', 'getUsers', withToken());
+    return invokeAdminApiAuthed<ManagedUser[]>('getUsers', withToken());
   },
 
   async getStats() {
-    return callFunction<AdminStats>('adminApi', 'getStats', withToken());
+    return invokeAdminApiAuthed<AdminStats>('getStats', withToken());
   },
 
-  async deletePhoto(id: string) {
-    return callFunction('adminApi', 'deletePost', withToken({ id }));
+  async deletePost(id: string) {
+    return invokeAdminApiAuthed('deletePost', withToken({ id }));
   },
 
   async getFeedbacks(params: { page?: number; pageSize?: number; status?: string; type?: string } = {}) {
-    return callFunction<{ feedbacks: AdminFeedback[]; total: number }>(
-      'adminApi',
+    return invokeAdminApiAuthed<{ feedbacks: AdminFeedback[]; total: number }>(
       'getFeedbacks',
       withToken(params)
     );
@@ -204,6 +254,6 @@ export const adminApi = {
     id: string,
     updates: { status?: AdminFeedback['status']; adminNote?: string }
   ) {
-    return callFunction<AdminFeedback>('adminApi', 'updateFeedback', withToken({ id, updates }));
+    return invokeAdminApiAuthed<AdminFeedback>('updateFeedback', withToken({ id, updates }));
   },
 };

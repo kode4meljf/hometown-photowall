@@ -5,9 +5,17 @@
 
     <!-- 头像区域 -->
     <view class="avatar-card">
-      <button class="avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+      <button
+        wx:if="{{avatarPickerReady}}"
+        class="avatar-btn"
+        open-type="chooseAvatar"
+        bindchooseavatar="onChooseAvatar"
+      >
         <image class="avatar-img" src="{{formData.avatar || '/assets/icons/default-avatar.png'}}{{avatarVersion}}" mode="aspectFill" />
       </button>
+      <view wx:else class="avatar-btn avatar-btn-view" bindtap="onAvatarTapPrepare">
+        <image class="avatar-img" src="{{formData.avatar || '/assets/icons/default-avatar.png'}}{{avatarVersion}}" mode="aspectFill" />
+      </view>
       <text class="avatar-hint">点击更换头像</text>
     </view>
 

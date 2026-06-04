@@ -87,14 +87,13 @@ Page({
 
   async loadLocations() {
     try {
-      const res = await postApi.getPosts({ pageSize: 100 });
-      const posts = (res.success && res.data && res.data.posts) ? res.data.posts : [];
-      const locationSet = new Set();
-      posts.forEach((post) => {
-        if (post.location) locationSet.add(post.location);
-      });
-      this.setData({ locations: Array.from(locationSet) });
-    } catch (e) {}
+      const res = await postApi.getLocations();
+      if (res.success && res.data) {
+        this.setData({ locations: res.data });
+      }
+    } catch (e) {
+      console.error('加载地点列表失败:', e);
+    }
   },
 
   chooseImage() {

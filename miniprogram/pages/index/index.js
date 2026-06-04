@@ -1,6 +1,7 @@
 // pages/index/index.js - 新设计:标签组筛选 + 自定义 TabBar
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
+const { withFeedLikeFields, togglePostLike } = require('../../utils/postLike');
 const { isLoggedIn } = require('../../utils/session');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
 const { cardHandoffScaleAtProgress } = require('../../utils/heroController');
@@ -90,10 +91,6 @@ Page({
       return;
     }
 
-    if (this.data.posts.length > 0) {
-      this.refreshPostsStatus();
-    }
-
     this._consumePendingDetail();
   },
 
@@ -103,6 +100,18 @@ Page({
       this.data.rightPosts.find((p) => p.id === id) ||
       null
     );
+  },
+
+  patchFeedPostLike(postId, liked, likes) {
+    if (!postId) return;
+    const patchList = (list) => list.map((p) => (
+      p.id === postId ? withFeedLikeFields(p, liked, likes) : p
+    ));
+    this.setData({
+      leftPosts: patchList(this.data.leftPosts),
+      rightPosts: patchList(this.data.rightPosts),
+      posts: patchList(this.data.posts),
+    });
   },
 
   _consumePendingDetail() {
@@ -320,7 +329,6 @@ Page({
 
   // 瀑布流分配算法
   distributeToColumns(posts, reset) {
-    const textHeight = this.data.textHeight; // 已经是 px
     const leftPosts = reset ? [] : [...this.data.leftPosts];
     const rightPosts = reset ? [] : [...this.data.rightPosts];
 
@@ -336,12 +344,13 @@ Page({
       }
 
       // 分配到较短的列
+      const contentH = this._getCardContentHeight(post);
       if (leftHeight <= rightHeight) {
         leftPosts.push(post);
-        leftHeight += post.cardHeight + textHeight;
+        leftHeight += post.cardHeight + contentH;
       } else {
         rightPosts.push(post);
-        rightHeight += post.cardHeight + textHeight;
+        rightHeight += post.cardHeight + contentH;
       }
     });
 
@@ -350,16 +359,11 @@ Page({
 
   // 获取列当前高度(估算)
   getColumnHeight(column) {
-    const textHeight = this.data.textHeight;
     const posts = column === 'left' ? this.data.leftPosts : this.data.rightPosts;
-    return posts.reduce((sum, post) => sum + post.cardHeight + textHeight, 0);
-  },
-
-  // 刷新帖子状态(点赞等)
-  async refreshPostsStatus() {
-    // 简单处理:重新加载当前页
-    this.setData({ page: 1 });
-    this.loadPosts(true);
+    return posts.reduce(
+      (sum, post) => sum + post.cardHeight + this._getCardContentHeight(post),
+      0
+    );
   },
 
   // 搜索输入
@@ -599,8 +603,8 @@ Page({
       this.loadPosts(true);
       return;
     }
-    if (detail.likedChanged) {
-      this.refreshPostsStatus();
+    if (detail.likedChanged && detail.postId) {
+      this.patchFeedPostLike(detail.postId, detail.liked, detail.likes);
     }
   },
 
@@ -617,29 +621,23 @@ Page({
     const wasLikes = post.likes || 0;
     const nowLiked = !wasLiked;
     const nowLikes = wasLiked ? wasLikes - 1 : wasLikes + 1;
-    const nowLikesInfo = formatLikeCount(nowLikes);
 
     // 立即更新 UI（乐观翻转）
-    const updatedPosts = posts.map(p => {
-      if (p.id === id) return { ...p, liked: nowLiked, likes: nowLikes, _likesText: nowLikesInfo.text, _likesCls: nowLikesInfo.cls };
-      return p;
-    });
+    const updatedPosts = posts.map((p) => (
+      p.id === id ? withFeedLikeFields(p, nowLiked, nowLikes) : p
+    ));
     this.setData({ [postsKey]: updatedPosts });
 
-    // 后台调用云函数
-    postApi.likePost(id).then(res => {
+    togglePostLike(id).then((res) => {
       if (!res.success) throw new Error('api failed');
-      const finalPosts = this.data[postsKey].map(p => {
-        if (p.id === id) return { ...p, liked: res.liked, likes: res.likes, _likesText: formatLikeCount(res.likes).text, _likesCls: formatLikeCount(res.likes).cls };
-        return p;
-      });
+      const finalPosts = this.data[postsKey].map((p) => (
+        p.id === id ? withFeedLikeFields(p, res.liked, res.likes) : p
+      ));
       this.setData({ [postsKey]: finalPosts });
     }).catch(() => {
-      // 失败回滚
-      const rolledBack = this.data[postsKey].map(p => {
-        if (p.id === id) return { ...p, liked: wasLiked, likes: wasLikes, _likesText: formatLikeCount(wasLikes).text, _likesCls: formatLikeCount(wasLikes).cls };
-        return p;
-      });
+      const rolledBack = this.data[postsKey].map((p) => (
+        p.id === id ? withFeedLikeFields(p, wasLiked, wasLikes) : p
+      ));
       this.setData({ [postsKey]: rolledBack });
       wx.showToast({ title: '操作失败', icon: 'none' });
     });

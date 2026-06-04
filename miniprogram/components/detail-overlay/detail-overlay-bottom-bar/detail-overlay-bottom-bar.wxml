@@ -1,0 +1,16 @@
+<view class="bottom-bar {{shellReady && post ? 'bottom-bar--show' : ''}} {{panelExitChrome ? 'panel-exit-chrome' : ''}}" wx:if="{{shellReady && post}}">
+  <view class="input-area" bindtap="focusCommentInput">
+    <image class="input-pen-icon" src="/assets/icons/pen.svg" mode="aspectFit" />
+    <text class="input-placeholder">说点什么...</text>
+  </view>
+  <view class="action-buttons">
+    <view class="action-item {{post.liked ? 'liked' : ''}}" catchtap="handleLike">
+      <image class="action-icon-img" src="{{post.liked ? '/assets/icons/like-active.png' : '/assets/icons/like.png'}}" mode="aspectFit" />
+      <text class="action-num {{post.liked ? 'liked' : ''}}">{{likesCountText}}</text>
+    </view>
+    <view class="action-item" bindtap="focusCommentInput">
+      <image class="action-icon-img" src="/assets/icons/comment.png" mode="aspectFit" />
+      <text class="action-num">{{commentsCountText}}</text>
+    </view>
+  </view>
+</view>

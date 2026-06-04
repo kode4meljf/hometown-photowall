@@ -1,6 +1,6 @@
 // utils/api.js - 云开发版本 API 封装
 
-const callFunction = (name, action, data = {}) => {
+const invokeCloud = (name, action, data = {}) => {
   return new Promise((resolve, reject) => {
     wx.cloud.callFunction({
       name,
@@ -9,17 +9,23 @@ const callFunction = (name, action, data = {}) => {
         resolve(res.result);
       },
       fail: (err) => {
-        console.error('[API] callFunction fail:', name, action, err);
+        console.error('[invokeCloud] fail:', name, action, err);
         reject(err);
-      }
+      },
     });
   });
 };
 
-// 上传图片到云存储，返回 fileID
-const uploadImage = (filePath) => {
+// 上传图片到云存储，返回 fileID；路径为 {cloudDir}/{userId}/... 供服务端校验归属
+const uploadImage = (filePath, cloudDir = 'photos') => {
   return new Promise((resolve, reject) => {
-    const cloudPath = `photos/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
+    const app = typeof getApp === 'function' ? getApp() : null;
+    const userId = app && app.globalData && app.globalData.userInfo && app.globalData.userInfo.id;
+    if (!userId) {
+      reject(new Error('请先登录'));
+      return;
+    }
+    const cloudPath = `${cloudDir}/${userId}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.jpg`;
     wx.cloud.uploadFile({
       cloudPath,
       filePath,
@@ -36,112 +42,116 @@ const uploadImage = (filePath) => {
 
 const userApi = {
   getCurrentUser() {
-    return callFunction('auth', 'getCurrentUser');
+    return invokeCloud('auth', 'getCurrentUser');
   },
 
   updateUserProfile(params = {}) {
-    return callFunction('auth', 'updateUserProfile', params);
+    return invokeCloud('auth', 'updateUserProfile', params);
   },
 
   deleteAccount() {
-    return callFunction('auth', 'deleteAccount');
+    return invokeCloud('auth', 'deleteAccount');
   }
 };
 
 const postApi = {
   getPosts(params = {}) {
-    return callFunction('posts', 'list', params);
+    return invokeCloud('posts', 'list', params);
   },
 
   getPostDetail(id) {
-    return callFunction('posts', 'detail', { id });
+    return invokeCloud('posts', 'detail', { id });
   },
 
   createPost(data) {
-    return callFunction('posts', 'create', data);
+    return invokeCloud('posts', 'create', data);
   },
 
   resubmitPost(postId, data) {
-    return callFunction('posts', 'resubmit', { postId, ...data });
+    return invokeCloud('posts', 'resubmit', { postId, ...data });
   },
 
   deletePost(id) {
-    return callFunction('posts', 'delete', { id });
+    return invokeCloud('posts', 'delete', { id });
+  },
+
+  deleteComment(commentId) {
+    return invokeCloud('posts', 'deleteComment', { commentId });
   },
 
   likePost(id) {
-    return callFunction('posts', 'like', { id });
+    return invokeCloud('posts', 'like', { id });
   },
 
   addComment(postId, content, parentId = null, replyTo = null, replyToAuthor = '') {
-    return callFunction('posts', 'comment', { postId, content, parentId, replyTo, replyToAuthor });
+    return invokeCloud('posts', 'comment', { postId, content, parentId, replyTo, replyToAuthor });
   },
 
   toggleCommentLike(commentId) {
-    return callFunction('posts', 'toggleCommentLike', { commentId });
+    return invokeCloud('posts', 'toggleCommentLike', { commentId });
   },
 
   getCommentReplies(commentId, offset = 0, limit = 10) {
-    return callFunction('posts', 'getCommentReplies', { commentId, offset, limit });
+    return invokeCloud('posts', 'getCommentReplies', { commentId, offset, limit });
   },
 
   getMoreComments(postId, offset = 0, limit = 10) {
-    return callFunction('posts', 'moreComments', { postId, offset, limit });
+    return invokeCloud('posts', 'moreComments', { postId, offset, limit });
   },
 
   getMyWorks(params = {}) {
-    return callFunction('posts', 'myWorks', params);
+    return invokeCloud('posts', 'myWorks', params);
   },
 
   getMyLiked(params = {}) {
-    return callFunction('posts', 'myLiked', params);
+    return invokeCloud('posts', 'myLiked', params);
   },
 
   getMyComments(params = {}) {
-    return callFunction('posts', 'myComments', params);
+    return invokeCloud('posts', 'myComments', params);
   },
 
   getReceivedComments(params = {}) {
-    return callFunction('posts', 'receivedComments', params);
+    return invokeCloud('posts', 'receivedComments', params);
   },
 
   getLocations() {
-    return callFunction('posts', 'locations');
+    return invokeCloud('posts', 'locations');
   },
 
   updatePost(id, updates) {
-    return callFunction('posts', 'update', { id, updates });
+    return invokeCloud('posts', 'update', { id, updates });
   }
 };
 
 const statsApi = {
   getDashboard() {
-    return callFunction('stats', 'getDashboard');
+    return invokeCloud('stats', 'getDashboard');
   }
 };
 
 const signinApi = {
   getSigninInfo() {
-    return callFunction('signin', 'getSigninInfo');
+    return invokeCloud('signin', 'getSigninInfo');
   },
 
   checkin() {
-    return callFunction('signin', 'checkin');
+    return invokeCloud('signin', 'checkin');
   }
 };
 
 const feedbackApi = {
   submit(data) {
-    return callFunction('feedback', 'submit', data);
+    return invokeCloud('feedback', 'submit', data);
   },
 
   report(data) {
-    return callFunction('feedback', 'report', data);
+    return invokeCloud('feedback', 'report', data);
   },
 };
 
 module.exports = {
-  callFunction,
+  invokeCloud,
   uploadImage,
   userApi,
   postApi,

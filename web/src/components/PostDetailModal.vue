@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, reactive } from 'vue';
-import { adminApi, type AdminPostDetail, type PostStatus } from '../api/admin';
+import { adminApi, AdminAuthError, AdminApiError, type AdminPostDetail } from '../api/admin';
+import { POST_STATUS, postStatusLabel, type PostStatus } from '../constants/postStatus';
 import { toast } from '../utils/toast.js';
 
 const props = defineProps<{
@@ -33,13 +34,6 @@ const hasMultiple = computed(() => images.value.length > 1);
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleString('zh-CN');
-};
-
-const postStatusLabel = (status: PostStatus) => {
-  if (status === 'released') return '已发布';
-  if (status === 'reviewing') return '审核中';
-  if (status === 'hidden') return '已隐藏';
-  return '未通过';
 };
 
 const changeStatus = (status: PostStatus) => {
@@ -79,15 +73,14 @@ const saveEdit = async () => {
       description: form.description.trim(),
       location: form.location.trim()
     });
-    if (res.success && res.data) {
+    if (res.data) {
       editing.value = false;
       emit('updated', res.data);
       toast.success('保存成功');
-    } else {
-      toast.error(res.message || '保存失败');
     }
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : '保存失败');
+    if (e instanceof AdminAuthError) return;
+    toast.error(e instanceof AdminApiError ? e.message : '保存失败');
   } finally {
     saving.value = false;
   }
@@ -268,47 +261,47 @@ onUnmounted(() => {
 
               <div v-if="!editing" class="status-actions">
                 <button
-                  v-if="post.status === 'reviewing'"
+                  v-if="post.status === POST_STATUS.REVIEWING"
                   class="save-btn"
                   type="button"
                   :disabled="statusUpdating"
-                  @click="changeStatus('released')"
+                  @click="changeStatus(POST_STATUS.RELEASED)"
                 >
                   审核通过
                 </button>
                 <button
-                  v-if="post.status === 'reviewing'"
+                  v-if="post.status === POST_STATUS.REVIEWING"
                   class="ghost-btn"
                   type="button"
                   :disabled="statusUpdating"
-                  @click="changeStatus('rejected')"
+                  @click="changeStatus(POST_STATUS.REJECTED)"
                 >
                   驳回
                 </button>
                 <button
-                  v-if="post.status === 'rejected'"
+                  v-if="post.status === POST_STATUS.REJECTED"
                   class="ghost-btn"
                   type="button"
                   :disabled="statusUpdating"
-                  @click="changeStatus('released')"
+                  @click="changeStatus(POST_STATUS.RELEASED)"
                 >
                   重新发布
                 </button>
                 <button
-                  v-if="post.status === 'released'"
+                  v-if="post.status === POST_STATUS.RELEASED"
                   class="ghost-btn"
                   type="button"
                   :disabled="statusUpdating"
-                  @click="changeStatus('hidden')"
+                  @click="changeStatus(POST_STATUS.HIDDEN)"
                 >
                   隐藏
                 </button>
                 <button
-                  v-if="post.status === 'hidden'"
+                  v-if="post.status === POST_STATUS.HIDDEN"
                   class="ghost-btn"
                   type="button"
                   :disabled="statusUpdating"
-                  @click="changeStatus('released')"
+                  @click="changeStatus(POST_STATUS.RELEASED)"
                 >
                   公开
                 </button>

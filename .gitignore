@@ -3,6 +3,10 @@ node_modules/
 *.log
 *.bak
 
+# local video/frame analysis artifacts
+.analysis-frames/
+.frame-analysis/
+
 # web admin
 web/node_modules/
 web/dist/

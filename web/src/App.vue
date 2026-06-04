@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import Login from './views/Login.vue';
 import Dashboard from './views/Dashboard.vue';
 import Toast from './components/Toast.vue';
 import { adminAuth, type AdminUser } from './api/admin';
+import { toast } from './utils/toast.js';
 
 const checking = ref(true);
 const user = ref<AdminUser | null>(adminAuth.getUser());
@@ -18,9 +19,17 @@ const refreshSession = async () => {
       user.value = null;
     }
   } catch {
-    user.value = adminAuth.getUser();
+    user.value = null;
   } finally {
     checking.value = false;
+  }
+};
+
+const handleSessionExpired = (event: Event) => {
+  user.value = null;
+  const message = (event as CustomEvent<{ message?: string }>).detail?.message;
+  if (message) {
+    toast.error(message);
   }
 };
 
@@ -32,7 +41,14 @@ const handleLogout = () => {
   user.value = null;
 };
 
-onMounted(refreshSession);
+onMounted(() => {
+  refreshSession();
+  window.addEventListener('admin:session-expired', handleSessionExpired);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('admin:session-expired', handleSessionExpired);
+});
 </script>
 
 <template>

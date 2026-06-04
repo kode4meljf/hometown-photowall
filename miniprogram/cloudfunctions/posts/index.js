@@ -10,37 +10,87 @@ const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
 const identity = require('./common/identity');
 const sec = require('./common/contentSecurity');
-const { POST_STATUS, POST_STATUS_LIST } = require('./common/postStatus');
+const { POST_STATUS, POST_STATUS_LIST, isPublicStatus, isUserToggleableStatus } = require('./common/postStatus');
+const {
+  deleteCloudFiles,
+  normalizePostForClient: normalizePost,
+  assertActorOwnsCloudFiles,
+} = require('./common/postHelpers');
+
+const PAGE_SIZE_MAX = 50;
+const PAGE_SIZE_DEFAULT = 20;
+
+function normalizePagePagination(params = {}, defaultPageSize = PAGE_SIZE_DEFAULT) {
+  const pageRaw = parseInt(params.page, 10);
+  const sizeRaw = parseInt(params.pageSize, 10);
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
+  const pageSizeBase = Number.isFinite(sizeRaw) && sizeRaw >= 1 ? sizeRaw : defaultPageSize;
+  return { page, pageSize: Math.min(pageSizeBase, PAGE_SIZE_MAX) };
+}
+
+function normalizeOffsetLimit(params = {}, defaults = { offset: 0, limit: 10 }) {
+  const offsetRaw = parseInt(params.offset, 10);
+  const limitRaw = parseInt(params.limit, 10);
+  const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : defaults.offset;
+  const limitBase = Number.isFinite(limitRaw) && limitRaw >= 1 ? limitRaw : defaults.limit;
+  return { offset, limit: Math.min(limitBase, PAGE_SIZE_MAX) };
+}
+
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 async function getActor(openId) {
   return identity.resolveActor(db, openId);
 }
 
+function canViewPost(post, actor) {
+  if (isPublicStatus(post.status)) return true;
+  if (actor.isAdmin) return true;
+  if (actor.userId && identity.isAuthor(post.authorId, actor)) return true;
+  return false;
+}
+
+async function requireReleasedPost(postId, actionLabel) {
+  if (!postId) {
+    return { ok: false, message: '缺少帖子ID' };
+  }
+  try {
+    const res = await postsCollection.doc(postId).get();
+    if (!res.data) {
+      return { ok: false, message: '作品不存在' };
+    }
+    if (!isPublicStatus(res.data.status)) {
+      return { ok: false, message: `当前作品不可${actionLabel}` };
+    }
+    return { ok: true, post: res.data };
+  } catch (e) {
+    return { ok: false, message: '作品不存在' };
+  }
+}
+
+async function requireViewablePost(postId, openId) {
+  if (!postId) {
+    return { ok: false, message: '缺少帖子ID' };
+  }
+  const actor = await getActor(openId);
+  try {
+    const res = await postsCollection.doc(postId).get();
+    if (!res.data) {
+      return { ok: false, message: '作品不存在或不可见' };
+    }
+    if (!canViewPost(res.data, actor)) {
+      return { ok: false, message: '作品不存在或不可见' };
+    }
+    return { ok: true, post: res.data };
+  } catch (e) {
+    return { ok: false, message: '作品不存在或不可见' };
+  }
+}
+
 // [2026-04-25] 移除所有 cloud:// → HTTPS 转换
 // 微信小程序 <image> 组件原生支持 cloud:// 协议，框架自动管理签名刷新
 // 仅前端 wx.downloadFile 等场景需要 HTTPS，由前端自行转换（见 detail.js）
-
-function normalizePost(post) {
-  // posts 集合：photos = [{imageUrl, width, height, order}]
-  // 取第一张图作为列表展示图
-  const firstPhoto = (post.photos && post.photos.length > 0) ? post.photos[0] : null;
-  return {
-    ...post,
-    id: post._id,
-    imageUrl: firstPhoto ? firstPhoto.imageUrl : '',
-    // aspectRatio = height / width（供瀑布流用）
-    // 添加 clamp 防止极端值（width=0 或旧帖子无数据）
-    aspectRatio: (() => {
-      if (!firstPhoto || !firstPhoto.width || !firstPhoto.height) return 1;
-      const r = firstPhoto.height / firstPhoto.width;
-      if (!isFinite(r) || isNaN(r)) return 1;
-      return Math.min(Math.max(r, 0.3), 3.0); // 限制在 0.3~3.0 范围
-    })(),
-    // posts 集合无 author 字段，通过 authorId 在外层 resolve 后注入
-    // posts 集合无 authorAvatar 字段，通过 authorId 在外层 resolve 后注入
-    // posts 集合的 photos 数组透传给前端（detail 页多图展示用）
-  };
-}
 
 exports.main = async (event, context) => {
   const { action, data } = event;
@@ -63,6 +113,8 @@ exports.main = async (event, context) => {
       return await likePost(data.id, openId);
     case 'comment':
       return await addComment(data, openId);
+    case 'deleteComment':
+      return await deleteComment(data, openId);
     case 'locations':
       return await getLocations();
     case 'myWorks':
@@ -90,11 +142,16 @@ exports.main = async (event, context) => {
 async function getPosts(params, openId) {
   try {
     const actor = await getActor(openId);
-    const { location, keyword, sort = 'latest', page = 1, pageSize = 20 } = params;
+    const { location, keyword, sort = 'latest' } = params;
+    const { page, pageSize } = normalizePagePagination(params);
     const conditions = { status: POST_STATUS.RELEASED };
     if (location) conditions.location = location;
-    if (keyword) {
-      conditions.title = db.RegExp({ regexp: keyword, options: 'i' });
+    const keywordTrimmed = (keyword || '').trim();
+    if (keywordTrimmed) {
+      conditions.title = db.RegExp({
+        regexp: escapeRegExp(keywordTrimmed),
+        options: 'i',
+      });
     }
 
     const orderBy = sort === 'likes' ? 'likes' : sort === 'views' ? 'views' : 'createdAt';
@@ -139,13 +196,18 @@ async function getPosts(params, openId) {
 async function getPostDetail(id, openId) {
   const actor = await getActor(openId);
   try {
-    // 浏览量 +1
-    await postsCollection.doc(id).update({
-      data: { views: _.inc(1) }
-    }).catch(() => {});
-
     const postResult = await postsCollection.doc(id).get();
     const post = postResult.data;
+    if (!post) {
+      return { success: false, message: '作品不存在或不可见' };
+    }
+    if (!canViewPost(post, actor)) {
+      return { success: false, message: '作品不存在或不可见' };
+    }
+
+    await postsCollection.doc(id).update({
+      data: { views: _.inc(1) },
+    }).catch(() => {});
 
     post.liked = identity.isLikedBy(post.likedUsers, actor);
 
@@ -193,6 +255,7 @@ async function getPostDetail(id, openId) {
 
 // 查询评论并实时解析作者头像
 async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
+  ({ offset, limit } = normalizeOffsetLimit({ offset, limit }, { offset: 0, limit: 10 }));
   const actor = await getActor(openId);
   try {
     // 只返回一级评论（parentId 为空/null），按热度排序
@@ -267,6 +330,10 @@ async function getCommentsWithAuthors(postId, offset = 0, limit = 10, openId) {
 async function getMoreComments(data, openId) {
   try {
     const { postId, offset = 0, limit = 10 } = data;
+    const gate = await requireViewablePost(postId, openId);
+    if (!gate.ok) {
+      return { success: false, message: gate.message };
+    }
     const result = await getCommentsWithAuthors(postId, offset, limit, openId);
 
     return {
@@ -289,6 +356,21 @@ async function createPost(data, openId) {
     return { success: false, message: '请先登录' };
   }
   try {
+    const title = (data.title || '').trim();
+    if (!title) {
+      return { success: false, message: '请填写标题' };
+    }
+
+    const photos = normalizePhotosInput(data.photos);
+    if (!photos.length) {
+      return { success: false, message: '请至少上传一张图片' };
+    }
+
+    const ownedCheck = assertActorOwnsCloudFiles(photos.map((p) => p.imageUrl), actor);
+    if (!ownedCheck.ok) {
+      return { success: false, message: ownedCheck.message };
+    }
+
     let authorNickname = '匿名用户';
     let authorAvatar = '';
     if (actor.user) {
@@ -296,17 +378,8 @@ async function createPost(data, openId) {
       authorAvatar = actor.user.avatar || '';
     }
 
-    // posts 集合直接存 imageUrl（云存储 fileID，读取时转换）
-    // photos = [{imageUrl, width, height, order}] 来自上传页
-    const photos = (data.photos || []).map((p, idx) => ({
-      imageUrl: p.imageUrl || '',
-      width: parseInt(p.width) || 1,
-      height: parseInt(p.height) || 1,
-      order: p.order !== undefined ? p.order : idx
-    }));
-
     const addData = {
-      title: (data.title || '').trim(),
+      title,
       description: data.description || '',
       location: data.location || '',
       photos,
@@ -356,15 +429,6 @@ async function createPost(data, openId) {
   }
 }
 
-async function deleteCloudFiles(fileList) {
-  if (!fileList || !fileList.length) return;
-  try {
-    await cloud.deleteFile({ fileList });
-  } catch (e) {
-    console.error('[deleteCloudFiles] 失败:', e);
-  }
-}
-
 function normalizePhotosInput(rawPhotos) {
   return (rawPhotos || []).map((p, idx) => ({
     imageUrl: p.imageUrl || '',
@@ -404,7 +468,15 @@ async function resubmitPost(data, openId) {
       return { success: false, message: '请至少保留一张图片' };
     }
 
+    const ownedCheck = assertActorOwnsCloudFiles(photos.map((p) => p.imageUrl), actor);
+    if (!ownedCheck.ok) {
+      return { success: false, message: ownedCheck.message };
+    }
+
     const title = (data.title || '').trim();
+    if (!title) {
+      return { success: false, message: '请填写标题' };
+    }
     const description = (data.description || '').trim();
     const location = (data.location || '').trim();
 
@@ -438,7 +510,7 @@ async function resubmitPost(data, openId) {
     };
 
     await postsCollection.doc(postId).update({ data: updateData });
-    await deleteCloudFiles(removedFileIds);
+    await deleteCloudFiles(cloud, removedFileIds);
 
     return {
       success: true,
@@ -461,6 +533,13 @@ async function deletePost(id, openId) {
     const post = await postsCollection.doc(id).get();
     if (!identity.isAuthor(post.data.authorId, actor) && !actor.isAdmin) {
       return { success: false, message: '无权删除' };
+    }
+
+    const fileIds = (post.data.photos || [])
+      .map((p) => p.imageUrl)
+      .filter((url) => url && url.startsWith('cloud://'));
+    if (fileIds.length) {
+      await deleteCloudFiles(cloud, fileIds);
     }
 
     await postsCollection.doc(id).remove();
@@ -528,9 +607,8 @@ async function updatePost(data, openId) {
       }
       const currentStatus = post.data.status;
       if (!actor.isAdmin) {
-        const canToggle =
-          (currentStatus === POST_STATUS.RELEASED && updateData.status === POST_STATUS.HIDDEN) ||
-          (currentStatus === POST_STATUS.HIDDEN && updateData.status === POST_STATUS.RELEASED);
+        const canToggle = isUserToggleableStatus(currentStatus)
+          && isUserToggleableStatus(updateData.status);
         if (!canToggle) {
           return { success: false, message: '当前状态不可修改' };
         }
@@ -566,40 +644,69 @@ async function updatePost(data, openId) {
   }
 }
 
+// 点赞/取消点赞：事务内读改写，避免并发计数漂移
+const LIKE_TX_MAX_RETRY = 3;
+
+async function toggleDocumentLike(collectionName, docId, likeId) {
+  let lastError;
+  for (let attempt = 0; attempt < LIKE_TX_MAX_RETRY; attempt += 1) {
+    try {
+      let outcome;
+      await db.runTransaction(async (transaction) => {
+        const snap = await transaction.collection(collectionName).doc(docId).get();
+        if (!snap.data) {
+          outcome = { ok: false, message: '记录不存在' };
+          return;
+        }
+        const doc = snap.data;
+        const likedUsers = doc.likedUsers || [];
+        const hasLiked = likedUsers.includes(likeId);
+        const currentLikes = doc.likes || 0;
+        if (hasLiked) {
+          const newLikes = Math.max(0, currentLikes - 1);
+          await transaction.collection(collectionName).doc(docId).update({
+            data: {
+              likes: newLikes,
+              likedUsers: _.pull(likeId),
+            },
+          });
+          outcome = { ok: true, liked: false, likes: newLikes };
+        } else {
+          await transaction.collection(collectionName).doc(docId).update({
+            data: {
+              likes: _.inc(1),
+              likedUsers: _.push(likeId),
+            },
+          });
+          outcome = { ok: true, liked: true, likes: currentLikes + 1 };
+        }
+      });
+      if (outcome) {
+        if (!outcome.ok) {
+          return { success: false, message: outcome.message };
+        }
+        return { success: true, liked: outcome.liked, likes: outcome.likes };
+      }
+    } catch (e) {
+      lastError = e;
+    }
+  }
+  console.error('[toggleDocumentLike] 失败:', lastError);
+  return { success: false, message: '操作失败' };
+}
+
 // 点赞帖子
 async function likePost(id, openId) {
   const actor = await getActor(openId);
   if (!actor.userId) {
     return { success: false, message: '请先登录' };
   }
-  const likeId = identity.writeLikeId(actor);
-  try {
-    const post = await postsCollection.doc(id).get();
-    const likedUsers = post.data.likedUsers || [];
-    const hasLiked = identity.isLikedBy(likedUsers, actor);
-
-    if (hasLiked) {
-      const newLikes = Math.max(0, post.data.likes - 1);
-      await postsCollection.doc(id).update({
-        data: {
-          likes: newLikes,
-          likedUsers: _.pull(likeId)
-        }
-      });
-      return { success: true, liked: false, likes: newLikes };
-    } else {
-      await postsCollection.doc(id).update({
-        data: {
-          likes: _.inc(1),
-          likedUsers: _.push(likeId)
-        }
-      });
-      return { success: true, liked: true, likes: post.data.likes + 1 };
-    }
-  } catch (e) {
-    console.error('[likePost] 失败:', e);
-    return { success: false, message: '操作失败' };
+  const gate = await requireReleasedPost(id, '点赞');
+  if (!gate.ok) {
+    return { success: false, message: gate.message };
   }
+  const likeId = identity.writeLikeId(actor);
+  return toggleDocumentLike('posts', id, likeId);
 }
 
 // 点赞/取消点赞评论
@@ -616,27 +723,12 @@ async function toggleCommentLike(data, openId) {
     const comment = await commentsCollection.doc(commentId).get();
     if (!comment.data) return { success: false, message: '评论不存在' };
 
-    const likedUsers = comment.data.likedUsers || [];
-    const hasLiked = identity.isLikedBy(likedUsers, actor);
-
-    if (hasLiked) {
-      const newLikes = Math.max(0, (comment.data.likes || 0) - 1);
-      await commentsCollection.doc(commentId).update({
-        data: {
-          likes: newLikes,
-          likedUsers: _.pull(likeId)
-        }
-      });
-      return { success: true, liked: false, likes: newLikes };
-    } else {
-      await commentsCollection.doc(commentId).update({
-        data: {
-          likes: _.inc(1),
-          likedUsers: _.push(likeId)
-        }
-      });
-      return { success: true, liked: true, likes: (comment.data.likes || 0) + 1 };
+    const postGate = await requireReleasedPost(comment.data.postId, '点赞');
+    if (!postGate.ok) {
+      return { success: false, message: postGate.message };
     }
+
+    return toggleDocumentLike('post_comments', commentId, likeId);
   } catch (e) {
     console.error('[toggleCommentLike] 失败:', e);
     return { success: false, message: '操作失败' };
@@ -647,8 +739,18 @@ async function toggleCommentLike(data, openId) {
 async function getCommentReplies(data, openId) {
   const actor = await getActor(openId);
   try {
-    const { commentId, offset = 0, limit = 10 } = data;
+    const { commentId } = data;
+    const { offset, limit } = normalizeOffsetLimit(data, { offset: 0, limit: 10 });
     if (!commentId) return { success: false, message: '缺少评论ID' };
+
+    const parentComment = await commentsCollection.doc(commentId).get();
+    if (!parentComment.data) {
+      return { success: false, message: '评论不存在' };
+    }
+    const gate = await requireViewablePost(parentComment.data.postId, openId);
+    if (!gate.ok) {
+      return { success: false, message: gate.message };
+    }
 
     // 先查总数
     const countRes = await commentsCollection
@@ -695,6 +797,11 @@ async function addComment(data, openId) {
     return { success: false, message: '请先登录' };
   }
   try {
+    const gate = await requireReleasedPost(data.postId, '评论');
+    if (!gate.ok) {
+      return { success: false, message: gate.message };
+    }
+
     let authorNickname = '匿名用户';
     if (actor.user) {
       authorNickname = actor.user.nickname || '匿名用户';
@@ -754,11 +861,53 @@ async function addComment(data, openId) {
   }
 }
 
+async function deleteComment(data, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+
+  const commentId = data.commentId || data.id;
+  if (!commentId) {
+    return { success: false, message: '缺少评论ID' };
+  }
+
+  try {
+    const commentRes = await commentsCollection.doc(commentId).get();
+    const comment = commentRes.data;
+    if (!comment) {
+      return { success: false, message: '评论不存在' };
+    }
+    if (!identity.isAuthor(comment.authorId, actor) && !actor.isAdmin) {
+      return { success: false, message: '无权删除' };
+    }
+
+    let removed = 1;
+    if (!comment.parentId) {
+      const repliesRes = await commentsCollection.where({ parentId: commentId }).get();
+      removed += repliesRes.data.length;
+      for (const reply of repliesRes.data) {
+        await commentsCollection.doc(reply._id).remove();
+      }
+    }
+
+    await commentsCollection.doc(commentId).remove();
+
+    return { success: true, data: { removed } };
+  } catch (e) {
+    console.error('[deleteComment] 失败:', e);
+    return { success: false, message: '删除失败' };
+  }
+}
+
 // 获取地点列表（从 posts 集合）
 async function getLocations() {
   try {
     const result = await postsCollection
-      .where({ location: _.neq('') })
+      .where({
+        location: _.neq(''),
+        status: POST_STATUS.RELEASED,
+      })
       .field({ location: true })
       .limit(100)
       .get();
@@ -776,7 +925,8 @@ async function getMyWorks(openId, params = {}) {
   if (!actor.userId) {
     return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
   }
-  const { page = 1, pageSize = 20, status } = params;
+  const { status } = params;
+  const { page, pageSize } = normalizePagePagination(params);
   const whereCond = { ...identity.authorOwnerWhere(db, actor) };
   if (status && POST_STATUS_LIST.includes(status)) {
     whereCond.status = status;
@@ -810,7 +960,7 @@ async function getMyLiked(openId, params = {}) {
   if (!actor.userId) {
     return { success: false, message: '未登录', data: { posts: [], hasMore: false, total: 0 } };
   }
-  const { page = 1, pageSize = 20 } = params;
+  const { page, pageSize } = normalizePagePagination(params);
   const userId = actor.userId;
   try {
     const countResult = await postsCollection
@@ -851,7 +1001,7 @@ async function getMyComments(openId, params = {}) {
   if (!actor.userId) {
     return { success: false, message: '未登录', data: { comments: [], hasMore: false, total: 0 } };
   }
-  const { offset = 0, limit = 20 } = params;
+  const { offset, limit } = normalizeOffsetLimit(params, { offset: 0, limit: 20 });
   try {
     const query = identity.authorOwnerWhere(db, actor);
     const countResult = await commentsCollection.where(query).count();
@@ -917,7 +1067,7 @@ async function getReceivedComments(openId, params = {}) {
   if (!actor.userId) {
     return { success: false, message: '未登录', data: { comments: [], hasMore: false, total: 0, newCount: 0 } };
   }
-  const { offset = 0, limit = 20 } = params;
+  const { offset, limit } = normalizeOffsetLimit(params, { offset: 0, limit: 20 });
   try {
     const myPostsRes = await postsCollection
       .where(identity.authorOwnerWhere(db, actor))

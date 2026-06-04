@@ -1,18 +1,12 @@
 const { showToast } = require('./util');
+const { ensurePrivacyAuthorized, showPrivacyContractPrompt, PRIVACY_GUIDE } = require('./privacy');
 
 function handleChooseMediaFail(err) {
   const errMsg = (err && err.errMsg) || '';
   if (/cancel/i.test(errMsg)) return true;
 
-  if (/privacy|scope|隐私/i.test(errMsg) && wx.openPrivacyContract) {
-    wx.showModal({
-      title: '需要同意隐私协议',
-      content: '选图前需同意《用户隐私保护指引》',
-      confirmText: '查看协议',
-      success: (r) => {
-        if (r.confirm) wx.openPrivacyContract();
-      },
-    });
+  if (/privacy|scope|隐私/i.test(errMsg)) {
+    showPrivacyContractPrompt(`选图前需同意${PRIVACY_GUIDE}`);
     return true;
   }
 
@@ -32,7 +26,31 @@ function handleChooseMediaFail(err) {
   return true;
 }
 
-function chooseMedia(options = {}) {
+function handleSaveAlbumFail(err) {
+  const errMsg = (err && err.errMsg) || '';
+  if (/cancel/i.test(errMsg)) return;
+
+  if (/privacy|scope|隐私/i.test(errMsg)) {
+    showPrivacyContractPrompt(`保存图片前需同意${PRIVACY_GUIDE}`);
+    return;
+  }
+
+  if (/auth deny|permission denied|authorize/i.test(errMsg)) {
+    wx.showModal({
+      title: '需要相册权限',
+      content: '请在设置中允许保存到相册',
+      confirmText: '去设置',
+      success: (r) => {
+        if (r.confirm) wx.openSetting();
+      },
+    });
+    return;
+  }
+
+  showToast('保存失败，请重试');
+}
+
+async function chooseMedia(options = {}) {
   const {
     count = 9,
     mediaType = ['image'],
@@ -40,6 +58,14 @@ function chooseMedia(options = {}) {
     success,
     fail,
   } = options;
+
+  const privacyOk = await ensurePrivacyAuthorized();
+  if (!privacyOk) {
+    if (typeof fail === 'function') {
+      fail({ errMsg: 'chooseMedia:fail privacy not authorized' });
+    }
+    return;
+  }
 
   return wx.chooseMedia({
     count,
@@ -63,4 +89,5 @@ function chooseMedia(options = {}) {
 module.exports = {
   chooseMedia,
   handleChooseMediaFail,
+  handleSaveAlbumFail,
 };

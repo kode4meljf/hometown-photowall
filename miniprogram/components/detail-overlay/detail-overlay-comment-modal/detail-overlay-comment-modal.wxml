@@ -1,0 +1,62 @@
+<view class="comment-modal" wx:if="{{visible}}" catchtouchmove="noop">
+  <view class="comment-modal-mask" bindtap="hideCommentInput"></view>
+  <view
+    class="comment-modal-content {{commentBottomInset > 0 && !showEmojiPanel ? 'keyboard-up' : ''}}"
+    style="padding-bottom: {{showEmojiPanel ? 0 : commentBottomInset}}px;"
+  >
+    <view class="comment-input-row">
+      <textarea
+        class="comment-textarea"
+        placeholder="{{replyToAuthor ? '回复 @' + replyToAuthor : '期待你的评论'}}"
+        value="{{commentContent}}"
+        bindinput="onCommentInput"
+        focus="{{commentFocus}}"
+        auto-height
+        adjust-position="{{false}}"
+        hold-keyboard
+        bindkeyboardheightchange="onKeyboardHeightChange"
+        bindfocus="onCommentInputFocus"
+        bindblur="onCommentInputBlur"
+        show-confirm-bar="{{false}}"
+        maxlength="500"
+      />
+    </view>
+    <view class="comment-toolbar-row">
+      <view class="emoji-btn {{showEmojiPanel ? 'emoji-btn-active' : ''}}" catchtap="toggleEmojiPanel">
+        <image src="/assets/icons/emoji.svg" mode="aspectFit" />
+      </view>
+      <view class="toolbar-spacer"></view>
+      <view class="comment-send-btn {{sendDisabled ? 'disabled' : ''}}" catchtap="submitComment">发送</view>
+    </view>
+    <view wx:if="{{showEmojiPanel}}" class="comment-emoji-area" style="height: {{commentBottomInset}}px;">
+      <scroll-view class="emoji-panel-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <view class="emoji-panel-grid">
+          <view
+            class="emoji-panel-item"
+            wx:for="{{emojiPanelEmojis}}"
+            wx:key="*this"
+            catchtap="onQuickEmojiTap"
+            data-emoji="{{item}}"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
+    </view>
+    <scroll-view
+      wx:elif="{{commentBottomInset > 0}}"
+      class="emoji-quick-row"
+      scroll-x
+      enhanced
+      show-scrollbar="{{false}}"
+    >
+      <view class="emoji-quick-inner">
+        <view
+          class="emoji-quick-item"
+          wx:for="{{quickEmojis}}"
+          wx:key="*this"
+          catchtap="onQuickEmojiTap"
+          data-emoji="{{item}}"
+        >{{item}}</view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

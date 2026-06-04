@@ -1,7 +1,10 @@
-const { postApi } = require('../utils/api');
+const { postApi, feedbackApi } = require('../utils/api');
 const { getDetailSlotHeight } = require('../utils/heroLayout');
-const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatLikeCount } = require('../utils/util');
+const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatPostCountTexts } = require('../utils/util');
+const { getDataset } = require('../utils/eventBridge');
 const { requireLogin, isLoggedIn } = require('../utils/session');
+const { REPORT_REASONS } = require('../utils/constants');
+const { withLikeFields, togglePostLike } = require('../utils/postLike');
 const app = getApp();
 
 /**
@@ -19,6 +22,7 @@ module.exports = Behavior({
     showReportModal: false,
     reportReason: '',
     reportDetail: '',
+    reportCommentId: '',
     reportSubmitting: false,
     showCommentInput: false,
     loginModalShow: false,
@@ -33,6 +37,7 @@ module.exports = Behavior({
     currentPhotoIndex: 0,
     indexBadgeVisible: false,
     commentsCountText: '0',
+    likesCountText: '0',
     keyboardHeight: 0,
     commentBottomInset: 0,
     commentFocus: false,
@@ -52,6 +57,16 @@ module.exports = Behavior({
       return this.postId || this.properties.postId || '';
     },
 
+    _buildCloseDetail(extra = {}) {
+      const detail = { likedChanged: !!this._likedChanged, ...extra };
+      if (this._likedChanged && this.data.post) {
+        detail.postId = this._getPostId();
+        detail.liked = this.data.post.liked;
+        detail.likes = this.data.post.likes;
+      }
+      return detail;
+    },
+
     _ensureLogin() {
       return requireLogin({
         toast: false,
@@ -63,6 +78,42 @@ module.exports = Behavior({
     _canAdminDeleteHint() {
       const user = app.globalData?.userInfo;
       return !!(user && user.role === 'admin');
+    },
+
+    _getCurrentUserId() {
+      const user = app.globalData?.userInfo;
+      return user && user.id ? user.id : '';
+    },
+
+    _formatReplyForDisplay(reply, userId) {
+      const uid = userId || '';
+      return {
+        ...reply,
+        time: formatDateTime(reply.createdAt),
+        authorAvatar: reply.authorAvatar || '/assets/icons/default-avatar.png',
+        isMine: !!(uid && reply.authorId === uid),
+      };
+    },
+
+    _formatTopCommentForDisplay(comment, userId, withMeta = false) {
+      const uid = userId || '';
+      const replies = (comment.replies || []).map((r) => this._formatReplyForDisplay(r, uid));
+      const formatted = {
+        ...comment,
+        time: formatDateTime(comment.createdAt),
+        authorAvatar: comment.authorAvatar || '/assets/icons/default-avatar.png',
+        isMine: !!(uid && comment.authorId === uid),
+        replies,
+      };
+      if (withMeta) {
+        formatted._hasReplies = (comment.repliesCount || 0) > 0 || replies.length > 0;
+        formatted._repliesHasMore = (comment.repliesCount || 0) > replies.length;
+      }
+      return formatted;
+    },
+
+    _formatCommentsForDisplay(comments, userId, withMeta = false) {
+      return (comments || []).map((c) => this._formatTopCommentForDisplay(c, userId, withMeta));
     },
 
     /** 详情首图与首页传入 cover 同源，避免 FLIP 结束后 swiper 换图闪烁 */
@@ -94,10 +145,12 @@ module.exports = Behavior({
       return getDetailSlotHeight(w, ar);
     },
 
-    async loadPost() {
+    async loadPost(silent = false) {
       const postId = this._getPostId();
       if (!postId) return;
-      this.setData({ loading: true });
+      if (!silent) {
+        this.setData({ loading: true });
+      }
       try {
         const res = await postApi.getPostDetail(postId);
         if (res.success && res.data) {
@@ -115,18 +168,11 @@ module.exports = Behavior({
               '';
             post.photos = [{ imageUrl: cover, width: 1, height: 1, order: 0 }];
           }
-          post.comments = (post.comments || []).map((c) => ({
-            ...c,
-            time: formatDateTime(c.createdAt),
-            authorAvatar: c.authorAvatar || '/assets/icons/default-avatar.png',
-            replies: (c.replies || []).map((r) => ({
-              ...r,
-              time: formatDateTime(r.createdAt),
-              authorAvatar: r.authorAvatar || '/assets/icons/default-avatar.png',
-            })),
-            _hasReplies: (c.repliesCount || 0) > 0 || (c.replies && c.replies.length > 0),
-            _repliesHasMore: (c.repliesCount || 0) > (c.replies || []).length,
-          }));
+          post.comments = this._formatCommentsForDisplay(
+            post.comments,
+            this._getCurrentUserId(),
+            true
+          );
           const avatar = this.properties.authorAvatar || this._indexAvatarUrl;
           if (avatar) post.authorAvatar = avatar;
           post.authorAvatar = post.authorAvatar || '/assets/icons/default-avatar.png';
@@ -137,7 +183,7 @@ module.exports = Behavior({
           const canDelete = !!finalPost.canDelete;
           const canAdminDelete = this._canAdminDeleteHint();
           const hasMoreComments = res.data.hasMore || false;
-          const commentsCountText = formatLikeCount(finalPost.commentsCount || 0).text;
+          const countTexts = formatPostCountTexts(finalPost);
           const imageSlotHeight = this._imageSlotHeightForIndex(0);
           this.setData({
             post: finalPost,
@@ -145,7 +191,7 @@ module.exports = Behavior({
             canAdminDelete,
             loading: false,
             hasMoreComments,
-            commentsCountText,
+            ...countTexts,
             currentPhotoIndex: 0,
             imageSlotHeight,
           });
@@ -158,12 +204,54 @@ module.exports = Behavior({
           }
         } else {
           showToast(res.message || '加载失败');
-          this.setData({ loading: false });
+          if (!silent) this.setData({ loading: false });
         }
       } catch (e) {
         showToast('加载失败');
-        this.setData({ loading: false });
+        if (!silent) this.setData({ loading: false });
       }
+    },
+
+    _appendSubmittedComment(data, { parentId, replyTo, replyToAuthor }) {
+      const post = this.data.post;
+      if (!post || !data?.id) return;
+
+      const userId = this._getCurrentUserId();
+      const user = app.globalData?.userInfo;
+      const item = this._formatReplyForDisplay({
+        id: data.id,
+        content: data.content,
+        author: data.author,
+        authorId: userId,
+        authorAvatar: (user && user.avatar) || '/assets/icons/default-avatar.png',
+        createdAt: data.createdAt || new Date(),
+        likes: 0,
+        liked: false,
+        replyTo: replyTo || null,
+        replyToAuthor: replyToAuthor || '',
+      }, userId);
+      item.isMine = true;
+
+      if (parentId) {
+        const top = (post.comments || []).find((c) => c.id === parentId);
+        if (top) {
+          top.replies = [...(top.replies || []), item];
+          top.repliesCount = (top.repliesCount || 0) + 1;
+          top._hasReplies = true;
+          top._repliesExpanded = true;
+          top._everExpandedOnce = true;
+        }
+      } else {
+        post.comments = [{
+          ...item,
+          replies: [],
+          repliesCount: 0,
+          _hasReplies: false,
+        }, ...(post.comments || [])];
+      }
+
+      post.commentsCount = (post.commentsCount != null ? post.commentsCount : 0) + 1;
+      this.setData({ post, ...formatPostCountTexts(post) });
     },
 
     onSwiperChange(e) {
@@ -211,11 +299,10 @@ module.exports = Behavior({
       try {
         const res = await postApi.getMoreComments(this.data.post._id, offset);
         if (res.success) {
-          const newComments = (res.data.comments || []).map((c) => ({
-            ...c,
-            time: formatDateTime(c.createdAt),
-            authorAvatar: c.authorAvatar || '/assets/icons/default-avatar.png',
-          }));
+          const newComments = this._formatCommentsForDisplay(
+            res.data.comments,
+            this._getCurrentUserId()
+          );
           const post = this.data.post;
           post.comments = [...(post.comments || []), ...newComments];
           this.setData({ post, hasMoreComments: res.data.hasMore, commentsLoading: false });
@@ -230,10 +317,10 @@ module.exports = Behavior({
     async handleLike() {
       if (!this._ensureLogin()) return;
       try {
-        const res = await postApi.likePost(this._getPostId());
+        const res = await togglePostLike(this._getPostId());
         if (res.success && this.data.post) {
-          const post = { ...this.data.post, likes: res.likes, liked: res.liked };
-          this.setData({ post });
+          const post = withLikeFields(this.data.post, res.liked, res.likes);
+          this.setData({ post, ...formatPostCountTexts(post) });
           this._likedChanged = true;
         }
       } catch (e) {
@@ -243,7 +330,7 @@ module.exports = Behavior({
 
     async toggleCommentLike(e) {
       if (!this._ensureLogin()) return;
-      const commentId = e.currentTarget.dataset.id;
+      const commentId = getDataset(e).id;
       if (!commentId) return;
       try {
         const res = await postApi.toggleCommentLike(commentId);
@@ -297,26 +384,100 @@ module.exports = Behavior({
       }
     },
 
-    onReportPostTap() {
-      if (!this._ensureLogin()) return;
-      if (this.data.canAdminDelete) return;
-
-      const reasons = ['违法违规', '色情低俗', '垃圾广告', '侵犯权益', '其他'];
+    _showReportReasonSheet(onPick) {
       wx.showActionSheet({
-        itemList: reasons,
+        itemList: REPORT_REASONS,
         success: (res) => {
-          if (res.tapIndex < 0 || res.tapIndex >= reasons.length) return;
-          this.setData({
-            showReportModal: true,
-            reportReason: reasons[res.tapIndex],
-            reportDetail: '',
-          });
+          if (res.tapIndex < 0 || res.tapIndex >= REPORT_REASONS.length) return;
+          onPick(REPORT_REASONS[res.tapIndex]);
         },
       });
     },
 
+    onReportPostTap() {
+      if (!this._ensureLogin()) return;
+      if (this.data.canAdminDelete) return;
+
+      this._showReportReasonSheet((reason) => {
+        this.setData({
+          showReportModal: true,
+          reportReason: reason,
+          reportDetail: '',
+          reportCommentId: '',
+        });
+      });
+    },
+
     onReportDetailInput(e) {
-      this.setData({ reportDetail: e.detail.value });
+      const value = (e.detail && e.detail.value !== undefined) ? e.detail.value : e.detail;
+      this.setData({ reportDetail: value });
+    },
+
+    onReportCommentTap(e) {
+      if (!this._ensureLogin()) return;
+      const commentId = getDataset(e).id;
+      if (!commentId) return;
+
+      this._showReportReasonSheet((reason) => {
+        this.setData({
+          showReportModal: true,
+          reportReason: reason,
+          reportDetail: '',
+          reportCommentId: commentId,
+        });
+      });
+    },
+
+    onDeleteCommentTap(e) {
+      if (!this._ensureLogin()) return;
+      const commentId = getDataset(e).id;
+      const parentId = getDataset(e).parent || '';
+      if (!commentId) return;
+
+      wx.showModal({
+        title: '删除评论',
+        content: '删除后无法恢复，确定删除吗？',
+        confirmColor: '#e02020',
+        success: async (res) => {
+          if (!res.confirm) return;
+          showLoading('删除中...');
+          try {
+            const result = await postApi.deleteComment(commentId);
+            hideLoading();
+            if (!result.success) {
+              showToast(result.message || '删除失败');
+              return;
+            }
+            showSuccess('已删除');
+            const post = this.data.post;
+            if (!post || !post.comments) {
+              this.loadPost();
+              return;
+            }
+            if (parentId) {
+              const top = post.comments.find((c) => c.id === parentId);
+              if (top && top.replies) {
+                top.replies = top.replies.filter((r) => r.id !== commentId);
+                if (top.repliesCount > 0) top.repliesCount -= 1;
+              }
+            } else {
+              post.comments = post.comments.filter((c) => c.id !== commentId);
+            }
+            const removed = result.data && result.data.removed ? result.data.removed : 1;
+            post.commentsCount = Math.max(
+              0,
+              (post.commentsCount != null ? post.commentsCount : post.comments.length) - removed
+            );
+            this.setData({
+              post,
+              ...formatPostCountTexts(post),
+            });
+          } catch (err) {
+            hideLoading();
+            showToast('删除失败');
+          }
+        },
+      });
     },
 
     closeReportModal() {
@@ -325,6 +486,7 @@ module.exports = Behavior({
         showReportModal: false,
         reportReason: '',
         reportDetail: '',
+        reportCommentId: '',
       });
     },
 
@@ -333,21 +495,25 @@ module.exports = Behavior({
       const postId = this._getPostId();
       if (!postId) return;
 
-      const { feedbackApi } = require('../utils/api');
       this.setData({ reportSubmitting: true });
       showLoading('提交中...');
       try {
-        const res = await feedbackApi.report({
+        const payload = {
           postId,
           reason: this.data.reportReason,
           detail: (this.data.reportDetail || '').trim(),
-        });
+        };
+        if (this.data.reportCommentId) {
+          payload.commentId = this.data.reportCommentId;
+        }
+        const res = await feedbackApi.report(payload);
         hideLoading();
         if (res.success) {
           this.setData({
             showReportModal: false,
             reportReason: '',
             reportDetail: '',
+            reportCommentId: '',
           });
           showToast('感谢举报，我们会尽快处理');
         } else {
@@ -400,6 +566,9 @@ module.exports = Behavior({
 
     onLoginSuccess() {
       this.setData({ loginModalShow: false });
+      if (this._getPostId()) {
+        this.loadPost(true);
+      }
     },
 
     focusCommentInput() {
@@ -484,7 +653,7 @@ module.exports = Behavior({
     },
 
     onQuickEmojiTap(e) {
-      const emoji = e.currentTarget.dataset.emoji;
+      const emoji = getDataset(e).emoji;
       if (!emoji) return;
       const content = (this.data.commentContent || '') + emoji;
       this.setData({
@@ -495,7 +664,7 @@ module.exports = Behavior({
 
     handleReplyTap(e) {
       if (!this._ensureLogin()) return;
-      const { id, author, replyId } = e.currentTarget.dataset;
+      const { id, author, replyId } = getDataset(e);
       if (!id) return;
       if (replyId) {
         this.setData({
@@ -523,7 +692,7 @@ module.exports = Behavior({
     },
 
     async expandReplies(e) {
-      const commentId = e.currentTarget.dataset.id;
+      const commentId = getDataset(e).id;
       if (!commentId) return;
       const post = this.data.post;
       const comment = post.comments.find((c) => c.id === commentId);
@@ -543,11 +712,8 @@ module.exports = Behavior({
         else limit = 10;
         const res = await postApi.getCommentReplies(commentId, currentCount, limit);
         if (res.success && res.data?.replies) {
-          const newReplies = res.data.replies.map((r) => ({
-            ...r,
-            time: formatDateTime(r.createdAt),
-            authorAvatar: r.authorAvatar || '/assets/icons/default-avatar.png',
-          }));
+          const userId = this._getCurrentUserId();
+          const newReplies = res.data.replies.map((r) => this._formatReplyForDisplay(r, userId));
           const thePost = this.data.post;
           const theComment = thePost.comments.find((c) => c.id === commentId);
           if (theComment) {
@@ -571,7 +737,7 @@ module.exports = Behavior({
     },
 
     collapseReplies(e) {
-      const commentId = e.currentTarget.dataset.id;
+      const commentId = getDataset(e).id;
       if (!commentId) return;
       const post = this.data.post;
       const comment = post.comments.find((c) => c.id === commentId);
@@ -621,7 +787,11 @@ module.exports = Behavior({
             replyToAuthor: '',
             parentId: null,
           });
-          this.loadPost();
+          this._appendSubmittedComment(res.data, {
+            parentId,
+            replyTo: replyTo,
+            replyToAuthor,
+          });
         } else {
           showToast(res.message || '评论失败');
         }
@@ -631,8 +801,5 @@ module.exports = Behavior({
       }
     },
 
-    generatePoster() {
-      showToast('海报分享功能开发中');
-    },
   },
 });

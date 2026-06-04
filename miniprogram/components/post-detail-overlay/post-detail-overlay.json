@@ -1,6 +1,11 @@
 {
   "component": true,
   "usingComponents": {
-    "login-modal": "/components/login-modal/login-modal"
+    "login-modal": "/components/login-modal/login-modal",
+    "detail-overlay-comments": "/components/detail-overlay/detail-overlay-comments/detail-overlay-comments",
+    "detail-overlay-bottom-bar": "/components/detail-overlay/detail-overlay-bottom-bar/detail-overlay-bottom-bar",
+    "detail-overlay-comment-modal": "/components/detail-overlay/detail-overlay-comment-modal/detail-overlay-comment-modal",
+    "detail-overlay-report-modal": "/components/detail-overlay/detail-overlay-report-modal/detail-overlay-report-modal",
+    "detail-overlay-preview": "/components/detail-overlay/detail-overlay-preview/detail-overlay-preview"
   }
 }

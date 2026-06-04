@@ -4,10 +4,13 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const _ = db.command;
+const $ = db.command.aggregate;
 const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
 const identity = require('./common/identity');
+
+const POST_STATUS_RELEASED = 'released';
 
 const GRADES = [
   [90, 'A'],
@@ -96,20 +99,76 @@ async function countCommentsOnPosts(postIds, since) {
   return total;
 }
 
+async function fetchPostsInBatches(field, where = null, batchSize = 100) {
+  const rows = [];
+  let skip = 0;
+  while (true) {
+    let query = postsCollection.field(field);
+    if (where) query = query.where(where);
+    const res = await query.skip(skip).limit(batchSize).get();
+    rows.push(...res.data);
+    if (res.data.length < batchSize) break;
+    skip += batchSize;
+  }
+  return rows;
+}
+
+async function sumPostLikes(where = null) {
+  try {
+    let pipeline = postsCollection.aggregate();
+    if (where) pipeline = pipeline.match(where);
+    const res = await pipeline
+      .group({
+        _id: null,
+        total: $.sum('$likes'),
+      })
+      .end();
+    return res.list[0]?.total || 0;
+  } catch (e) {
+    const posts = await fetchPostsInBatches({ likes: true }, where);
+    return posts.reduce((sum, p) => sum + (p.likes || 0), 0);
+  }
+}
+
 async function computeLikePercentile(myLikes) {
   try {
-    const res = await postsCollection.field({ authorId: true, likes: true }).limit(1000).get();
-    const byAuthor = {};
-    res.data.forEach((p) => {
-      if (!p.authorId) return;
-      byAuthor[p.authorId] = (byAuthor[p.authorId] || 0) + (p.likes || 0);
-    });
-    const totals = Object.values(byAuthor);
+    const res = await postsCollection.aggregate()
+      .match({
+        status: POST_STATUS_RELEASED,
+        authorId: _.exists(true),
+      })
+      .group({
+        _id: '$authorId',
+        totalLikes: $.sum('$likes'),
+      })
+      .end();
+
+    const totals = (res.list || [])
+      .map((row) => row.totalLikes || 0)
+      .filter((n) => n >= 0);
     if (totals.length === 0) return 0;
     const below = totals.filter((t) => t < myLikes).length;
     return Math.round((below / totals.length) * 100);
   } catch (e) {
-    return 0;
+    console.error('[computeLikePercentile] aggregate failed:', e);
+    try {
+      const posts = await fetchPostsInBatches(
+        { authorId: true, likes: true },
+        { status: POST_STATUS_RELEASED }
+      );
+      const byAuthor = {};
+      posts.forEach((p) => {
+        if (!p.authorId) return;
+        byAuthor[p.authorId] = (byAuthor[p.authorId] || 0) + (p.likes || 0);
+      });
+      const totals = Object.values(byAuthor);
+      if (totals.length === 0) return 0;
+      const below = totals.filter((t) => t < myLikes).length;
+      return Math.round((below / totals.length) * 100);
+    } catch (fallbackErr) {
+      console.error('[computeLikePercentile] fallback failed:', fallbackErr);
+      return 0;
+    }
   }
 }
 
@@ -120,20 +179,14 @@ async function getPlatformStats(monthStart) {
     commentsCollection.count(),
   ]);
 
-  const likesResult = await postsCollection.field({ likes: true }).limit(1000).get();
-  const totalLikes = likesResult.data.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalLikes = await sumPostLikes();
 
   const [postsMonth, usersMonth] = await Promise.all([
     postsCollection.where({ createdAt: _.gte(monthStart) }).count(),
     usersCollection.where({ createdAt: _.gte(monthStart) }).count(),
   ]);
 
-  const postsMonthData = await postsCollection
-    .where({ createdAt: _.gte(monthStart) })
-    .field({ likes: true })
-    .limit(1000)
-    .get();
-  const likesMonth = postsMonthData.data.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const likesMonth = await sumPostLikes({ createdAt: _.gte(monthStart) });
 
   return {
     totalPosts: postCount.total,
@@ -156,16 +209,17 @@ async function handleGetDashboard(openId) {
   const monthStart = startOfMonth(now);
   const weekStart = startOfWeek(now);
 
-  const postsRes = await postsCollection
-    .where(identity.authorOwnerWhere(db, actor))
-    .field({ likes: true, views: true, createdAt: true })
-    .limit(1000)
-    .get();
-  const posts = postsRes.data;
+  const posts = await fetchPostsInBatches(
+    { _id: true, likes: true, views: true, createdAt: true, status: true },
+    identity.authorOwnerWhere(db, actor)
+  );
   const postIds = posts.map((p) => p._id).filter(Boolean);
 
   const works = posts.length;
   const totalLikes = posts.reduce((s, p) => s + (p.likes || 0), 0);
+  const releasedLikes = posts
+    .filter((p) => p.status === POST_STATUS_RELEASED)
+    .reduce((s, p) => s + (p.likes || 0), 0);
   const totalViews = posts.reduce((s, p) => s + (p.views || 0), 0);
 
   let worksMonth = 0;
@@ -218,7 +272,7 @@ async function handleGetDashboard(openId) {
     },
   ];
 
-  const percentile = await computeLikePercentile(totalLikes);
+  const percentile = await computeLikePercentile(releasedLikes);
 
   const payload = {
     isAdmin: actor.isAdmin,

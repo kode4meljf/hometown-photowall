@@ -4,7 +4,50 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const usersCollection = db.collection('users');
+const postsCollection = db.collection('posts');
+const commentsCollection = db.collection('post_comments');
+const feedbackCollection = db.collection('feedbacks');
 const identity = require('./common/identity');
+const pwd = require('./common/password');
+const { deleteCloudFiles } = require('./common/postHelpers');
+
+const DELETE_BATCH = 100;
+
+async function deleteAllPostsByAuthor(userId) {
+  const allFileIds = [];
+  while (true) {
+    const res = await postsCollection.where({ authorId: userId }).limit(DELETE_BATCH).get();
+    const batch = res.data;
+    if (!batch.length) break;
+
+    for (const post of batch) {
+      (post.photos || []).forEach((p) => {
+        if (p.imageUrl && p.imageUrl.startsWith('cloud://')) {
+          allFileIds.push(p.imageUrl);
+        }
+      });
+      await commentsCollection.where({ postId: post._id }).remove();
+      await postsCollection.doc(post._id).remove();
+    }
+
+    if (batch.length < DELETE_BATCH) break;
+  }
+  return allFileIds;
+}
+
+async function deleteAllCommentsByAuthor(userId) {
+  while (true) {
+    const res = await commentsCollection.where({ authorId: userId }).limit(DELETE_BATCH).get();
+    const batch = res.data;
+    if (!batch.length) break;
+
+    for (const comment of batch) {
+      await commentsCollection.doc(comment._id).remove();
+    }
+
+    if (batch.length < DELETE_BATCH) break;
+  }
+}
 const sec = require('./common/contentSecurity');
 
 // 云函数入口
@@ -62,11 +105,13 @@ async function handleRegister(username, password, nickname, openId) {
       return { success: false, message: textCheck.message };
     }
 
+    const passwordHash = await pwd.hashPassword(password);
+
     const result = await usersCollection.add({
       data: {
         _openid: openId,
         username,
-        password,
+        password: passwordHash,
         nickname,
         role: 'user',
         avatar: generateInitialAvatar(nickname),
@@ -100,12 +145,25 @@ async function handleLogin(username, password, openId) {
   }
 
   try {
-    const result = await usersCollection.where({ username, password }).get();
+    const result = await usersCollection.where({ username }).limit(1).get();
     if (result.data.length === 0) {
       return { success: false, message: '用户名或密码错误' };
     }
 
     const user = result.data[0];
+    const passwordOk = await pwd.verifyPassword(password, user.password);
+    if (!passwordOk) {
+      return { success: false, message: '用户名或密码错误' };
+    }
+
+    if (pwd.needsPasswordUpgrade(user.password)) {
+      const passwordHash = await pwd.hashPassword(password);
+      await usersCollection.doc(user._id).update({
+        data: { password: passwordHash, updatedAt: db.serverDate() },
+      });
+      user.password = passwordHash;
+    }
+
     if (openId && user._openid !== openId) {
       await usersCollection.doc(user._id).update({
         data: { _openid: openId, updatedAt: db.serverDate() }
@@ -385,24 +443,22 @@ async function handleDeleteAccount(openId) {
 
     const user = userResult.data[0];
     const userId = user._id;
-    const postsCollection = db.collection('posts');
-    const commentsCollection = db.collection('post_comments');
 
-    const posts = await postsCollection.where({ authorId: userId }).get();
-    for (const post of posts.data) {
-      await commentsCollection.where({ postId: post._id }).remove();
-      await postsCollection.doc(post._id).remove();
+    const allFileIds = await deleteAllPostsByAuthor(userId);
+    await deleteAllCommentsByAuthor(userId);
+
+    try {
+      await feedbackCollection.where({ userId }).remove();
+    } catch (e) {
+      console.error('删除反馈记录失败:', e);
     }
-
-    await commentsCollection.where({ authorId: userId }).remove();
 
     const avatar = user.avatar;
     if (avatar && avatar.startsWith('cloud://')) {
-      try {
-        await cloud.deleteFile({ fileList: [avatar] });
-      } catch (e) {
-        console.error('删除头像文件失败:', e);
-      }
+      allFileIds.push(avatar);
+    }
+    if (allFileIds.length) {
+      await deleteCloudFiles(cloud, allFileIds);
     }
 
     await usersCollection.doc(user._id).remove();

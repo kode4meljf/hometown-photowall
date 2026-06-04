@@ -17,7 +17,7 @@
   "window": {
     "backgroundTextStyle": "dark",
     "navigationBarBackgroundColor": "#f8f8f8",
-    "navigationBarTitleText": "故乡照片墙",
+    "navigationBarTitleText": "老根茶村",
     "navigationBarTextStyle": "black",
     "backgroundColor": "#f8f8f8"
   },
@@ -39,7 +39,7 @@
   },
   "cloud": true,
   "style": "v2",
-  "__usePrivacyCheck__": false,
+  "__usePrivacyCheck__": true,
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
   "rendererOptions": {

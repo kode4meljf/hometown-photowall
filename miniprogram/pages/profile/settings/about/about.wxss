@@ -25,6 +25,29 @@
   gap: 4rpx;
 }
 
+.app-icon {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 28rpx;
+  margin-bottom: 16rpx;
+  background: linear-gradient(135deg, #e8f8ee, #d4f0e0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-icon-text {
+  font-size: 52rpx;
+  font-weight: 700;
+  color: #07a84f;
+}
+
+.app-subtitle {
+  font-size: 26rpx;
+  color: #888;
+  margin-bottom: 8rpx;
+}
+
 .placeholder-text {
   font-size: 26rpx;
   color: #bbb;
@@ -85,4 +108,10 @@
 .item-value {
   font-size: 28rpx;
   color: #999;
+}
+
+.item-arrow {
+  font-size: 32rpx;
+  color: #ccc;
+  line-height: 1;
 }

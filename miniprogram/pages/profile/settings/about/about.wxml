@@ -1,18 +1,26 @@
 <view class="about-page">
   <view class="page-body">
     <view class="about-header">
-      <view class="app-icon-placeholder">
-        <text class="placeholder-text">Logo</text>
-        <text class="placeholder-hint">待选定</text>
+      <view class="app-icon">
+        <text class="app-icon-text">茶</text>
       </view>
       <text class="app-name">老根茶村</text>
+      <text class="app-subtitle">故乡照片墙</text>
       <text class="app-version">v1.0.0</text>
     </view>
     <view class="about-content">
       <view class="about-section">
-        <text class="about-desc">故乡照片墙是一款记录家乡变迁的小程序，让每一位离家的游子都能在这里分享和回味故乡的美好瞬间。</text>
+        <text class="about-desc">老根茶村是一款记录家乡变迁的小程序，让每一位离家的游子都能在这里分享和回味故乡的美好瞬间。</text>
       </view>
       <view class="about-section">
+        <view class="about-item" bindtap="goAgreement">
+          <text class="item-label">用户协议</text>
+          <text class="item-arrow">›</text>
+        </view>
+        <view class="about-item" bindtap="goPrivacy">
+          <text class="item-label">隐私政策</text>
+          <text class="item-arrow">›</text>
+        </view>
         <view class="about-item">
           <text class="item-label">开发者</text>
           <text class="item-value">BsRKode4meljf</text>

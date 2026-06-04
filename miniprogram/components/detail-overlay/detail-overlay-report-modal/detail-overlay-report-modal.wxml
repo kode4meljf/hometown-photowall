@@ -1,0 +1,23 @@
+<view class="report-modal" wx:if="{{visible}}" catchtouchmove="noop">
+  <view class="report-modal-mask" catchtap="closeReportModal"></view>
+  <view class="report-modal-card" catchtap="noop">
+    <view class="report-modal-title">补充说明</view>
+    <view class="report-modal-desc">您的举报将提交给平台处理，我们会尽快核实。</view>
+    <view class="report-modal-reason">原因：{{reportReason}}</view>
+    <textarea
+      class="report-modal-textarea"
+      placeholder="请补充具体情况（选填）"
+      maxlength="200"
+      value="{{reportDetail}}"
+      bindinput="onReportDetailInput"
+      adjust-position="{{true}}"
+    />
+    <view class="report-modal-actions">
+      <view class="report-modal-btn report-modal-btn-cancel" catchtap="closeReportModal">取消</view>
+      <view
+        class="report-modal-btn report-modal-btn-submit {{reportSubmitting ? 'disabled' : ''}}"
+        catchtap="submitReport"
+      >提交举报</view>
+    </view>
+  </view>
+</view>

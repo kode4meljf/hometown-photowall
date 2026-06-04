@@ -2,7 +2,7 @@
 const { postApi } = require('../../../utils/api');
 const { showToast, showLoading, hideLoading } = require('../../../utils/util');
 const { isLoggedIn, ensureSession } = require('../../../utils/session');
-const { getUserStatusHint, getEmptyWorksText } = require('../../../utils/postStatusHint');
+const { POST_STATUS, getUserStatusHint, getEmptyWorksText, isUserToggleableStatus, POST_STATUS_USER_BADGE } = require('../../../utils/postStatus');
 const app = getApp();
 
 Page({
@@ -26,7 +26,7 @@ Page({
     reviewingCount: 0,
     rejectedCount: 0,
     showPhotoAction: false,
-    currentPhotoStatus: 'released',
+    currentPhotoStatus: POST_STATUS.RELEASED,
     statusTipText: '',
     emptyWorksText: '暂无作品',
     showEditPostModal: false,
@@ -44,6 +44,10 @@ Page({
   },
 
   onLoad() {
+    this.setData({
+      POST_STATUS,
+      postStatusUserBadge: POST_STATUS_USER_BADGE,
+    });
     this.updateUserStatus();
   },
 
@@ -52,19 +56,21 @@ Page({
       const tabBar = this.getTabBar && this.getTabBar();
       if (tabBar) tabBar.setData({ selected: 2 });
     }, 0);
-    this.updateUserStatus();
-    if (this.data.isLoggedIn && !this._loaded) {
-      this.loadData();
-    } else if (this.data.isLoggedIn && app.globalData.profileNeedRefresh) {
+    const needRefresh = app.globalData.profileNeedRefresh;
+    if (needRefresh) {
       app.globalData.profileNeedRefresh = false;
+    }
+    this.updateUserStatus();
+    if (isLoggedIn() && (needRefresh || !this._loaded)) {
       this.loadData();
-    } else if (this.data.isLoggedIn && app.globalData.profileNeedUserRefresh) {
+    } else if (isLoggedIn() && app.globalData.profileNeedUserRefresh) {
       app.globalData.profileNeedUserRefresh = false;
       this._fetchUserInfoWithAvatar();
     }
   },
 
   onReachBottom() {
+    if (!isLoggedIn()) return;
     if (this.data.activeTab === 'liked') {
       this.loadMoreLiked();
     } else {
@@ -73,12 +79,21 @@ Page({
   },
 
   onPullDownRefresh() {
-    // 下拉刷新时显示 loading，防止未登录状态下空态闪现
-    if (!this.data.isLoggedIn) {
+    if (!isLoggedIn()) {
       wx.stopPullDownRefresh();
       return;
     }
     this.refreshData();
+  },
+
+  onWorksScrollToLower() {
+    if (!isLoggedIn()) return;
+    this.loadMoreWorks();
+  },
+
+  onLikedScrollToLower() {
+    if (!isLoggedIn()) return;
+    this.loadMoreLiked();
   },
 
   async refreshData() {
@@ -87,6 +102,10 @@ Page({
     }
     if (isLoggedIn()) {
       await this.loadData();
+      if (this.data.activeTab === 'liked') {
+        await this.loadLiked(true);
+        this._likedLoaded = true;
+      }
     }
     wx.stopPullDownRefresh();
   },
@@ -109,9 +128,9 @@ Page({
         worksPage: 1,
         likedPage: 1,
         worksHasMore: true,
-        likedHasMore: true,
-        _loaded: false
+        likedHasMore: true
       });
+      this._loaded = false;
     }
   },
 
@@ -163,6 +182,7 @@ Page({
   },
 
   async loadData() {
+    if (!isLoggedIn()) return;
     this.setData({ loading: true });
     this.setData({
       works: [],
@@ -173,28 +193,50 @@ Page({
       likedHasMore: true
     });
     try {
-      await Promise.all([
-        this.loadWorks(true),
-        this.loadWorks(true, 'hidden'),
-        this.loadWorks(true, 'reviewing'),
-        this.loadWorks(true, 'rejected'),
-        this.loadLiked(true)
-      ]);
+      await Promise.all([this.loadWorks(true), this.loadStatusCounts()]);
     } finally {
       this.setData({ loading: false });
       this._loaded = true;
     }
   },
 
+  async loadStatusCounts() {
+    if (!isLoggedIn()) return;
+    const pageSize = 1;
+    try {
+      const [hiddenRes, reviewingRes, rejectedRes] = await Promise.all([
+        postApi.getMyWorks({ page: 1, pageSize, status: POST_STATUS.HIDDEN }),
+        postApi.getMyWorks({ page: 1, pageSize, status: POST_STATUS.REVIEWING }),
+        postApi.getMyWorks({ page: 1, pageSize, status: POST_STATUS.REJECTED }),
+      ]);
+      const setData = {};
+      if (hiddenRes.success) {
+        setData.hiddenCount = hiddenRes.data.total || 0;
+      }
+      if (reviewingRes.success) {
+        setData.reviewingCount = reviewingRes.data.total || 0;
+      }
+      if (rejectedRes.success) {
+        setData.rejectedCount = rejectedRes.data.total || 0;
+      }
+      if (Object.keys(setData).length) {
+        this.setData(setData);
+      }
+    } catch (e) {
+      console.error('加载作品状态数量失败:', e);
+    }
+  },
+
   async loadWorks(reset = false, silentFilter = null) {
+    if (!isLoggedIn()) return;
     const filter = silentFilter ?? this.data.worksFilter;
     const status =
-      filter === 'hidden'
-        ? 'hidden'
-        : filter === 'reviewing'
-          ? 'reviewing'
-          : filter === 'rejected'
-            ? 'rejected'
+      filter === POST_STATUS.HIDDEN
+        ? POST_STATUS.HIDDEN
+        : filter === POST_STATUS.REVIEWING
+          ? POST_STATUS.REVIEWING
+          : filter === POST_STATUS.REJECTED
+            ? POST_STATUS.REJECTED
             : undefined;
 
     if (reset && !silentFilter) {
@@ -205,6 +247,7 @@ Page({
     const page = reset ? 1 : this.data.worksPage;
     try {
       const res = await postApi.getMyWorks({ page, pageSize: this.data._pageSize, status });
+      if (!isLoggedIn()) return;
       if (res.success) {
         const photos = (res.data.posts || []).map(p => ({
           ...p,
@@ -219,11 +262,11 @@ Page({
           setData.worksPage = page + 1;
           setData.worksHasMore = res.data.hasMore !== false;
         }
-        if (filter === 'hidden') {
+        if (filter === POST_STATUS.HIDDEN) {
           setData.hiddenCount = res.data.total || photos.length;
-        } else if (filter === 'reviewing') {
+        } else if (filter === POST_STATUS.REVIEWING) {
           setData.reviewingCount = res.data.total || photos.length;
-        } else if (filter === 'rejected') {
+        } else if (filter === POST_STATUS.REJECTED) {
           setData.rejectedCount = res.data.total || photos.length;
         } else {
           setData.worksCount = res.data.total || works.length;
@@ -279,6 +322,7 @@ Page({
   },
 
   onWorksFilterChange(e) {
+    if (!isLoggedIn()) return;
     const filter = e.currentTarget.dataset.filter;
     if (filter === this.data.worksFilter && this.data.worksDropdownOpen) {
       this.setData({ worksDropdownOpen: false });
@@ -289,6 +333,7 @@ Page({
   },
 
   async loadLiked(reset = false) {
+    if (!isLoggedIn()) return;
     if (reset) {
       this.setData({ liked: [], likedPage: 1, likedHasMore: true });
     }
@@ -297,6 +342,7 @@ Page({
     const page = reset ? 1 : this.data.likedPage;
     try {
       const res = await postApi.getMyLiked({ page, pageSize: this.data._pageSize });
+      if (!isLoggedIn()) return;
       if (res.success) {
         const photos = (res.data.posts || []).map(p => ({
           ...p,
@@ -317,6 +363,7 @@ Page({
   },
 
   async loadMoreWorks() {
+    if (!isLoggedIn()) return;
     if (this.data.worksLoadingMore || !this.data.worksHasMore) return;
     this.setData({ worksLoadingMore: true });
     try {
@@ -327,6 +374,7 @@ Page({
   },
 
   async loadMoreLiked() {
+    if (!isLoggedIn()) return;
     if (this.data.likedLoadingMore || !this.data.likedHasMore) return;
     this.setData({ likedLoadingMore: true });
     try {
@@ -351,9 +399,17 @@ Page({
   },
 
   _checkLikedRefresh(tab) {
-    if (tab === 'liked' && this._likedNeedsRefresh) {
+    if (!isLoggedIn()) return;
+    if (tab !== 'liked') return;
+    if (this._likedNeedsRefresh) {
       this._likedNeedsRefresh = false;
       this.loadLiked(true);
+      this._likedLoaded = true;
+      return;
+    }
+    if (!this._likedLoaded) {
+      this.loadLiked(true);
+      this._likedLoaded = true;
     }
   },
 
@@ -438,10 +494,6 @@ Page({
     }
   },
 
-  freePoints() {
-    showToast('免费领积分功能开发中');
-  },
-
   // ── 作品操作弹窗 ──
   _isPostEditable(createdAt) {
     if (!createdAt) return false;
@@ -487,11 +539,11 @@ Page({
   editPhotoTitle() {
     const id = this._postId;
     if (!id) return;
-    if (this.data.currentPhotoStatus === 'reviewing') {
+    if (this.data.currentPhotoStatus === POST_STATUS.REVIEWING) {
       showToast('审核中的作品暂不可编辑');
       return;
     }
-    if (this.data.currentPhotoStatus === 'rejected') {
+    if (this.data.currentPhotoStatus === POST_STATUS.REJECTED) {
       showToast('请使用重新提交修改作品');
       return;
     }
@@ -575,14 +627,16 @@ Page({
       return;
     }
     const currentStatus = this.data.currentPhotoStatus;
-    if (currentStatus !== 'released' && currentStatus !== 'hidden') {
+    if (!isUserToggleableStatus(currentStatus)) {
       showToast('当前状态不可隐藏');
       return;
     }
-    const nextStatus = currentStatus === 'hidden' ? 'released' : 'hidden';
+    const nextStatus = currentStatus === POST_STATUS.HIDDEN
+      ? POST_STATUS.RELEASED
+      : POST_STATUS.HIDDEN;
     this.hidePhotoAction();
 
-    showLoading(nextStatus === 'released' ? '显示中...' : '隐藏中...');
+    showLoading(nextStatus === POST_STATUS.RELEASED ? '显示中...' : '隐藏中...');
     try {
       const res = await postApi.updatePost(id, { status: nextStatus });
       hideLoading();
@@ -590,24 +644,24 @@ Page({
         const filter = this.data.worksFilter;
         const setData = {};
         if (filter === 'all') {
-          if (nextStatus === 'hidden') {
+          if (nextStatus === POST_STATUS.HIDDEN) {
             setData.works = this.data.works.filter(item => item.id !== id);
             setData.worksCount = Math.max(0, this.data.worksCount - 1);
             setData.hiddenCount = (this.data.hiddenCount || 0) + 1;
           } else {
             setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
           }
-        } else if (filter === 'hidden') {
-          if (nextStatus === 'released') {
+        } else if (filter === POST_STATUS.HIDDEN) {
+          if (nextStatus === POST_STATUS.RELEASED) {
             setData.works = this.data.works.filter(item => item.id !== id);
             setData.hiddenCount = Math.max(0, (this.data.hiddenCount || 0) - 1);
           }
         }
-        if (nextStatus === 'hidden') {
+        if (nextStatus === POST_STATUS.HIDDEN) {
           setData.liked = this.data.liked.filter(item => item.id !== id);
         }
         this.setData(setData);
-        showToast(nextStatus === 'released' ? '已显示' : '已隐藏');
+        showToast(nextStatus === POST_STATUS.RELEASED ? '已显示' : '已隐藏');
       } else {
         showToast(res?.message || '操作失败');
       }

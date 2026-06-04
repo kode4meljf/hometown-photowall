@@ -4,28 +4,21 @@ const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
+const _ = db.command;
 const feedbackCollection = db.collection('feedbacks');
-const usersCollection = db.collection('users');
+const commentsCollection = db.collection('post_comments');
+const postsCollection = db.collection('posts');
+const identity = require('./common/identity');
 const sec = require('./common/contentSecurity');
+const { REPORT_REASONS, REPORT_DETAIL_MAX } = require('./common/reportReasons');
 
 const CONTENT_MIN = 5;
 const CONTENT_MAX = 500;
 const CONTACT_MAX = 80;
-const REPORT_DETAIL_MAX = 200;
-const REPORT_REASONS = ['违法违规', '色情低俗', '垃圾广告', '侵犯权益', '其他'];
 
-async function resolveReporter(openId) {
-  let userId = null;
-  let authorNickname = '游客';
-  if (openId) {
-    const userRes = await usersCollection.where({ _openid: openId }).limit(1).get();
-    const user = userRes.data[0];
-    if (user) {
-      userId = user._id;
-      authorNickname = user.nickname || user.username || '用户';
-    }
-  }
-  return { userId, authorNickname, openId: openId || '' };
+function authorNicknameFromActor(actor) {
+  if (!actor.user) return '游客';
+  return actor.user.nickname || actor.user.username || '用户';
 }
 
 async function submitFeedback(data, openId) {
@@ -45,12 +38,13 @@ async function submitFeedback(data, openId) {
     return { success: false, message: '联系方式过长' };
   }
 
-  const reporter = await resolveReporter(openId);
+  const actor = await identity.resolveActor(db, openId);
+  const authorNickname = authorNicknameFromActor(actor);
 
   const textCheck = await sec.checkText(cloud, openId, {
     content,
     scene: sec.SCENE.FORUM,
-    nickname: reporter.authorNickname,
+    nickname: authorNickname,
   });
   if (!textCheck.ok) {
     return { success: false, message: textCheck.message };
@@ -64,9 +58,9 @@ async function submitFeedback(data, openId) {
         reason: '',
         content,
         contact,
-        userId: reporter.userId,
-        openId: reporter.openId,
-        authorNickname: reporter.authorNickname,
+        userId: actor.userId,
+        openId: actor.openId,
+        authorNickname,
         status: 'pending',
         adminNote: '',
         createdAt: db.serverDate(),
@@ -88,11 +82,12 @@ async function submitFeedback(data, openId) {
 
 async function submitReport(data, openId) {
   const postId = (data.postId || '').trim();
+  const commentId = (data.commentId || '').trim();
   const reason = (data.reason || '').trim();
   const detail = (data.detail || '').trim();
 
-  if (!postId) {
-    return { success: false, message: '缺少作品信息' };
+  if (!postId && !commentId) {
+    return { success: false, message: '缺少举报对象' };
   }
   if (!reason || !REPORT_REASONS.includes(reason)) {
     return { success: false, message: '请选择有效的举报原因' };
@@ -101,9 +96,52 @@ async function submitReport(data, openId) {
     return { success: false, message: `补充说明不能超过 ${REPORT_DETAIL_MAX} 字` };
   }
 
-  const reporter = await resolveReporter(openId);
-  if (!reporter.userId) {
+  const actor = await identity.resolveActor(db, openId);
+  if (!actor.userId) {
     return { success: false, message: '请先登录' };
+  }
+  const authorNickname = authorNicknameFromActor(actor);
+
+  let targetType = 'post';
+  let resolvedPostId = postId;
+
+  if (commentId) {
+    try {
+      const commentRes = await commentsCollection.doc(commentId).get();
+      const comment = commentRes.data;
+      if (!comment) {
+        return { success: false, message: '评论不存在' };
+      }
+      targetType = 'comment';
+      resolvedPostId = comment.postId || postId;
+      if (!resolvedPostId) {
+        return { success: false, message: '缺少作品信息' };
+      }
+    } catch (e) {
+      return { success: false, message: '评论不存在' };
+    }
+  } else if (postId) {
+    resolvedPostId = postId;
+  }
+
+  try {
+    const postRes = await postsCollection.doc(resolvedPostId).get();
+    if (!postRes.data) {
+      return { success: false, message: '作品不存在' };
+    }
+  } catch (e) {
+    return { success: false, message: '作品不存在' };
+  }
+
+  const dupRes = await feedbackCollection.where({
+    type: 'report',
+    userId: actor.userId,
+    postId: resolvedPostId,
+    commentId: commentId || '',
+    status: _.in(['pending', 'processing']),
+  }).limit(1).get();
+  if (dupRes.data.length > 0) {
+    return { success: false, message: '您已提交过举报，请等待处理' };
   }
 
   const content = detail
@@ -113,7 +151,7 @@ async function submitReport(data, openId) {
   const textCheck = await sec.checkText(cloud, openId, {
     content: detail || reason,
     scene: sec.SCENE.FORUM,
-    nickname: reporter.authorNickname,
+    nickname: authorNickname,
   });
   if (!textCheck.ok) {
     return { success: false, message: textCheck.message };
@@ -123,13 +161,15 @@ async function submitReport(data, openId) {
     const result = await feedbackCollection.add({
       data: {
         type: 'report',
-        postId,
+        targetType,
+        postId: resolvedPostId,
+        commentId: commentId || '',
         reason,
         content,
         contact: '',
-        userId: reporter.userId,
-        openId: reporter.openId,
-        authorNickname: reporter.authorNickname,
+        userId: actor.userId,
+        openId: actor.openId,
+        authorNickname,
         status: 'pending',
         adminNote: '',
         createdAt: db.serverDate(),

@@ -1,5 +1,9 @@
-const { postApi } = require('../utils/api');
-const { showLoading, hideLoading } = require('../utils/util');
+const { formatPostCountTexts, showLoading, hideLoading } = require('../utils/util');
+const { aspectFitLayoutWH } = require('../utils/aspectFit');
+const { getTouches, getChangedTouches, getDataset } = require('../utils/eventBridge');
+const { ensurePrivacyAuthorized } = require('../utils/privacy');
+const { handleSaveAlbumFail } = require('../utils/mediaPicker');
+const { withLikeFields, togglePostLike } = require('../utils/postLike');
 
 const PREVIEW_DIR_LOCK_PX = 12;
 const PREVIEW_DIR_BIAS = 1.4;
@@ -66,7 +70,7 @@ module.exports = Behavior({
     },
 
     onPreviewPhotoLoad(e) {
-      const index = Number(e.currentTarget.dataset.index);
+      const index = Number(getDataset(e).index);
       if (!this._previewPhotoDims) this._previewPhotoDims = {};
       const { width, height } = e.detail || {};
       if (width && height) {
@@ -106,22 +110,7 @@ module.exports = Behavior({
     },
 
     _aspectFitLayout(containerW, containerH, imgAR) {
-      const containerAR = containerW / containerH;
-      let visW;
-      let visH;
-      if (imgAR > containerAR) {
-        visW = containerW;
-        visH = containerW / imgAR;
-      } else {
-        visH = containerH;
-        visW = containerH * imgAR;
-      }
-      return {
-        visW,
-        visH,
-        offsetX: (containerW - visW) / 2,
-        offsetY: (containerH - visH) / 2,
-      };
+      return aspectFitLayoutWH(containerW, containerH, imgAR);
     },
 
     _getDist(t0, t1) {
@@ -492,7 +481,17 @@ module.exports = Behavior({
       }
     },
 
+    _ensureTouchEvent(e) {
+      if (e.touches && e.touches.length) return e;
+      return {
+        ...e,
+        touches: getTouches(e),
+        changedTouches: getChangedTouches(e),
+      };
+    },
+
     onPreviewTouchStart(e) {
+      e = this._ensureTouchEvent(e);
       const t = e.touches;
       this._touchStartTime = Date.now();
       this._hasMoved = false;
@@ -527,6 +526,7 @@ module.exports = Behavior({
     },
 
     onPreviewTouchMove(e) {
+      e = this._ensureTouchEvent(e);
       const t = e.touches;
 
       if (t.length >= 2) {
@@ -621,6 +621,7 @@ module.exports = Behavior({
     },
 
     onPreviewTouchEnd(e) {
+      e = this._ensureTouchEvent(e);
       const remaining = (e.touches && e.touches.length) || 0;
       if (remaining > 0) {
         if (this._gestureState === 'pinch' && remaining === 1) {
@@ -723,12 +724,14 @@ module.exports = Behavior({
     async handlePreviewLike() {
       if (!this._ensureLogin()) return;
       try {
-        const res = await postApi.likePost(this._getPostId());
-        if (res.success) {
-          const post = this.data.post;
-          post.likes = res.likes;
-          post.liked = res.liked;
-          this.setData({ post, showLikeAnim: true });
+        const res = await togglePostLike(this._getPostId());
+        if (res.success && this.data.post) {
+          const post = withLikeFields(this.data.post, res.liked, res.likes);
+          this.setData({
+            post,
+            ...formatPostCountTexts(post),
+            showLikeAnim: true,
+          });
           this._likedChanged = true;
           setTimeout(() => this.setData({ showLikeAnim: false }), 600);
         }
@@ -742,13 +745,17 @@ module.exports = Behavior({
       if (!post || !post.photos) return;
       const photo = post.photos[this.data.currentPhotoIndex];
       if (!photo?.imageUrl) return;
+
+      const privacyOk = await ensurePrivacyAuthorized();
+      if (!privacyOk) return;
+
       showLoading('保存中');
       try {
         const res = await wx.cloud.downloadFile({ fileID: photo.imageUrl });
         await wx.saveImageToPhotosAlbum({ filePath: res.tempFilePath });
         wx.showToast({ title: '已保存', icon: 'success' });
       } catch (e) {
-        wx.showToast({ title: '保存失败', icon: 'none' });
+        handleSaveAlbumFail(e);
       } finally {
         hideLoading();
       }

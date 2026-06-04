@@ -1,0 +1,28 @@
+/**
+ * aspectFit WXS 版（与 aspectFit.js imageStyleCss 保持一致，imgAR = 宽/高）
+ */
+var DEFAULT_CONTAINER_AR = 4 / 3;
+var DEFAULT_RADIUS = '20rpx';
+
+function aspectRatioWH(imgW, imgH) {
+  if (!imgW || !imgH) return 1;
+  return imgW / imgH;
+}
+
+function imageStyle(imgW, imgH, containerAR, radius) {
+  if (!imgW || !imgH) return '';
+  if (!containerAR) containerAR = DEFAULT_CONTAINER_AR;
+  if (!radius) radius = DEFAULT_RADIUS;
+  var imageAR = aspectRatioWH(imgW, imgH);
+  if (imageAR > containerAR) {
+    var hPct = (containerAR / imageAR) * 100;
+    return 'width:100%;height:' + hPct + '%;border-radius:' + radius + ';';
+  }
+  var wPct = (imageAR / containerAR) * 100;
+  return 'width:' + wPct + '%;height:100%;border-radius:' + radius + ';';
+}
+
+module.exports = {
+  aspectRatioWH: aspectRatioWH,
+  imageStyle: imageStyle,
+};

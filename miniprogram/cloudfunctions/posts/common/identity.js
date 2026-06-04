@@ -129,31 +129,75 @@ async function mergeUserAccounts(db, targetUser, sourceUser, newOpenId) {
   const users = db.collection('users');
   const posts = db.collection('posts');
   const comments = db.collection('post_comments');
+  const feedbacks = db.collection('feedbacks');
   const targetId = targetUser._id;
   const sourceId = sourceUser._id;
 
+  if (sourceId === targetId) {
+    await users.doc(targetId).update({
+      data: { _openid: newOpenId, updatedAt: db.serverDate() },
+    });
+    return findUserById(db, targetId);
+  }
+
+  const MERGE_BATCH = 100;
+
   const moveAuthor = async (collection) => {
-    const res = await collection.where({ authorId: sourceId }).limit(100).get();
-    for (const doc of res.data) {
-      await collection.doc(doc._id).update({ data: { authorId: targetId } });
+    while (true) {
+      const res = await collection.where({ authorId: sourceId }).limit(MERGE_BATCH).get();
+      const batch = res.data;
+      if (!batch.length) break;
+      for (const doc of batch) {
+        await collection.doc(doc._id).update({ data: { authorId: targetId } });
+      }
+      if (batch.length < MERGE_BATCH) break;
+    }
+  };
+
+  const moveUserIdField = async (collection, field) => {
+    while (true) {
+      const res = await collection.where({ [field]: sourceId }).limit(MERGE_BATCH).get();
+      const batch = res.data;
+      if (!batch.length) break;
+      for (const doc of batch) {
+        await collection.doc(doc._id).update({ data: { [field]: targetId } });
+      }
+      if (batch.length < MERGE_BATCH) break;
+    }
+  };
+
+  const moveLikedUsers = async (collection) => {
+    while (true) {
+      const res = await collection.where({ likedUsers: sourceId }).limit(MERGE_BATCH).get();
+      const batch = res.data;
+      if (!batch.length) break;
+      for (const doc of batch) {
+        const likedUsers = (doc.likedUsers || []).filter((id) => id !== sourceId);
+        if (!likedUsers.includes(targetId)) {
+          likedUsers.push(targetId);
+        }
+        await collection.doc(doc._id).update({ data: { likedUsers } });
+      }
+      if (batch.length < MERGE_BATCH) break;
     }
   };
 
   await moveAuthor(posts);
   await moveAuthor(comments);
+  await moveLikedUsers(posts);
+  await moveLikedUsers(comments);
+  await moveUserIdField(feedbacks, 'userId');
 
   const mergedCredits = (targetUser.credits || 0) + (sourceUser.credits || 0);
   await users.doc(targetId).update({
     data: {
       _openid: newOpenId,
       credits: mergedCredits,
-      updatedAt: db.serverDate()
-    }
+      updatedAt: db.serverDate(),
+    },
   });
 
-  if (sourceId !== targetId) {
-    await users.doc(sourceId).remove();
-  }
+  await users.doc(sourceId).remove();
 
   return findUserById(db, targetId);
 }

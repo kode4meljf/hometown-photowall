@@ -1,48 +1,13 @@
 /**
  * 卡片 → 详情 布局计算（首页浮层放大动画）
+ * aspectFit 核心算法见 aspectFit.js
  */
 
-/** imgAR = 高/宽 */
-function aspectFillCenter(rect, imgAR) {
-  if (!rect || !imgAR) return null;
-  const boxAR = rect.width / rect.height;
-  let visW, visH;
-  if (imgAR > boxAR) {
-    visH = rect.height;
-    visW = visH / imgAR;
-  } else {
-    visW = rect.width;
-    visH = visW * imgAR;
-  }
-  return {
-    left: rect.left + (rect.width - visW) / 2,
-    top: rect.top + (rect.height - visH) / 2,
-    width: visW,
-    height: visH,
-  };
-}
-
-/** aspectFit：与详情 swiper photoMode=aspectFit 一致，动画终点应对齐此区域 */
-function aspectFitCenter(containerRect, imgAR) {
-  if (!containerRect || !imgAR) return null;
-  const W = containerRect.width;
-  const H = containerRect.height;
-  const boxAR = W / H;
-  let visW, visH;
-  if (imgAR > boxAR) {
-    visH = H;
-    visW = H / imgAR;
-  } else {
-    visW = W;
-    visH = W * imgAR;
-  }
-  return {
-    left: containerRect.left + (W - visW) / 2,
-    top: containerRect.top + (H - visH) / 2,
-    width: visW,
-    height: visH,
-  };
-}
+const {
+  aspectFillCenter,
+  aspectFitCenter,
+  aspectFitLayoutWH,
+} = require('./aspectFit');
 
 function rectToSlotLocal(fitRect, slotRect) {
   if (!fitRect || !slotRect) return '';
@@ -77,25 +42,26 @@ const DETAIL_SLOT_MAX_RATIO = 4 / 3;
 /** 横图保底高度（约 5:3 横图铺满宽时的高），避免极扁全景图区过矮 */
 const DETAIL_SLOT_MIN_RATIO = 0.6;
 
-function getDetailSlotHeight(windowWidth, aspectRatio) {
+function getDetailSlotHeight(windowWidth, aspectRatioHW) {
   const w = windowWidth || 375;
-  const safeRatio = Math.min(Math.max(aspectRatio || 1, 0.3), 3);
+  const safeRatio = Math.min(Math.max(aspectRatioHW || 1, 0.3), 3);
   const natural = w * safeRatio;
   const maxH = w * DETAIL_SLOT_MAX_RATIO;
   const minH = w * DETAIL_SLOT_MIN_RATIO;
   return Math.round(Math.min(Math.max(natural, minH), maxH));
 }
 
-function getDetailImageRect(windowWidth, headerTop, aspectRatio) {
+function getDetailImageRect(windowWidth, headerTop, aspectRatioHW) {
   const top = headerTop;
   const width = windowWidth;
-  const height = getDetailSlotHeight(windowWidth, aspectRatio);
+  const height = getDetailSlotHeight(windowWidth, aspectRatioHW);
   return { left: 0, top, width, height };
 }
 
 module.exports = {
   aspectFillCenter,
   aspectFitCenter,
+  aspectFitLayoutWH,
   rectToStyle,
   flyTransformStyle,
   rectToSlotLocal,

@@ -30,7 +30,7 @@
         <text class="stat-num">{{likedCount || 0}}</text>
         <text class="stat-label">赞过</text>
       </view>
-      <view class="stat-item" bindtap="freePoints">
+      <view class="stat-item">
         <text class="stat-num">{{userInfo.points || 0}}</text>
         <text class="stat-label">积分</text>
       </view>
@@ -123,7 +123,7 @@
   >
     <!-- 作品页 -->
     <swiper-item class="swiper-item">
-      <scroll-view scroll-y class="photo-scroll" bindscrolltolower="loadMoreWorks" enhanced enable-flex>
+      <scroll-view scroll-y class="photo-scroll" bindscrolltolower="onWorksScrollToLower" enhanced enable-flex>
         <view class="photo-list" wx:if="{{works.length > 0}}">
           <view 
             class="photo-card" 
@@ -133,8 +133,8 @@
             data-id="{{item.id}}"
           >
             <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
-            <view wx:if="{{item.status === 'reviewing' || item.status === 'rejected'}}" class="photo-status-badge photo-status-badge--{{item.status}}">
-              {{item.status === 'reviewing' ? '审核中' : '未通过'}}
+            <view wx:if="{{item.status === POST_STATUS.REVIEWING || item.status === POST_STATUS.REJECTED}}" class="photo-status-badge photo-status-badge--{{item.status}}">
+              {{postStatusUserBadge[item.status]}}
             </view>
             <view class="photo-overlay">
               <view class="photo-stats">
@@ -167,7 +167,7 @@
 
     <!-- 赞过页 -->
     <swiper-item class="swiper-item">
-      <scroll-view scroll-y class="photo-scroll" bindscrolltolower="loadMoreLiked" enhanced enable-flex>
+      <scroll-view scroll-y class="photo-scroll" bindscrolltolower="onLikedScrollToLower" enhanced enable-flex>
         <view class="photo-list" wx:if="{{liked.length > 0}}">
           <view 
             class="photo-card" 
@@ -208,9 +208,9 @@
       </view>
       <!-- 选项组 -->
       <view class="modal-options-group">
-        <view wx:if="{{currentPhotoStatus === 'rejected'}}" class="modal-option" bindtap="goResubmitPost">重新提交</view>
-        <view wx:elif="{{currentPhotoStatus !== 'reviewing'}}" class="modal-option" bindtap="editPhotoTitle">编辑标题与描述</view>
-        <view class="modal-option" wx:if="{{currentPhotoStatus === 'released' || currentPhotoStatus === 'hidden'}}" bindtap="toggleHidePost">{{currentPhotoStatus === 'hidden' ? '显示作品' : '隐藏作品'}}</view>
+        <view wx:if="{{currentPhotoStatus === POST_STATUS.REJECTED}}" class="modal-option" bindtap="goResubmitPost">重新提交</view>
+        <view wx:elif="{{currentPhotoStatus !== POST_STATUS.REVIEWING}}" class="modal-option" bindtap="editPhotoTitle">编辑标题与描述</view>
+        <view class="modal-option" wx:if="{{currentPhotoStatus === POST_STATUS.RELEASED || currentPhotoStatus === POST_STATUS.HIDDEN}}" bindtap="toggleHidePost">{{currentPhotoStatus === POST_STATUS.HIDDEN ? '显示作品' : '隐藏作品'}}</view>
         <view class="modal-option modal-option-danger" bindtap="deletePost">删除</view>
       </view>
       <!-- 取消按钮 - 独立卡片 -->
