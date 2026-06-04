@@ -161,6 +161,7 @@
         panelExitChrome="{{panelExitChrome}}"
         likesCountText="{{likesCountText}}"
         commentsCountText="{{commentsCountText}}"
+        sharesCountText="{{sharesCountText}}"
         shareGenerating="{{sharePosterGenerating}}"
         bind:focuscomment="focusCommentInput"
         bind:like="handleLike"

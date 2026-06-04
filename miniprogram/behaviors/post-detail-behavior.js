@@ -38,6 +38,7 @@ module.exports = Behavior({
     indexBadgeVisible: false,
     commentsCountText: '0',
     likesCountText: '0',
+    sharesCountText: '0',
     keyboardHeight: 0,
     commentBottomInset: 0,
     commentFocus: false,

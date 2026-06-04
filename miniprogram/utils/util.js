@@ -51,7 +51,7 @@ const formatCompactNum = formatCountText;
 
 function formatPostCountTexts(post) {
   if (!post) {
-    return { commentsCountText: '0', likesCountText: '0' };
+    return { commentsCountText: '0', likesCountText: '0', sharesCountText: '0' };
   }
   const commentsCount = post.commentsCount != null
     ? post.commentsCount
@@ -59,6 +59,7 @@ function formatPostCountTexts(post) {
   return {
     commentsCountText: formatCountText(commentsCount),
     likesCountText: formatCountText(post.likes || 0),
+    sharesCountText: formatCountText(post.shares || 0),
   };
 }
 

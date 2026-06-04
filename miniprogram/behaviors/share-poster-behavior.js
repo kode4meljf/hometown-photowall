@@ -2,7 +2,7 @@ const { postApi } = require('../utils/api');
 const { renderSharePoster } = require('../utils/sharePoster');
 const { ensurePrivacyAuthorized } = require('../utils/privacy');
 const { handleSaveAlbumFail } = require('../utils/mediaPicker');
-const { showLoading, hideLoading, showToast, showSuccess } = require('../utils/util');
+const { showLoading, hideLoading, showToast, showSuccess, formatPostCountTexts } = require('../utils/util');
 
 module.exports = Behavior({
   data: {
@@ -54,6 +54,12 @@ module.exports = Behavior({
             sharePosterPath: posterPath,
             sharePosterError: '',
           });
+
+          postApi.recordShare(postId).then((res) => {
+            if (!res?.success || !this.data.post) return;
+            const nextPost = { ...this.data.post, shares: res.data.shares };
+            this.setData({ post: nextPost, ...formatPostCountTexts(nextPost) });
+          }).catch(() => {});
         } catch (e) {
           const msg = (e && e.message) || '生成失败，请重试';
           console.error('[generatePoster]', e);

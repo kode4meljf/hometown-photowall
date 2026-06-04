@@ -9,7 +9,7 @@ const postsCollection = db.collection('posts');
 const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
 const identity = require('./common/identity');
-const sec = require('./common/contentSecurity');
+const sec = require('./openApiSecurity');
 const { POST_STATUS, POST_STATUS_LIST, isPublicStatus, isUserToggleableStatus } = require('./common/postStatus');
 const {
   deleteCloudFiles,
@@ -135,8 +135,16 @@ exports.main = async (event, context) => {
       return await getReceivedComments(openId, data);
     case 'getShareQrCode':
       return await getShareQrCode(data);
+    case 'recordShare':
+      return await recordShare(data);
     case 'seedTestComments':
       return await seedTestComments(data);
+    case 'devCreateTestPost':
+      return await devCreateTestPost(data, openId);
+    case 'devCleanupTestPosts':
+      return await devCleanupTestPosts(data, openId);
+    case 'devTestContentSecurity':
+      return await devTestContentSecurity(data, openId);
     default:
       return { success: false, message: '未知操作' };
   }
@@ -144,6 +152,181 @@ exports.main = async (event, context) => {
 
 const DEV_SEED_KEY = 'photowall-dev-seed';
 const DEV_SEED_MARKER = 'photowall-dev-seed-v1';
+const DEV_POST_MARKER = 'photowall-dev-post-v1';
+const DEV_MINI_JPEG = Buffer.from(
+  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwAA8A/9k=',
+  'base64'
+);
+
+function assertDevKey(data) {
+  return data && data.devKey === DEV_SEED_KEY;
+}
+
+/** 开发/自动化：服务端上传测试图并走完整 createPost（含内容安全） */
+async function devCreateTestPost(data, openId) {
+  if (!assertDevKey(data)) {
+    return { success: false, message: '无权限' };
+  }
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+  const ts = Date.now();
+  let fileID;
+  try {
+    const up = await cloud.uploadFile({
+      cloudPath: `photos/${actor.userId}/dev-autotest-${ts}.jpg`,
+      fileContent: DEV_MINI_JPEG,
+    });
+    fileID = up.fileID;
+  } catch (e) {
+    return { success: false, message: '测试图片上传失败: ' + e.message };
+  }
+
+  const title = (data.title || `[auto-test-post] 家乡测试 ${ts}`).slice(0, 80);
+  const result = await createPost({
+    title,
+    description: data.description || '自动化轻量发帖测试，可删除',
+    location: data.location || '茶村',
+    photos: [{ imageUrl: fileID, width: 800, height: 600, order: 0 }],
+  }, openId);
+
+  if (result.success && result.data && result.data.id) {
+    try {
+      await postsCollection.doc(result.data.id).update({
+        data: { _devSeedBatch: DEV_POST_MARKER },
+      });
+    } catch (e) {
+      console.error('[devCreateTestPost] marker update failed:', e.message);
+    }
+  }
+  return result;
+}
+
+/** 开发/自动化：删除带 dev 标记的测试帖 */
+async function devCleanupTestPosts(data, openId) {
+  if (!assertDevKey(data)) {
+    return { success: false, message: '无权限' };
+  }
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+  try {
+    const found = await postsCollection.where({ _devSeedBatch: DEV_POST_MARKER }).limit(50).get();
+    let removed = 0;
+    for (const doc of found.data) {
+      const del = await deletePost(doc._id, openId);
+      if (del.success) removed += 1;
+    }
+    return { success: true, data: { removed, total: found.data.length } };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+}
+
+/** 开发/自动化：独立验证内容安全 API（文本/图片）与发帖前校验 */
+async function devTestContentSecurity(data, openId) {
+  if (!assertDevKey(data)) {
+    return { success: false, message: '无权限' };
+  }
+  const actor = await getActor(openId);
+  const checks = [];
+
+  const pushCheck = (name, result, expectOk = true) => {
+    checks.push({
+      name,
+      ok: result.ok,
+      message: result.message || '',
+      errcode: result.errcode,
+      pass: expectOk ? !!result.ok : !result.ok,
+    });
+  };
+
+  pushCheck('text_empty', await sec.checkText(cloud, openId, { content: '', scene: sec.SCENE.COMMENT }));
+  pushCheck(
+    'text_benign_social',
+    await sec.checkText(cloud, openId, {
+      content: '家乡的茶园风景很好',
+      scene: sec.SCENE.SOCIAL,
+      title: '测试标题',
+    })
+  );
+  pushCheck(
+    'text_benign_comment',
+    await sec.checkText(cloud, openId, {
+      content: '拍得真好看',
+      scene: sec.SCENE.COMMENT,
+      nickname: actor.user?.nickname || '测试用户',
+    })
+  );
+
+  if (actor.userId && openId) {
+    let fileID;
+    try {
+      const up = await cloud.uploadFile({
+        cloudPath: `photos/${actor.userId}/dev-sec-${Date.now()}.jpg`,
+        fileContent: DEV_MINI_JPEG,
+      });
+      fileID = up.fileID;
+      const img = await sec.checkImages(cloud, openId, [fileID], sec.SCENE.SOCIAL);
+      checks.push({
+        name: 'image_benign',
+        ok: img.ok,
+        message: img.message || '',
+        pass: !!img.ok,
+        needsReview: !!img.needsReview,
+      });
+    } catch (e) {
+      checks.push({
+        name: 'image_benign',
+        ok: false,
+        message: e.message,
+        pass: false,
+      });
+    } finally {
+      if (fileID) {
+        await cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+      }
+    }
+  } else {
+    checks.push({
+      name: 'image_benign',
+      ok: false,
+      message: '未登录或无 openId',
+      pass: false,
+      skipped: true,
+    });
+  }
+
+  const rejectTitle = await createPost(
+    { title: '  ', photos: [{ imageUrl: 'cloud://invalid', width: 1, height: 1 }] },
+    openId
+  );
+  checks.push({
+    name: 'create_reject_empty_title',
+    ok: !rejectTitle.success,
+    message: rejectTitle.message || '',
+    pass: !rejectTitle.success && (rejectTitle.message || '').includes('标题'),
+  });
+
+  const rejectPhotos = await createPost({ title: '测试无图', photos: [] }, openId);
+  checks.push({
+    name: 'create_reject_no_photos',
+    ok: !rejectPhotos.success,
+    message: rejectPhotos.message || '',
+    pass: !rejectPhotos.success && (rejectPhotos.message || '').includes('图片'),
+  });
+
+  return {
+    success: true,
+    data: {
+      openIdPresent: !!openId,
+      userId: actor.userId || null,
+      checks,
+    },
+  };
+}
 
 /** 开发/自动化测试：为帖子写入 30 条评论（含楼中楼），可重复执行 */
 async function seedTestComments(data) {
@@ -1159,6 +1342,30 @@ async function getMyComments(openId, params = {}) {
 }
 
 // 分享海报用小程序码
+async function recordShare(data = {}) {
+  const postId = data.postId || data.id;
+  if (!postId) {
+    return { success: false, message: '缺少帖子ID' };
+  }
+  const guard = await requireReleasedPost(postId, '分享');
+  if (!guard.ok) {
+    return { success: false, message: guard.message };
+  }
+  try {
+    await postsCollection.doc(postId).update({
+      data: { shares: _.inc(1) },
+    });
+    const updated = await postsCollection.doc(postId).field({ shares: true }).get();
+    return {
+      success: true,
+      data: { shares: updated.data?.shares || 0 },
+    };
+  } catch (e) {
+    console.error('[recordShare] failed:', e);
+    return { success: false, message: '记录分享失败' };
+  }
+}
+
 async function getShareQrCode(params = {}) {
   const { postId, photoIndex = 0 } = params || {};
   if (!postId) {

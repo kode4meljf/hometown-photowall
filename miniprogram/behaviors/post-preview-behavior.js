@@ -87,6 +87,41 @@ module.exports = Behavior({
       }
     },
 
+    _resetPreviewTapState() {
+      this._clearPreviewSingleTapTimer();
+      this._previewTapCount = 0;
+      this._previewLastEndAt = 0;
+      this._previewLastEndId = null;
+    },
+
+    /** 单击退出预览，双击点赞（需去重同一次点击的重复 touchend） */
+    _handlePreviewTap(touch) {
+      const now = Date.now();
+      const touchId = touch?.identifier ?? 0;
+      if (
+        this._previewLastEndId === touchId &&
+        now - (this._previewLastEndAt || 0) < 80
+      ) {
+        return;
+      }
+      this._previewLastEndId = touchId;
+      this._previewLastEndAt = now;
+
+      this._previewTapCount = (this._previewTapCount || 0) + 1;
+      if (this._previewTapCount >= 2) {
+        this._resetPreviewTapState();
+        this._onPreviewDoubleTap();
+        return;
+      }
+
+      this._clearPreviewSingleTapTimer();
+      this._singleTapTimer = setTimeout(() => {
+        this._singleTapTimer = null;
+        this._previewTapCount = 0;
+        this.exitPreview();
+      }, 280);
+    },
+
     _previewTouchDelta(touch) {
       if (!touch || !this._touchStart) return { dx: 0, dy: 0 };
       return {
@@ -137,7 +172,7 @@ module.exports = Behavior({
 
     _beginPreviewPinch(touches) {
       if (!touches || touches.length < 2) return;
-      this._clearPreviewSingleTapTimer();
+      this._resetPreviewTapState();
       this._gestureState = 'pinch';
       this._hasMoved = true;
       const { tx, ty, sx, sy } = this._getTransformValues();
@@ -257,7 +292,7 @@ module.exports = Behavior({
 
     onPreviewSwiperChange(e) {
       const index = e.detail.current;
-      this._clearPreviewSingleTapTimer();
+      this._resetPreviewTapState();
       this._hasMoved = true;
       this._gestureState = null;
       this.setData({ currentPhotoIndex: index, previewTouchCapture: false });
@@ -268,6 +303,7 @@ module.exports = Behavior({
 
     enterPreview() {
       if (!this.data.post) return;
+      this._resetPreviewTapState();
 
       let imgAR =
         this._imgNaturalW && this._imgNaturalH
@@ -382,6 +418,7 @@ module.exports = Behavior({
     },
 
     exitPreview() {
+      this._resetPreviewTapState();
       const rectY = this._rectY;
       const flipParams = this._flipParams;
 
@@ -562,7 +599,7 @@ module.exports = Behavior({
         if (this._isPreviewHorizontalMove(dx, dy)) {
           this._gestureState = 'horizontal';
           this._hasMoved = true;
-          this._clearPreviewSingleTapTimer();
+          this._resetPreviewTapState();
           return;
         }
         if (!this._isPreviewVerticalDismissMove(dx, dy)) {
@@ -640,7 +677,7 @@ module.exports = Behavior({
       ) {
         this._gestureState = null;
         this._hasMoved = true;
-        this._clearPreviewSingleTapTimer();
+        this._resetPreviewTapState();
         this.setData({ previewTouchCapture: false });
         return;
       }
@@ -668,18 +705,9 @@ module.exports = Behavior({
         return;
       }
 
-      if (!this._hasMoved && totalMove < PREVIEW_DIR_LOCK_PX && dt < 250) {
-        const now = Date.now();
-        if (now - (this._lastTapTime || 0) < 300) {
-          this._onPreviewDoubleTap();
-          this._lastTapTime = 0;
-          return;
-        }
-        this._lastTapTime = now;
-        this._singleTapTimer = setTimeout(() => {
-          this._lastTapTime = 0;
-          this.exitPreview();
-        }, 300);
+      if (!this._hasMoved && totalMove < PREVIEW_DIR_LOCK_PX && dt < 300) {
+        this._handlePreviewTap(touch);
+        this._gestureState = null;
         return;
       }
 
@@ -714,10 +742,6 @@ module.exports = Behavior({
     },
 
     _onPreviewDoubleTap() {
-      if (this._singleTapTimer) {
-        clearTimeout(this._singleTapTimer);
-        this._singleTapTimer = null;
-      }
       this.handlePreviewLike();
     },
 

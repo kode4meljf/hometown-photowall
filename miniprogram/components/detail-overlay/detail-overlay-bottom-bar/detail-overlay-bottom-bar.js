@@ -5,6 +5,7 @@ Component({
     panelExitChrome: { type: Boolean, value: false },
     likesCountText: { type: String, value: '0' },
     commentsCountText: { type: String, value: '0' },
+    sharesCountText: { type: String, value: '0' },
     shareGenerating: { type: Boolean, value: false },
   },
 

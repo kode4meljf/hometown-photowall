@@ -67,6 +67,10 @@ const postApi = {
     return invokeCloud('posts', 'getShareQrCode', params);
   },
 
+  recordShare(postId) {
+    return invokeCloud('posts', 'recordShare', { postId });
+  },
+
   createPost(data) {
     return invokeCloud('posts', 'create', data);
   },
