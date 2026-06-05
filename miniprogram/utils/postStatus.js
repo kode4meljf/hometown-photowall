@@ -9,11 +9,6 @@ const POST_STATUS = {
 
 const POST_STATUS_LIST = Object.values(POST_STATUS);
 
-const USER_STATUS_HINT = {
-  [POST_STATUS.REVIEWING]: '作品审核中，通过后将展示在首页',
-  [POST_STATUS.REJECTED]: '未通过审核，请修改后重新提交。未通过作品保留 7 天，请尽快处理',
-};
-
 const EMPTY_WORKS_TEXT = {
   [POST_STATUS.REVIEWING]: '暂无审核中的作品',
   [POST_STATUS.REJECTED]: '暂无未通过的作品',
@@ -33,10 +28,6 @@ function isUserToggleableStatus(status) {
   return status === POST_STATUS.RELEASED || status === POST_STATUS.HIDDEN;
 }
 
-function getUserStatusHint(status) {
-  return USER_STATUS_HINT[status] || '';
-}
-
 function getEmptyWorksText(filter) {
   if (filter === POST_STATUS.REVIEWING) return EMPTY_WORKS_TEXT[POST_STATUS.REVIEWING];
   if (filter === POST_STATUS.REJECTED) return EMPTY_WORKS_TEXT[POST_STATUS.REJECTED];
@@ -47,10 +38,8 @@ function getEmptyWorksText(filter) {
 module.exports = {
   POST_STATUS,
   POST_STATUS_LIST,
-  USER_STATUS_HINT,
   POST_STATUS_USER_BADGE,
   isPublicStatus,
   isUserToggleableStatus,
-  getUserStatusHint,
   getEmptyWorksText,
 };

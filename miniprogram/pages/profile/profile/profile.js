@@ -2,7 +2,7 @@
 const { postApi } = require('../../../utils/api');
 const { showToast, showLoading, hideLoading, showSuccess, showContentAuditModal, isContentAuditFailure } = require('../../../utils/util');
 const { isLoggedIn, ensureSession } = require('../../../utils/session');
-const { POST_STATUS, getUserStatusHint, getEmptyWorksText, isUserToggleableStatus, POST_STATUS_USER_BADGE } = require('../../../utils/postStatus');
+const { POST_STATUS, getEmptyWorksText, isUserToggleableStatus, POST_STATUS_USER_BADGE } = require('../../../utils/postStatus');
 const { mapApiErrorMessage } = require('../../../utils/apiErrors');
 const app = getApp();
 
@@ -26,7 +26,6 @@ Page({
     hiddenCount: 0,
     showPhotoAction: false,
     currentPhotoStatus: POST_STATUS.RELEASED,
-    statusTipText: '',
     emptyWorksText: '暂无作品',
     showEditPostModal: false,
     editPostTitle: '',
@@ -532,19 +531,7 @@ Page({
     this.setData({
       showPhotoAction: true,
       currentPhotoStatus: status,
-      statusTipText: getUserStatusHint(status) || '',
     });
-  },
-
-  goToContentRules() {
-    wx.navigateTo({ url: '/pages/profile/settings/agreement/agreement' });
-  },
-
-  goResubmitPost() {
-    const id = this._postId;
-    if (!id) return;
-    this.hidePhotoAction();
-    wx.navigateTo({ url: `/pages/upload/upload?mode=resubmit&postId=${id}` });
   },
 
   hidePhotoAction() {

@@ -425,25 +425,6 @@
   color: #999;
 }
 
-.modal-status-tip {
-  padding: 28rpx 32rpx 8rpx;
-  text-align: center;
-}
-
-.modal-status-tip-text {
-  display: block;
-  font-size: 26rpx;
-  line-height: 1.5;
-  color: #666;
-}
-
-.modal-rules-link {
-  display: inline-block;
-  margin-top: 12rpx;
-  font-size: 26rpx;
-  color: #576b95;
-}
-
 .empty-state {
   display: flex;
   flex-direction: column;
