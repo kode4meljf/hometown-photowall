@@ -69,8 +69,8 @@
           </view>
         </view>
         <view
-          class="panel-photo-wrap photo-letterbox {{swiperShown ? 'swiper-show' : ''}} {{heroFadingOut ? 'swiper-crossfade' : ''}}"
-          style="opacity:{{swiperShown ? swiperRevealOpacity : 0}};"
+          class="panel-photo-wrap photo-letterbox {{swiperShown ? 'swiper-show' : ''}} {{heroFadingOut ? 'swiper-crossfade' : ''}} {{isPreviewMode ? 'panel-photo-wrap--previewing' : ''}}"
+          style="opacity:{{isPreviewMode ? 0 : (swiperShown ? swiperRevealOpacity : 0)}};"
         >
           <swiper
             wx:if="{{post}}"

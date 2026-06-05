@@ -273,6 +273,11 @@
   transition: opacity 120ms ease;
 }
 
+.panel-photo-wrap.panel-photo-wrap--previewing {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 
 .photo-swiper,
 .photo-swiper .photo-image {

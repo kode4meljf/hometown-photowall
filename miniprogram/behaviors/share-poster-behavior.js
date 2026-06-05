@@ -14,6 +14,8 @@ module.exports = Behavior({
 
   methods: {
     async generatePoster() {
+      if (typeof this._ensureLogin === 'function' && !this._ensureLogin()) return;
+
       const post = this.data.post;
       if (!post || this._posterGenerating) return;
 

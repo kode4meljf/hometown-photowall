@@ -119,7 +119,129 @@ module.exports = Behavior({
         this._singleTapTimer = null;
         this._previewTapCount = 0;
         this.exitPreview();
-      }, 280);
+      }, 220);
+    },
+
+    _computeFlipParamsFromRect(rectY, imgAR) {
+      if (!imgAR) imgAR = rectY.width / rectY.height;
+      const yLayout = this._aspectFitLayout(rectY.width, rectY.height, imgAR);
+      const yVisW = yLayout.visW;
+      const yVisH = yLayout.visH;
+      const yCenterX = rectY.left + yLayout.offsetX + yVisW / 2;
+      const yCenterY = rectY.top + yLayout.offsetY + yVisH / 2;
+
+      const screenW = this._windowWidth || wx.getSystemInfoSync().windowWidth;
+      const screenH = this._windowHeight || wx.getSystemInfoSync().windowHeight;
+      const qLayout = this._aspectFitLayout(screenW, screenH, imgAR);
+      const qVisW = qLayout.visW;
+      const qVisH = qLayout.visH;
+
+      const startSx = yVisW / qVisW;
+      const startSy = yVisH / qVisH;
+      const startTx = yCenterX - (qLayout.offsetX + qVisW / 2) * startSx;
+      const startTy = yCenterY - (qLayout.offsetY + qVisH / 2) * startSy;
+
+      return { startTx, startTy, startSx, startSy, rectY };
+    },
+
+    _queryDetailPhotoFlipTarget(callback) {
+      const index = this.data.currentPhotoIndex ?? 0;
+      let imgAR = this._previewPhotoAR(index);
+      wx.createSelectorQuery()
+        .in(this)
+        .selectAll('.photo-image')
+        .boundingClientRect((rects) => {
+          const rectY = (rects && rects[index]) || (rects && rects[0]);
+          if (!rectY || !rectY.width || !rectY.height) {
+            callback(null);
+            return;
+          }
+          if (!imgAR) imgAR = rectY.width / rectY.height;
+          callback(this._computeFlipParamsFromRect(rectY, imgAR));
+        })
+        .exec();
+    },
+
+    _finishPreviewExit() {
+      this.setData({
+        isPreviewMode: false,
+        previewAnimating: false,
+        previewAnimClass: '',
+        previewTransform: 'translate(0px, 0px) scale(1, 1)',
+        previewOpacity: 1,
+        previewBgBlack: false,
+        previewBgStyle: '',
+        previewDismissDragging: false,
+        previewTouchCapture: false,
+        previewProgressStyle: '',
+        previewProgressVisible: false,
+        indexBadgeVisible: false,
+      });
+      this._previewAnimating = false;
+      this._previewExiting = false;
+      this._currentTx = 0;
+      this._currentTy = 0;
+      this._currentScale = 1;
+      this._currentSy = 1;
+      this._rectY = null;
+      this._flipParams = null;
+      this._exitRequested = false;
+    },
+
+    _runPreviewExitFlip(targetFlip) {
+      const { startTx, startTy, startSx, startSy, rectY } = targetFlip;
+      const { tx: curTx, ty: curTy, sx: curSx, sy: curSy } = this._getTransformValues();
+
+      this._rectY = rectY;
+      this._flipParams = {
+        startTx,
+        startTy,
+        startSx,
+        startSy,
+        endTx: 0,
+        endTy: 0,
+        endSx: 1,
+        endSy: 1,
+      };
+
+      this.setData({
+        previewDismissDragging: false,
+        previewAnimClass: '',
+        previewTransform: `translate(${curTx.toFixed(2)}px, ${curTy.toFixed(2)}px) scale(${curSx.toFixed(4)}, ${curSy.toFixed(4)})`,
+        bottomBarVisible: false,
+        previewProgressVisible: false,
+        indexBadgeVisible: false,
+        previewBgBlack: true,
+        previewBgStyle: 'background:#121212;',
+      });
+
+      wx.nextTick(() => {
+        this._currentTx = startTx;
+        this._currentTy = startTy;
+        this._currentScale = startSx;
+        this._currentSy = startSy;
+        this.setData({
+          previewTransform: `translate(${startTx.toFixed(2)}px, ${startTy.toFixed(2)}px) scale(${startSx.toFixed(4)}, ${startSy.toFixed(4)})`,
+          previewAnimClass: 'animating-exit',
+          previewBgBlack: false,
+          previewBgStyle: 'background:rgba(18,18,18,0);',
+        });
+        setTimeout(() => this._finishPreviewExit(), PREVIEW_EXIT_MS);
+      });
+    },
+
+    _exitPreviewFadeFallback() {
+      this.setData({
+        previewDismissDragging: false,
+        bottomBarVisible: false,
+        previewProgressVisible: false,
+        indexBadgeVisible: false,
+        previewAnimClass: 'animating-exit',
+        previewBgBlack: false,
+        previewBgStyle: 'background:rgba(18,18,18,0);',
+        previewOpacity: 0,
+      });
+      setTimeout(() => this._finishPreviewExit(), PREVIEW_EXIT_MS);
     },
 
     _previewTouchDelta(touch) {
@@ -304,6 +426,7 @@ module.exports = Behavior({
     enterPreview() {
       if (!this.data.post) return;
       this._resetPreviewTapState();
+      this._previewExiting = false;
 
       let imgAR =
         this._imgNaturalW && this._imgNaturalH
@@ -342,28 +465,10 @@ module.exports = Behavior({
             return;
           }
 
-          if (!imgAR) imgAR = rectY.width / rectY.height;
-          this._rectY = rectY;
-
-          const yLayout = this._aspectFitLayout(rectY.width, rectY.height, imgAR);
-          const yVisW = yLayout.visW;
-          const yVisH = yLayout.visH;
-          const yCenterX = rectY.left + yLayout.offsetX + yVisW / 2;
-          const yCenterY = rectY.top + yLayout.offsetY + yVisH / 2;
-
-          const screenW = this._windowWidth || wx.getSystemInfoSync().windowWidth;
-          const screenH = this._windowHeight || wx.getSystemInfoSync().windowHeight;
-          const qLayout = this._aspectFitLayout(screenW, screenH, imgAR);
-          const qVisW = qLayout.visW;
-          const qVisH = qLayout.visH;
-          const qVisOffsetX = qLayout.offsetX;
-          const qVisOffsetY = qLayout.offsetY;
-
-          const startSx = yVisW / qVisW;
-          const startSy = yVisH / qVisH;
-          const startTx = yCenterX - (qVisOffsetX + qVisW / 2) * startSx;
-          const startTy = yCenterY - (qVisOffsetY + qVisH / 2) * startSy;
-
+          const flip = this._computeFlipParamsFromRect(rectY, imgAR);
+          if (!flip) return;
+          const { startTx, startTy, startSx, startSy, rectY: slotRect } = flip;
+          this._rectY = slotRect;
           this._flipParams = {
             startTx,
             startTy,
@@ -418,75 +523,25 @@ module.exports = Behavior({
     },
 
     exitPreview() {
+      if (!this.data.isPreviewMode || this._previewExiting) return;
       this._resetPreviewTapState();
-      const rectY = this._rectY;
-      const flipParams = this._flipParams;
-
-      if (!rectY || !flipParams) {
-        if (this._badgeTimer) clearTimeout(this._badgeTimer);
-        this.setData({
-          isPreviewMode: false,
-          previewAnimating: false,
-          previewBgBlack: false,
-          previewBgStyle: '',
-          previewDismissDragging: false,
-          previewTouchCapture: false,
-          previewProgressStyle: '',
-          previewProgressVisible: false,
-          indexBadgeVisible: false,
-        });
-        return;
-      }
-
+      this._previewExiting = true;
       this._previewAnimating = true;
       this._exitRequested = true;
+      if (this._badgeTimer) clearTimeout(this._badgeTimer);
 
-      const curTx = this._currentTx || 0;
-      const curTy = this._currentTy || 0;
-      const curSx = this._currentScale || 1;
-      const curSy = this._currentSy || curSx;
-      const { endTx, endTy, endSx, endSy } = flipParams;
-
-      this.setData({
-        previewAnimClass: '',
-        previewTransform: `translate(${curTx.toFixed(2)}px, ${curTy.toFixed(2)}px) scale(${curSx.toFixed(4)}, ${curSy.toFixed(4)})`,
-        bottomBarVisible: false,
-        previewProgressVisible: false,
-      });
-
-      wx.nextTick(() => {
-        this._currentTx = endTx;
-        this._currentTy = endTy;
-        this._currentScale = endSx;
-        this._currentSy = endSy;
-        this.setData({
-          previewTransform: `translate(${endTx.toFixed(2)}px, ${endTy.toFixed(2)}px) scale(${endSx.toFixed(4)}, ${endSy.toFixed(4)})`,
-          previewAnimClass: 'animating-exit',
-        });
-
-        setTimeout(() => {
-          this.setData({
-            previewTransform: `translate(${endTx.toFixed(2)}px, ${endTy.toFixed(2)}px) scale(${endSx.toFixed(4)}, ${endSy.toFixed(4)})`,
-            previewAnimClass: '',
-            isPreviewMode: false,
-            previewOpacity: 1,
-            previewBgBlack: false,
-            previewBgStyle: '',
-            previewDismissDragging: false,
-            previewTouchCapture: false,
-            previewProgressStyle: '',
-            previewProgressVisible: false,
-            indexBadgeVisible: false,
-          });
+      this._queryDetailPhotoFlipTarget((target) => {
+        if (!this.data.isPreviewMode) {
+          this._previewExiting = false;
           this._previewAnimating = false;
-          this._currentTx = 0;
-          this._currentTy = 0;
-          this._currentScale = 1;
-          this._currentSy = 1;
-          this._rectY = null;
-          this._flipParams = null;
           this._exitRequested = false;
-        }, PREVIEW_EXIT_MS);
+          return;
+        }
+        if (!target) {
+          this._exitPreviewFadeFallback();
+          return;
+        }
+        this._runPreviewExitFlip(target);
       });
     },
 

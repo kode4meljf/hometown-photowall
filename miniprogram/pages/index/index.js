@@ -2,7 +2,7 @@
 const { postApi } = require('../../utils/api');
 const { formatLikeCount } = require('../../utils/util');
 const { withFeedLikeFields, togglePostLike } = require('../../utils/postLike');
-const { isLoggedIn } = require('../../utils/session');
+const { isLoggedIn, requireLogin } = require('../../utils/session');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
 const { cardHandoffScaleAtProgress } = require('../../utils/heroController');
 const app = getApp();
@@ -640,6 +640,8 @@ Page({
 
   // 点赞（乐观更新：立即响应，后台同步）
   onLikeTap(e) {
+    if (!requireLogin()) return;
+
     const { id, index: indexStr, column } = e.currentTarget.dataset;
     const index = parseInt(indexStr, 10);
     const postsKey = column === 'left' ? 'leftPosts' : 'rightPosts';
