@@ -1,4 +1,6 @@
 // miniprogram/custom-tab-bar/index.js
+const { isLoggedIn } = require('../utils/session');
+
 Component({
   data: {
     selected: 0,
@@ -44,7 +46,7 @@ Component({
         }
 
         wx.navigateTo({
-          url: '/pages/upload/upload',
+          url: isLoggedIn() ? '/pages/upload/upload' : '/pages/upload/upload?needLogin=1',
           fail: (err) => {
             console.error('[tabbar] navigateTo upload failed:', err);
             wx.showToast({ title: '无法打开发布页', icon: 'none' });

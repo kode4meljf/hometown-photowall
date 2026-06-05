@@ -37,6 +37,29 @@ const hideLoading = () => {
   wx.hideLoading();
 };
 
+/** 标题/描述/图片等内容安全未通过 */
+const { mapApiErrorMessage } = require('./apiErrors');
+
+const showContentAuditModal = (content, code) => {
+  let title = '内容未通过审核';
+  if (code === 'image_block') title = '图片未通过审核';
+  else if (code === 'text_block') title = '文字未通过审核';
+  else if (code === 'post_rejected') title = '作品未通过审核';
+  wx.showModal({
+    title,
+    content: content || '请修改后重试',
+    showCancel: false,
+    confirmText: '我知道了',
+  });
+};
+
+const isContentAuditFailure = (res) => {
+  if (!res) return false;
+  if (res.code === 'image_block' || res.code === 'text_block') return true;
+  const msg = res.message || '';
+  return /不符合规范|内容安全|87014|risky content/i.test(msg);
+};
+
 const formatLikeCount = (num) => {
   if (!num || num < 0) return { text: '0', cls: '' };
   if (num >= 100000000) return { text: (num / 100000000).toFixed(1).replace(/\.0$/, '') + '亿', cls: 'huge' };
@@ -70,8 +93,11 @@ module.exports = {
   showSuccess,
   showLoading,
   hideLoading,
+  showContentAuditModal,
+  isContentAuditFailure,
   formatLikeCount,
   formatCountText,
   formatCompactNum,
   formatPostCountTexts,
+  mapApiErrorMessage,
 };

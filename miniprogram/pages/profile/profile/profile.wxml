@@ -95,16 +95,6 @@
         <text class="dropdown-label">全部作品</text>
         <view class="dropdown-count {{worksFilter === 'all' ? 'active' : ''}}">{{worksCount || 0}}</view>
       </view>
-      <view class="dropdown-item {{worksFilter === 'reviewing' ? 'active' : ''}}" bindtap="onWorksFilterChange" data-filter="reviewing">
-        <view class="dropdown-dot"></view>
-        <text class="dropdown-label">审核中</text>
-        <view class="dropdown-count {{worksFilter === 'reviewing' ? 'active' : ''}}">{{reviewingCount || 0}}</view>
-      </view>
-      <view class="dropdown-item {{worksFilter === 'rejected' ? 'active' : ''}}" bindtap="onWorksFilterChange" data-filter="rejected">
-        <view class="dropdown-dot"></view>
-        <text class="dropdown-label">未通过</text>
-        <view class="dropdown-count {{worksFilter === 'rejected' ? 'active' : ''}}">{{rejectedCount || 0}}</view>
-      </view>
       <view class="dropdown-item {{worksFilter === 'hidden' ? 'active' : ''}}" bindtap="onWorksFilterChange" data-filter="hidden">
         <view class="dropdown-dot"></view>
         <text class="dropdown-label">已隐藏</text>
@@ -132,8 +122,15 @@
             bindtap="goToDetail"
             data-id="{{item.id}}"
           >
-            <image class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
-            <view wx:if="{{item.status === POST_STATUS.REVIEWING || item.status === POST_STATUS.REJECTED}}" class="photo-status-badge photo-status-badge--{{item.status}}">
+            <image wx:if="{{item.imageUrl}}" class="photo-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+            <view wx:else class="photo-image photo-image-placeholder">
+              <image class="photo-placeholder-icon" src="/assets/icons/empty-photos.png" mode="aspectFit" />
+              <text class="photo-placeholder-text">请重新选图</text>
+            </view>
+            <view wx:if="{{item.status === POST_STATUS.REVIEWING}}" class="photo-reviewing-mask">
+              <text class="photo-reviewing-mask-text">审核中</text>
+            </view>
+            <view wx:elif="{{item.status === POST_STATUS.REJECTED}}" class="photo-status-badge photo-status-badge--rejected">
               {{postStatusUserBadge[item.status]}}
             </view>
             <view class="photo-overlay">

@@ -1,6 +1,6 @@
 // pages/edit-profile/edit-profile.js
 const { userApi, uploadImage } = require('../../../utils/api');
-const { showToast, showLoading, hideLoading } = require('../../../utils/util');
+const { showToast, showLoading, hideLoading, showContentAuditModal, isContentAuditFailure } = require('../../../utils/util');
 const { ensureSession } = require('../../../utils/session');
 const { ensurePrivacyAuthorized } = require('../../../utils/privacy');
 
@@ -81,15 +81,28 @@ Page({
 
   // 上传头像（选完即生效）
   async _uploadAvatar(filePath) {
-    showLoading('上传中...');
+    const prevAvatar = getApp().globalData.userInfo?.avatar || this.data.formData.avatar || '';
+    showLoading('上传并审核中...');
+    let fileID;
     try {
-      const fileID = await uploadImage(filePath, 'avatars');
+      fileID = await uploadImage(filePath, 'avatars');
       if (!fileID) {
         hideLoading();
         showToast('上传失败');
         return;
       }
-      await userApi.updateUserProfile({ avatar: fileID });
+      const res = await userApi.updateUserProfile({ avatar: fileID });
+      if (!res.success) {
+        await wx.cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+        hideLoading();
+        this.setData({ 'formData.avatar': prevAvatar });
+        if (isContentAuditFailure(res)) {
+          showContentAuditModal(res.message, res.code);
+        } else {
+          showToast(res.message || '头像保存失败');
+        }
+        return;
+      }
       const fresh = await userApi.getCurrentUser();
       if (fresh.success && fresh.data) {
         this.setData({ 'formData.avatar': fresh.data.avatar || fileID });
@@ -101,6 +114,10 @@ Page({
       getApp().globalData.profileNeedUserRefresh = true;
     } catch (e) {
       hideLoading();
+      if (fileID) {
+        await wx.cloud.deleteFile({ fileList: [fileID] }).catch(() => {});
+      }
+      this.setData({ 'formData.avatar': prevAvatar });
       showToast('头像保存失败');
       console.error('上传头像失败:', e);
     }
@@ -161,14 +178,13 @@ Page({
       return;
     }
 
-    showLoading('保存中...');
+    showLoading('保存并审核中...');
     try {
-      // avatar 已通过 _uploadAvatar 单独存库，此处只更新文字类内容
       const payload = {
         nickname: nickname.trim(),
         gender,
         region,
-        bio
+        bio: bio.trim(),
       };
       const res = await userApi.updateUserProfile(payload);
 
@@ -178,10 +194,11 @@ Page({
       if (res.success) {
         getApp().globalData.profileNeedUserRefresh = true;
         showToast('保存成功');
-        // 延迟返回，让用户看到提示
         setTimeout(() => {
           wx.navigateBack();
         }, 1200);
+      } else if (isContentAuditFailure(res)) {
+        showContentAuditModal(res.message, res.code);
       } else {
         showToast(res.message || '保存失败');
       }

@@ -1,0 +1,9 @@
+{
+  "name": "mediaCheckCallback",
+  "version": "1.0.0",
+  "description": "wxa_media_check 异步图片审核回调",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

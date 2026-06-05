@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上传页 · 发布中遮罩 · 5 种方案</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #e8e8e8;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  color: #1b1b1b;
+  padding: 32px 20px 60px;
+  -webkit-font-smoothing: antialiased;
+}
+.head { max-width: 1100px; margin: 0 auto 32px; }
+.head h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.head p { font-size: 13px; color: #666; line-height: 1.75; max-width: 720px; }
+.grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
+}
+.plan-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #576b95;
+  background: #eef2f8;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.plan-tag.rec { color: #07a84f; background: #e8f8ee; }
+.plan h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.plan .note { font-size: 12px; color: #888; line-height: 1.65; margin-bottom: 16px; min-height: 72px; }
+
+/* 手机框 + 上传页底图 */
+.phone {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 390 / 844;
+  margin: 0 auto;
+  border-radius: 32px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 16px 48px rgba(0,0,0,.16), inset 0 0 0 1px rgba(255,255,255,.5);
+  background: #fff;
+}
+.upload-bg {
+  position: absolute; inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+.nav {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+.preview {
+  margin: 12px 32px;
+  aspect-ratio: 4/3;
+  background: linear-gradient(135deg, #c9d6e3 0%, #8fa8bc 100%);
+  border-radius: 12px;
+  position: relative;
+  flex-shrink: 0;
+}
+.preview::after {
+  content: '封面预览';
+  position: absolute;
+  bottom: 8px; left: 8px;
+  font-size: 10px;
+  color: rgba(255,255,255,.85);
+  background: rgba(0,0,0,.25);
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+.thumbs {
+  display: flex;
+  gap: 8px;
+  padding: 0 24px 12px;
+  flex-shrink: 0;
+}
+.thumb {
+  width: 48px; height: 48px;
+  border-radius: 8px;
+  background: #ddd;
+}
+.thumb.on { outline: 2px solid #333; }
+.thumb.add {
+  border: 1px dashed #ccc;
+  display: flex; align-items: center; justify-content: center;
+  color: #999; font-size: 20px;
+}
+.form-area {
+  flex: 1;
+  padding: 0 24px;
+  opacity: .85;
+}
+.field {
+  height: 36px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.field.tall { height: 72px; }
+.tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.tag {
+  font-size: 11px;
+  padding: 6px 12px;
+  background: #f5f5f5;
+  border-radius: 16px;
+  color: #666;
+}
+.submit-bar {
+  padding: 12px 24px 28px;
+  flex-shrink: 0;
+}
+.submit-btn {
+  height: 44px;
+  border-radius: 22px;
+  background: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #666;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+
+/* 通用遮罩元素 */
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid #eee;
+  border-top-color: #333;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(1turn); } }
+.link {
+  font-size: 13px;
+  color: #576b95;
+  text-decoration: none;
+  cursor: pointer;
+}
+.link:active { opacity: .7; }
+.sub { font-size: 12px; color: #999; line-height: 1.5; }
+.progress-bar {
+  height: 4px;
+  background: #eee;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.progress-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #333, #666);
+  border-radius: 2px;
+}
+
+/* ===== 方案 A：轻透遮罩 + 居中白卡 ===== */
+.overlay-a {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.card-a {
+  width: 78%;
+  background: #fff;
+  border-radius: 20px;
+  padding: 28px 22px 22px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18);
+}
+.card-a .spinner { margin: 0 auto 16px; }
+.card-a h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.card-a .main { font-size: 14px; color: #333; margin-bottom: 4px; }
+.card-a .sub { margin-bottom: 20px; }
+.card-a .links { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+
+/* ===== 方案 B：毛玻璃 + 环形进度 ===== */
+.overlay-b {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-b {
+  text-align: center;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0,0,0,.35);
+}
+.ring-wrap {
+  width: 88px; height: 88px;
+  margin: 0 auto 18px;
+  position: relative;
+}
+.ring-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: rgba(255,255,255,.25); stroke-width: 5; }
+.ring-fg {
+  fill: none; stroke: #fff; stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 226; stroke-dashoffset: 94;
+}
+.ring-num {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700;
+}
+.card-b h3 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.card-b .sub { color: rgba(255,255,255,.88); margin-bottom: 24px; }
+.card-b .link { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ===== 方案 C：底部抽屉面板 ===== */
+.overlay-c {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.32);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.sheet-c {
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 12px 24px calc(24px + env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -8px 32px rgba(0,0,0,.12);
+}
+.sheet-handle {
+  width: 36px; height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.sheet-c .row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.sheet-c h3 { font-size: 16px; font-weight: 700; flex: 1; }
+.sheet-c .count { font-size: 14px; color: #576b95; font-weight: 600; }
+.sheet-c .sub { margin-bottom: 4px; }
+.sheet-c .hint {
+  font-size: 11px;
+  color: #bbb;
+  margin: 12px 0 16px;
+}
+.sheet-c .actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sheet-c .progress-bar i { width: 44%; }
+
+/* ===== 方案 D：顶部进度条 + 弱遮罩 ===== */
+.overlay-d {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.22);
+}
+.banner-d {
+  position: absolute;
+  top: 44px; left: 12px; right: 12px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.12);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.banner-d .spinner { width: 28px; height: 28px; flex-shrink: 0; margin-top: 2px; }
+.banner-d .text { flex: 1; }
+.banner-d h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.banner-d .main { font-size: 13px; color: #333; }
+.banner-d .sub { font-size: 11px; margin-top: 4px; }
+.banner-d .progress-bar { margin-top: 10px; }
+.banner-d .progress-bar i { width: 55%; }
+.float-d {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(0,0,0,.45);
+  padding: 10px 18px;
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+}
+
+/* ===== 方案 E：贴底卡片（遮罩只盖上半屏） ===== */
+.overlay-e-top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 58%;
+  background: rgba(0,0,0,.28);
+  pointer-events: none;
+}
+.overlay-e-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 0 16px 20px;
+}
+.card-e {
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.14);
+}
+.card-e .top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.card-e .icon {
+  width: 40px; height: 40px;
+  border-radius: 12px;
+  background: #f5f7fa;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.card-e h3 { font-size: 15px; font-weight: 700; }
+.card-e .main { font-size: 13px; color: #666; margin-top: 2px; }
+.card-e .progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 14px;
+}
+.card-e .progress-row span { font-size: 12px; color: #999; flex-shrink: 0; }
+.card-e .progress-bar { flex: 1; margin: 0; }
+.card-e .progress-bar i { width: 33%; background: #07c160; }
+.card-e .foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+.card-e .foot .sub { font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>上传页 · 发布中遮罩 · 5 种方案</h1>
+  <p>场景：用户点击「发布照片」后，图片上传 + 云函数入库期间。共同原则：显示进度、防重复提交、提供「先去个人中心」出口；入库成功后再刷新/跳转，不使用临时假卡片。以下为静态示意，文案可按状态切换。</p>
+</div>
+
+<div class="grid">
+
+  <!-- A -->
+  <div class="plan">
+    <span class="plan-tag rec">推荐 · 通用</span>
+    <h2>方案 A · 轻透遮罩 + 居中白卡</h2>
+    <p class="note">半透明黑底，内容区仍可隐约看见。居中卡片承载主副文案与出口，适合 1～9 张图、弱网多图。视觉最像标准「进行中」弹层，用户理解成本低。</p>
+    <div class="phone">
+      <div class="upload-bg">
+        <div class="nav">上传照片</div>
+        <div class="preview"></div>
+        <div class="thumbs">
+          <div class="thumb on"></div><div class="thumb"></div><div class="thumb"></div><div class="thumb add">+</div>
+        </div>
+        <div class="form-area">
+          <div class="field"></div><div class="field tall"></div>
+          <div class="tags"><span class="tag">老根茶</span><span class="tag">自定义</span></div>
+        </div>
+        <div class="submit-bar"><div class="submit-btn">发布中…</div></div>
+      </div>
+      <div class="overlay-a">
+        <div class="card-a">
+          <div class="spinner"></div>
+          <h3>正在发布</h3>
+          <p class="main">上传中 3 / 9</p>
+          <p class="sub">请保持网络畅通，完成后将进入个人中心</p>
+          <div class="progress-bar"><i style="width:33%"></i></div>
+          <div class="links" style="margin-top:20px">
+            <a class="link">先去个人中心看看</a>
+            <a class="link" style="color:#999;font-size:12px">后台继续上传，无需等待</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="plan">
+    <span class="plan-tag">视觉型</span>
+    <h2>方案 B · 毛玻璃 + 环形进度</h2>
+    <p class="note">背景大图仍可见，强调「上传进度百分比」。适合封面预览区较大的上传页。提示语偏鼓励、减少焦虑感；环形数字可替换为 3/9。</p>
+    <div class="phone">
+      <div class="upload-bg">
+        <div class="nav">上传照片</div>
+        <div class="preview"></div>
+        <div class="thumbs">
+          <div class="thumb on"></div><div class="thumb"></div><div class="thumb add">+</div>
+        </div>
+        <div class="form-area"><div class="field"></div><div class="field tall"></div></div>
+        <div class="submit-bar"><div class="submit-btn">发布中…</div></div>
+      </div>
+      <div class="overlay-b">
+        <div class="card-b">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 88 88"><circle class="ring-bg" cx="44" cy="44" r="36"/><circle class="ring-fg" cx="44" cy="44" r="36"/></svg>
+            <div class="ring-num">3/9</div>
+          </div>
+          <h3>照片上传中</h3>
+          <p class="sub">已完成 33%，请勿关闭小程序</p>
+          <a class="link">提交完成后通知我 → 先去个人中心</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="plan">
+    <span class="plan-tag rec">推荐 · 少遮挡</span>
+    <h2>方案 C · 底部抽屉进度面板</h2>
+    <p class="note">遮罩较浅，表单区域仍可读。进度与操作集中在底部 sheet，拇指易触达。适合希望「还能扫一眼标题/地点」的场景；多图时进度条比纯文字更清晰。</p>
+    <div class="phone">
+      <div class="upload-bg">
+        <div class="nav">上传照片</div>
+        <div class="preview"></div>
+        <div class="thumbs"><div class="thumb on"></div><div class="thumb"></div><div class="thumb add">+</div></div>
+        <div class="form-area"><div class="field"></div><div class="field tall"></div><div class="tags"><span class="tag">老根茶</span></div></div>
+        <div class="submit-bar"><div class="submit-btn">发布中…</div></div>
+      </div>
+      <div class="overlay-c">
+        <div class="sheet-c">
+          <div class="sheet-handle"></div>
+          <div class="row">
+            <div class="spinner" style="width:32px;height:32px;border-width:2px"></div>
+            <h3>发布并审核中</h3>
+            <span class="count">4 / 9</span>
+          </div>
+          <p class="sub">正在上传第 4 张，随后提交至服务器审核</p>
+          <div class="progress-bar"><i></i></div>
+          <p class="hint">预计还需约 15 秒 · 可切换页面，提交不会中断</p>
+          <div class="actions">
+            <a class="link">先去个人中心看看</a>
+            <span class="sub">发布按钮已锁定</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- D -->
+  <div class="plan">
+    <span class="plan-tag">轻量</span>
+    <h2>方案 D · 顶部横幅 + 弱遮罩</h2>
+    <p class="note">几乎不挡预览与缩略图，只在顶部挂进度条卡片 + 底部浮动文字链。适合单图或 2～3 张快速发布；多图时可自动切换为方案 A/C 的强提示。</p>
+    <div class="phone">
+      <div class="upload-bg">
+        <div class="nav">上传照片</div>
+        <div class="preview"></div>
+        <div class="thumbs"><div class="thumb on"></div><div class="thumb add">+</div></div>
+        <div class="form-area"><div class="field"></div><div class="field tall"></div></div>
+        <div class="submit-bar"><div class="submit-btn">发布中…</div></div>
+      </div>
+      <div class="overlay-d">
+        <div class="banner-d">
+          <div class="spinner"></div>
+          <div class="text">
+            <h3>发布中</h3>
+            <p class="main">正在提交作品至审核队列…</p>
+            <p class="sub">图片已全部上传，请稍候</p>
+            <div class="progress-bar"><i></i></div>
+          </div>
+        </div>
+        <div class="float-d">可先离开 · <u style="cursor:pointer">去个人中心</u></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- E -->
+  <div class="plan">
+    <span class="plan-tag">折中</span>
+    <h2>方案 E · 半屏遮罩 + 贴底卡片</h2>
+    <p class="note">只暗化上半屏（预览+缩略图），下半表单仍明亮可操作浏览。进度卡片紧贴原发布按钮位置，空间连续感好。提示可区分「上传阶段 / 提交阶段」两态文案。</p>
+    <div class="phone">
+      <div class="upload-bg">
+        <div class="nav">上传照片</div>
+        <div class="preview"></div>
+        <div class="thumbs"><div class="thumb on"></div><div class="thumb"></div><div class="thumb"></div><div class="thumb add">+</div></div>
+        <div class="form-area"><div class="field"></div><div class="field tall"></div><div class="tags"><span class="tag">你在哪里</span></div></div>
+        <div class="submit-bar"><div class="submit-btn">发布中…</div></div>
+      </div>
+      <div class="overlay-e-top"></div>
+      <div class="overlay-e-bottom">
+        <div class="card-e">
+          <div class="top">
+            <div class="icon">↑</div>
+            <div>
+              <h3>上传中，请稍候</h3>
+              <p class="main">第 2 张 / 共 6 张</p>
+            </div>
+          </div>
+          <div class="progress-row">
+            <div class="progress-bar"><i></i></div>
+            <span>33%</span>
+          </div>
+          <div class="foot">
+            <span class="sub">完成后自动保存为「审核中」</span>
+            <a class="link">先去个人中心</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

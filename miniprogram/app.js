@@ -8,6 +8,7 @@ App({
     homeNeedRefresh: false,
     profileNeedRefresh: false,
     profileNeedUserRefresh: false,
+    publishFeedback: null,
   },
 
   onLaunch() {

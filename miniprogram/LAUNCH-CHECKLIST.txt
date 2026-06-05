@@ -20,9 +20,13 @@
    - 后台 adminApi 人工审核与举报处理
 
 3. 云开发
-   - 创建数据库集合：users、posts、post_comments、feedbacks
-   - 部署云函数：auth、posts、feedback、stats、signin、adminApi
+   - 创建数据库集合：users、posts、post_comments、feedbacks、media_audit_tasks
+   - 部署云函数：auth、posts、feedback、stats、signin、adminApi、mediaCheckCallback
      （均需「上传并部署：云端安装依赖」，确认各函数内 common/ 子目录已上传）
+   - posts 云函数超时：云开发 → 云函数 → posts → 版本与配置 → 配置
+     超时时间建议 60 秒、内存 512MB（默认 3 秒会导致大图压缩审核超时）
+   - 云开发 → 设置 → 其他设置 → 消息推送：模式选「云函数」
+     消息类型 event，事件类型 wxa_media_check，目标函数 mediaCheckCallback
    - adminApi 生产环境变量：
      ADMIN_TOKEN_SECRET（必填）
      ADMIN_CORS_ORIGINS（Web 管理后台域名，逗号分隔）

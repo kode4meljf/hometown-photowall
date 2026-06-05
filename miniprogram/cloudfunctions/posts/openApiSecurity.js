@@ -1,6 +1,13 @@
 /**
- * 微信内容安全：文本 msgSecCheck 2.0、图片 imgSecCheck（同步）/ mediaCheckAsync（大图异步）
+ * 微信内容安全：文本 msgSecCheck 2.0、图片 imgSecCheck（同步）/ mediaCheckAsync（大图异步兜底）
+ * 大图：压缩副本后 ≤1MB 走同步 imgSecCheck，仍 >1MB 直接 mediaCheckAsync（不调同步）；展示用原图
  */
+let Jimp;
+try {
+  Jimp = require('jimp');
+} catch (e) {
+  console.error('[contentSecurity] jimp load failed, large images use async only:', e.message);
+}
 const SCENE = {
   PROFILE: 1,
   COMMENT: 2,
@@ -31,7 +38,7 @@ function normalizeOpenApiRes(res) {
   return { ...res, errcode, errmsg };
 }
 
-function mapSecApiError(errOrRes) {
+function mapSecApiError(errOrRes, { image = false } = {}) {
   const norm = normalizeOpenApiRes(errOrRes);
   const code = getApiErrCode(errOrRes) ?? norm?.errcode;
   if (code === 61010 || code === 40003) return OPENID_MSG;
@@ -39,10 +46,28 @@ function mapSecApiError(errOrRes) {
     return '云函数未授权内容安全 API，请上传 posts/config.json 后重部署';
   }
   if (code === -601018) return '云环境未授权 openapi，请检查云开发环境与 config.json';
-  if (code === 87014) return BLOCK_MSG;
+  if (code === 87014) return image ? IMAGE_BLOCK_MSG : BLOCK_MSG;
   if (code === 44991) return '内容安全调用过于频繁，请稍后再试';
   if (code === 45009) return '内容安全今日配额已用完';
   return SERVICE_MSG;
+}
+
+/** openapi 抛错时转为用户可读文案（避免 errCode/rid 泄露到前端） */
+function formatOpenApiException(err, { image = false } = {}) {
+  const code = getApiErrCode(err);
+  if (code != null) {
+    return mapSecApiError(err, { image });
+  }
+  const msg = err && err.message ? String(err.message) : '';
+  if (/87014|risky content/i.test(msg)) {
+    return image ? IMAGE_BLOCK_MSG : BLOCK_MSG;
+  }
+  if (/61010|40003|invalid openid/i.test(msg)) return OPENID_MSG;
+  return image ? IMAGE_BLOCK_MSG : SERVICE_MSG;
+}
+
+function blockCode(image = false) {
+  return image ? 'image_block' : 'text_block';
 }
 
 function parseMsgSecCheckResult(res) {
@@ -51,7 +76,7 @@ function parseMsgSecCheckResult(res) {
   if (r.errcode === 0) {
     const suggest = r.result && r.result.suggest;
     if (isRiskySuggest(suggest)) {
-      return { ok: false, message: BLOCK_MSG };
+      return { ok: false, message: BLOCK_MSG, code: blockCode(false) };
     }
     return { ok: true };
   }
@@ -86,8 +111,8 @@ async function checkText(cloud, openId, { content, scene, title, nickname }) {
     return parseMsgSecCheckResult(res);
   } catch (e) {
     console.error('[contentSecurity] msgSecCheck exception:', e);
-    const message = mapSecApiError(e);
-    return { ok: false, message, errcode: getApiErrCode(e) };
+    const message = formatOpenApiException(e, { image: false });
+    return { ok: false, message, code: blockCode(false), errcode: getApiErrCode(e) };
   }
 }
 
@@ -107,6 +132,51 @@ function guessContentType(fileId) {
   return 'image/jpeg';
 }
 
+/**
+ * 大图压缩副本（仅用于审核）。尽量 1～2 次编码，避免云函数超时。
+ * 返回 buffer；调用方：≤1MB 同步审，>1MB 直接 mediaCheckAsync。
+ */
+async function compressBufferForSecCheck(buffer, maxBytes = IMG_MAX_SYNC) {
+  if (!Jimp) return null;
+  try {
+    const image = await Jimp.read(buffer);
+    image.scaleToFit(1280, 1280);
+
+    const first = await image.quality(65).getBufferAsync(Jimp.MIME_JPEG);
+    if (first.length <= maxBytes) return first;
+
+    const second = await image.clone().scale(0.65).quality(50).getBufferAsync(Jimp.MIME_JPEG);
+    return second;
+  } catch (e) {
+    console.error('[contentSecurity] compress for sec check failed:', e.message);
+    return null;
+  }
+}
+
+async function runImgSecCheck(cloud, buffer, contentType) {
+  try {
+    const res = normalizeOpenApiRes(await cloud.openapi.security.imgSecCheck({
+      media: {
+        contentType: contentType || 'image/jpeg',
+        value: buffer,
+      },
+    }));
+    if (res.errcode === 0) return { ok: true };
+    if (res.errcode === 87014) {
+      return { ok: false, message: IMAGE_BLOCK_MSG, code: blockCode(true) };
+    }
+    console.error('[contentSecurity] imgSecCheck error:', res.errcode, res.errmsg);
+    return { ok: false, message: mapSecApiError(res, { image: true }) };
+  } catch (e) {
+    console.error('[contentSecurity] imgSecCheck exception:', e);
+    return {
+      ok: false,
+      message: formatOpenApiException(e, { image: true }),
+      code: blockCode(true),
+    };
+  }
+}
+
 async function checkImageSync(cloud, fileId) {
   try {
     const dl = await cloud.downloadFile({ fileID: fileId });
@@ -114,28 +184,29 @@ async function checkImageSync(cloud, fileId) {
     if (!buffer || !buffer.length) {
       return { ok: false, message: '图片读取失败，请重试' };
     }
-    if (buffer.length > IMG_MAX_SYNC) {
-      return { ok: true, needsAsync: true, fileId };
+
+    if (buffer.length <= IMG_MAX_SYNC) {
+      return runImgSecCheck(cloud, buffer, guessContentType(fileId));
     }
 
-    const res = normalizeOpenApiRes(await cloud.openapi.security.imgSecCheck({
-      media: {
-        contentType: guessContentType(fileId),
-        value: buffer,
-      },
-    }));
-    if (res.errcode === 0) return { ok: true };
-    if (res.errcode === 87014) {
-      return { ok: false, message: IMAGE_BLOCK_MSG };
+    const compressed = await compressBufferForSecCheck(buffer);
+    if (!compressed) {
+      console.warn('[contentSecurity] compress failed, fallback mediaCheckAsync:', fileId);
+      return { ok: true, needsAsync: true, fileId };
     }
-    console.error('[contentSecurity] imgSecCheck error:', res.errcode, res.errmsg);
-    return { ok: false, message: mapSecApiError(res) };
+    if (compressed.length <= IMG_MAX_SYNC) {
+      return runImgSecCheck(cloud, compressed, 'image/jpeg');
+    }
+
+    console.warn('[contentSecurity] compressed still >1MB, skip sync, mediaCheckAsync:', fileId);
+    return { ok: true, needsAsync: true, fileId };
   } catch (e) {
     console.error('[contentSecurity] imgSecCheck exception:', e);
-    if (getApiErrCode(e) === 87014) {
-      return { ok: false, message: IMAGE_BLOCK_MSG };
-    }
-    return { ok: false, message: SERVICE_MSG };
+    return {
+      ok: false,
+      message: formatOpenApiException(e, { image: true }),
+      code: blockCode(true),
+    };
   }
 }
 
@@ -167,9 +238,10 @@ async function submitImageAsyncCheck(cloud, openId, fileId, scene) {
   }
 }
 
-/** 逐张检测；超过 1MB 的图片走异步审核，帖子需暂隐藏 */
+/** 逐张检测；大图优先压缩后同步审，压缩失败才走异步审核 */
 async function checkImages(cloud, openId, fileIds, scene = SCENE.SOCIAL) {
   const traces = [];
+  const mediaTraceEntries = [];
   let needsReview = false;
 
   for (const fileId of fileIds) {
@@ -180,12 +252,15 @@ async function checkImages(cloud, openId, fileIds, scene = SCENE.SOCIAL) {
     if (syncResult.needsAsync) {
       const asyncResult = await submitImageAsyncCheck(cloud, openId, fileId, scene);
       if (!asyncResult.ok) return asyncResult;
-      if (asyncResult.traceId) traces.push(asyncResult.traceId);
+      if (asyncResult.traceId) {
+        traces.push(asyncResult.traceId);
+        mediaTraceEntries.push({ traceId: asyncResult.traceId, fileId });
+      }
       needsReview = true;
     }
   }
 
-  return { ok: true, needsReview, mediaTraceIds: traces };
+  return { ok: true, needsReview, mediaTraceIds: traces, mediaTraceEntries };
 }
 
 module.exports = {
@@ -193,4 +268,7 @@ module.exports = {
   checkText,
   checkTexts,
   checkImages,
+  formatOpenApiException,
+  IMAGE_BLOCK_MSG,
+  BLOCK_MSG,
 };

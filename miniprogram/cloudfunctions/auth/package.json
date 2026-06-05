@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "jimp": "^0.22.12",
     "wx-server-sdk": "~2.6.3"
   }
 }

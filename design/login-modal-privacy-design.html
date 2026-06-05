@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录弹窗 · 隐私合规设计方案</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #e8e8e8;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  color: #1b1b1b;
+  padding: 32px 20px 60px;
+  -webkit-font-smoothing: antialiased;
+}
+.head { max-width: 900px; margin: 0 auto 32px; }
+.head h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.head p { font-size: 13px; color: #666; line-height: 1.7; }
+.grid {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
+}
+.plan { }
+.plan-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #07a84f;
+  background: #e8f8ee;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.plan h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.plan .note { font-size: 12px; color: #888; line-height: 1.6; margin-bottom: 16px; min-height: 56px; }
+
+.phone {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 390 / 844;
+  margin: 0 auto;
+  border-radius: 32px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 16px 48px rgba(0,0,0,.16), inset 0 0 0 1px rgba(255,255,255,.5);
+  background: #f8f8f8;
+}
+.bg-page {
+  position: absolute; inset: 0;
+  background: #f8f8f8;
+}
+.bg-header {
+  height: 88px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+.bg-cards {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.bg-card {
+  background: #fff;
+  border-radius: 12px;
+  height: 120px;
+  opacity: .7;
+}
+.bg-card.tall { height: 160px; }
+.dim {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(6px);
+}
+
+/* 弹窗卡片 - 与现有 login-modal 一致 */
+.modal {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 86%;
+  max-width: 280px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 28px 22px 20px;
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,.22);
+}
+.icon-wrap {
+  width: 56px; height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #e8f8ee, #d4f0e0);
+  display: flex; align-items: center; justify-content: center;
+}
+.icon-inner {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: #07c160;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 18px; font-weight: 700;
+}
+.title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.desc { font-size: 13px; color: #888; line-height: 1.55; margin-bottom: 20px; }
+
+/* 方案 A：轻量协议条 */
+.privacy-lite {
+  font-size: 11px;
+  color: #999;
+  line-height: 1.65;
+  margin-bottom: 16px;
+  text-align: center;
+  padding: 0 4px;
+}
+.privacy-lite a {
+  color: #1b1b1b;
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid #ccc;
+}
+
+/* 方案 B：完整说明 */
+.privacy-full {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.7;
+  margin-bottom: 16px;
+  text-align: left;
+  padding: 12px;
+  background: #f8f8f8;
+  border-radius: 12px;
+  max-height: 120px;
+  overflow: hidden;
+}
+.privacy-full a {
+  color: #1b1b1b;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* 方案 C：勾选 */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+  padding: 0 2px;
+}
+.checkbox {
+  width: 16px; height: 16px;
+  border: 1.5px solid #ccc;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: #fff;
+}
+.checkbox.checked {
+  background: #1b1b1b;
+  border-color: #1b1b1b;
+}
+.check-text {
+  font-size: 11px;
+  color: #999;
+  line-height: 1.6;
+}
+.check-text a { color: #1b1b1b; font-weight: 500; text-decoration: none; border-bottom: 1px solid #ccc; }
+
+.btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  background: #1b1b1b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.btn-dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #07c160;
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn.disabled {
+  background: #d0d0d0;
+  color: #fff;
+}
+.cancel {
+  margin-top: 14px;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.compare {
+  max-width: 900px;
+  margin: 40px auto 0;
+  padding: 20px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+}
+.compare h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.compare table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.compare th, .compare td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+.compare th { color: #888; font-weight: 500; }
+.compare td:first-child { font-weight: 600; }
+.star { color: #07a84f; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>登录弹窗 · 隐私合规设计</h1>
+  <p>在现有居中卡片弹窗基础上增加协议说明。推荐方案 A：改动最小、视觉不臃肿，合规足够。协议链接跳转至已有的「用户协议」「隐私政策」页面。</p>
+</div>
+
+<div class="grid">
+
+  <!-- 方案 A -->
+  <div class="plan">
+    <span class="plan-tag">推荐</span>
+    <h2>方案 A · 轻量协议条</h2>
+    <p class="note">按钮上方一行说明 + 可点链接。主按钮改为「同意并登录」。与现有风格最一致，信息密度低。</p>
+    <div class="phone">
+      <div class="bg-page">
+        <div class="bg-header"></div>
+        <div class="bg-cards">
+          <div class="bg-card tall"></div>
+          <div class="bg-card"></div>
+          <div class="bg-card"></div>
+          <div class="bg-card tall"></div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="modal">
+        <div class="icon-wrap"><div class="icon-inner">微</div></div>
+        <div class="title">登录</div>
+        <div class="desc">登录后即可点赞、评论，记录你与家乡的故事</div>
+        <div class="privacy-lite">
+          登录即表示您已阅读并同意<br>
+          <a href="#">《用户协议》</a> 和 <a href="#">《隐私政策》</a>
+        </div>
+        <div class="btn">
+          <span class="btn-dot">微</span>
+          同意并登录
+        </div>
+        <div class="cancel">继续浏览</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 B -->
+  <div class="plan">
+    <h2>方案 B · 完整说明（对标截图）</h2>
+    <p class="note">大段告知文案 + 灰色背景区块，更像截图里的样式。合规感强，但弹窗偏高，略挤。</p>
+    <div class="phone">
+      <div class="bg-page">
+        <div class="bg-header"></div>
+        <div class="bg-cards">
+          <div class="bg-card tall"></div>
+          <div class="bg-card"></div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="modal" style="padding-top:22px;">
+        <div class="title" style="margin-bottom:12px;">用户隐私保护提示</div>
+        <div class="privacy-full">
+          感谢您使用故乡照片墙。我们重视您的个人信息安全与隐私保护。根据相关法律法规，请您在使用前阅读并同意
+          <a href="#">《用户协议》</a>、<a href="#">《隐私政策》</a>
+          及微信<a href="#">《用户隐私保护指引》</a>，以便我们为您提供服务。
+        </div>
+        <div class="btn">同意并登录</div>
+        <div class="cancel">暂不登录</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 C -->
+  <div class="plan">
+    <h2>方案 C · 勾选后登录</h2>
+    <p class="note">需先勾选同意，按钮才可点。主动同意感最强，但多一步操作，转化略低。</p>
+    <div class="phone">
+      <div class="bg-page">
+        <div class="bg-header"></div>
+        <div class="bg-cards">
+          <div class="bg-card"></div>
+          <div class="bg-card tall"></div>
+        </div>
+      </div>
+      <div class="dim"></div>
+      <div class="modal">
+        <div class="icon-wrap"><div class="icon-inner">微</div></div>
+        <div class="title">登录</div>
+        <div class="desc">登录后即可使用完整功能</div>
+        <div class="check-row">
+          <div class="checkbox checked">✓</div>
+          <div class="check-text">
+            我已阅读并同意 <a href="#">《用户协议》</a> 和 <a href="#">《隐私政策》</a>
+          </div>
+        </div>
+        <div class="btn">
+          <span class="btn-dot">微</span>
+          微信授权登录
+        </div>
+        <div class="cancel">继续浏览</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="compare">
+  <h3>方案对比</h3>
+  <table>
+    <tr>
+      <th>维度</th>
+      <th>方案 A 轻量</th>
+      <th>方案 B 完整</th>
+      <th>方案 C 勾选</th>
+    </tr>
+    <tr>
+      <td>合规性</td>
+      <td>足够</td>
+      <td>最强</td>
+      <td>最强</td>
+    </tr>
+    <tr>
+      <td>与现有 UI 一致</td>
+      <td class="star">最好</td>
+      <td>一般</td>
+      <td>较好</td>
+    </tr>
+    <tr>
+      <td>操作步骤</td>
+      <td>1 步</td>
+      <td>1 步</td>
+      <td>2 步（先勾选）</td>
+    </tr>
+    <tr>
+      <td>弹窗高度</td>
+      <td>低</td>
+      <td>高</td>
+      <td>中</td>
+    </tr>
+    <tr>
+      <td>推荐场景</td>
+      <td class="star">故乡照片墙（推荐）</td>
+      <td>强监管/政务类</td>
+      <td>金融/支付类</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>

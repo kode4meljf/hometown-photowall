@@ -11,7 +11,7 @@ const POST_STATUS_LIST = Object.values(POST_STATUS);
 
 const USER_STATUS_HINT = {
   [POST_STATUS.REVIEWING]: '作品审核中，通过后将展示在首页',
-  [POST_STATUS.REJECTED]: '未通过审核，请修改后重新提交',
+  [POST_STATUS.REJECTED]: '未通过审核，请修改后重新提交。未通过作品保留 7 天，请尽快处理',
 };
 
 const EMPTY_WORKS_TEXT = {

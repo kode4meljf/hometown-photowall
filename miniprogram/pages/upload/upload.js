@@ -1,13 +1,19 @@
 // pages/upload/upload.js
 const { postApi, uploadImage } = require('../../utils/api');
-const { showToast, showLoading, hideLoading, showSuccess } = require('../../utils/util');
+const { showToast, showLoading, hideLoading, showSuccess, showContentAuditModal, isContentAuditFailure } = require('../../utils/util');
+const { mapApiErrorMessage } = require('../../utils/apiErrors');
 const { chooseMedia } = require('../../utils/mediaPicker');
+const { isLoggedIn, requireLogin } = require('../../utils/session');
 
 const MAX_PHOTOS = 9;
+const REJECTED_TIP = '未通过作品保留 7 天，请尽快处理，超时系统自动清除';
 
 Page({
   data: {
     isResubmit: false,
+    isRejectedMode: false,
+    imageReady: false,
+    rejectedTip: REJECTED_TIP,
     submitBtnText: '发布照片',
     imageList: [],
     imageSources: [],
@@ -24,8 +30,149 @@ Page({
     customLocation: '',
 
     submitting: false,
+    publishOverlayVisible: false,
+    publishOverlayTitle: '发布并审核中…',
+    publishOverlayStatus: '',
+    loginModalShow: false,
     highlightTitle: false,
     focusTitle: false,
+  },
+
+  _showLoginModal() {
+    this.setData({ loginModalShow: true });
+  },
+
+  _ensureLoggedIn() {
+    return requireLogin({
+      toast: false,
+      onUnauthenticated: () => this._showLoginModal(),
+    });
+  },
+
+  _isAuthRequiredError(err) {
+    const msg = err && err.message ? String(err.message) : String(err || '');
+    return /请先登录|未登录|login/i.test(msg);
+  },
+
+  _isAuthRequiredResponse(res) {
+    if (!res) return false;
+    const msg = res.message ? String(res.message) : '';
+    return /请先登录|未登录/i.test(msg);
+  },
+
+  onLoginModalClose() {
+    this.setData({ loginModalShow: false });
+  },
+
+  onLoginSuccess() {
+    this.setData({ loginModalShow: false });
+  },
+
+  preventTouchMove() {},
+
+  _startPublishOverlay() {
+    this._leftDuringSubmit = false;
+    this.setData({
+      submitting: true,
+      publishOverlayVisible: true,
+      publishOverlayTitle: '发布并审核中…',
+      publishOverlayStatus: '',
+    });
+  },
+
+  _finishPublishOverlay() {
+    this.setData({
+      submitting: false,
+      publishOverlayVisible: false,
+      publishOverlayStatus: '',
+    });
+  },
+
+  _setPublishOverlayAudit() {
+    this.setData({ publishOverlayStatus: '审核中...' });
+  },
+
+  goProfileWhileSubmitting() {
+    if (!this.data.submitting) return;
+    this._leftDuringSubmit = true;
+    wx.switchTab({ url: '/pages/profile/profile/profile' });
+  },
+
+  _refreshProfileIfVisible() {
+    const app = getApp();
+    app.globalData.profileNeedRefresh = true;
+    const pages = getCurrentPages();
+    const cur = pages[pages.length - 1];
+    if (
+      cur
+      && cur.route
+      && cur.route.indexOf('profile/profile/profile') !== -1
+      && typeof cur.loadData === 'function'
+    ) {
+      app.globalData.profileNeedRefresh = false;
+      cur.loadData();
+    }
+  },
+
+  _isOnUploadPage() {
+    const pages = getCurrentPages();
+    const cur = pages[pages.length - 1];
+    return !!(cur && cur.route && cur.route.indexOf('upload/upload') !== -1);
+  },
+
+  _handlePublishResult(res, newUploadedIds) {
+    const app = getApp();
+    const MSG_AUDIT_PENDING = '作品审核中，通过后将展示在首页';
+    const stayedOnUpload = !this._leftDuringSubmit && this._isOnUploadPage();
+
+    if (!res.success && this._isAuthRequiredResponse(res)) {
+      if (stayedOnUpload) this._showLoginModal();
+      return;
+    }
+
+    if (res.success) {
+      app.globalData.profileNeedRefresh = true;
+      const status = res.data && res.data.status;
+      const msg = status === 'reviewing'
+        ? (res.message || MSG_AUDIT_PENDING)
+        : (res.message || '发布成功');
+
+      if (status === 'released') {
+        app.globalData.homeNeedRefresh = true;
+      }
+
+      if (stayedOnUpload) {
+        showSuccess(msg);
+        if (status === 'reviewing') {
+          wx.switchTab({ url: '/pages/profile/profile/profile' });
+        } else {
+          wx.switchTab({ url: '/pages/index/index' });
+        }
+      } else {
+        showToast(msg);
+        this._refreshProfileIfVisible();
+      }
+      return;
+    }
+
+    if (res.data && res.data.id && res.data.status === 'rejected') {
+      if (stayedOnUpload) {
+        this._enterRejectedMode(res.data.id, mapApiErrorMessage(res), res.code);
+      } else {
+        showToast(mapApiErrorMessage(res));
+      }
+      return;
+    }
+
+    this._cleanupCloudFiles(newUploadedIds);
+    const errMsg = isContentAuditFailure(res)
+      ? mapApiErrorMessage(res)
+      : mapApiErrorMessage(res);
+    if (stayedOnUpload && isContentAuditFailure(res)) {
+      showContentAuditModal(errMsg, res.code);
+    } else {
+      showToast(errMsg || '提交失败，请稍后重试');
+    }
   },
 
   onLoad(options) {
@@ -34,11 +181,20 @@ Page({
     if (mode === 'resubmit' && postId) {
       this._resubmitPostId = postId;
       this._originalCloudFileIds = [];
-      this.setData({ isResubmit: true, submitBtnText: '重新提交' });
+      this.setData({
+        isResubmit: true,
+        isRejectedMode: true,
+        imageReady: false,
+        submitBtnText: '再次发布',
+        rejectedTip: REJECTED_TIP,
+      });
       wx.setNavigationBarTitle({ title: '重新提交' });
       this.loadResubmitPost(postId);
     }
     this.loadLocations();
+    if (!isLoggedIn() && (options.needLogin === '1' || options.needLogin === true)) {
+      this._showLoginModal();
+    }
   },
 
   async loadResubmitPost(postId) {
@@ -51,32 +207,38 @@ Page({
         setTimeout(() => wx.navigateBack(), 1500);
         return;
       }
-      if (res.data.status !== 'rejected') {
+      if (res.data.status !== 'rejected' && res.data.status !== 'failed') {
         showToast('当前作品不可重新提交');
         setTimeout(() => wx.navigateBack(), 1500);
         return;
       }
 
+      const imageRemoved = !!res.data.imageRemoved;
       const photos = (res.data.photos || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-      if (!photos.length && res.data.imageUrl) {
-        photos.push({ imageUrl: res.data.imageUrl, width: 1, height: 1, order: 0 });
+      let imageList = [];
+      if (!imageRemoved) {
+        imageList = photos.map((p) => p.imageUrl).filter(Boolean);
+        if (!imageList.length && res.data.imageUrl) {
+          imageList.push(res.data.imageUrl);
+        }
       }
-      const imageList = photos.map((p) => p.imageUrl).filter(Boolean);
       this._originalCloudFileIds = imageList.slice();
 
       this.setData({
         imageList,
-        imageSources: imageList.map(() => 'cloud'),
-        imageInfoList: photos.map((p) => ({
-          width: p.width || 1,
-          height: p.height || 1,
-        })),
+        imageSources: imageList.map(() => (imageRemoved ? 'placeholder' : 'cloud')),
+        imageInfoList: photos.length
+          ? photos.map((p) => ({ width: p.width || 1, height: p.height || 1 }))
+          : [{ width: 1, height: 1 }],
         form: {
           title: res.data.title || '',
           description: res.data.description || '',
           location: res.data.location || '',
         },
         currentIndex: 0,
+        imageReady: false,
+        isRejectedMode: true,
+        rejectedTip: REJECTED_TIP,
       }, () => this.checkOverflow());
     } catch (e) {
       hideLoading();
@@ -97,6 +259,7 @@ Page({
   },
 
   chooseImage() {
+    if (this.data.submitting) return;
     const remain = MAX_PHOTOS - this.data.imageList.length;
     if (remain <= 0) {
       showToast(`最多 ${MAX_PHOTOS} 张图片`);
@@ -127,6 +290,7 @@ Page({
               imageSources: [...this.data.imageSources, ...newPaths.map(() => 'local')],
               imageInfoList: [...this.data.imageInfoList, ...infos],
               currentIndex: 0,
+              imageReady: true,
             },
             () => this.checkOverflow()
           );
@@ -163,6 +327,7 @@ Page({
   },
 
   deleteCurrentImage() {
+    if (this.data.submitting) return;
     const { imageList, imageSources, imageInfoList, currentIndex } = this.data;
     if (imageList.length === 0) return;
 
@@ -183,9 +348,53 @@ Page({
         imageSources: newImageSources,
         imageInfoList: newImageInfoList,
         currentIndex: Math.min(newCurrentIndex, Math.max(newImageList.length - 1, 0)),
+        imageReady: newImageList.some((_, i) => newImageSources[i] === 'local'),
       },
       () => this.checkOverflow()
     );
+  },
+
+  _enterRejectedMode(postId, message, code) {
+    this._resubmitPostId = postId;
+    this.setData({
+      isResubmit: true,
+      isRejectedMode: true,
+      imageReady: false,
+      submitBtnText: '再次发布',
+      rejectedTip: REJECTED_TIP,
+    });
+    wx.setNavigationBarTitle({ title: '重新提交' });
+    if (message) {
+      if (isContentAuditFailure({ message, code })) {
+        showContentAuditModal(message, code);
+      } else {
+        showToast(message);
+      }
+    }
+  },
+
+  async handleDeleteRejected() {
+    if (this.data.submitting) return;
+    const postId = this._resubmitPostId;
+    if (!postId) {
+      wx.navigateBack();
+      return;
+    }
+    showLoading('删除中...');
+    try {
+      const res = await postApi.deletePost(postId);
+      hideLoading();
+      if (res.success) {
+        showSuccess('已删除');
+        getApp().globalData.profileNeedRefresh = true;
+        setTimeout(() => wx.navigateBack(), 800);
+      } else {
+        showToast(mapApiErrorMessage(res));
+      }
+    } catch (e) {
+      hideLoading();
+      showToast('删除失败');
+    }
   },
 
   checkOverflow() {
@@ -203,6 +412,7 @@ Page({
   },
 
   previewFullScreen() {
+    if (this.data.submitting) return;
     if (this.data.imageList.length === 0) return;
     wx.previewImage({
       current: this.data.imageList[this.data.currentIndex],
@@ -249,10 +459,16 @@ Page({
     const { imageList, imageSources, imageInfoList } = this.data;
     const photos = [];
     const newUploadedIds = [];
+    const uploadTotal = imageSources.filter((s) => s === 'local').length;
+    let uploadedCount = 0;
 
     for (let i = 0; i < imageList.length; i++) {
       let fileId = imageList[i];
       if (imageSources[i] === 'local') {
+        uploadedCount += 1;
+        this.setData({
+          publishOverlayStatus: `上传 ${uploadedCount}/${uploadTotal}`,
+        });
         fileId = await uploadImage(imageList[i]);
         newUploadedIds.push(fileId);
       }
@@ -282,15 +498,26 @@ Page({
       return;
     }
 
-    this.setData({ submitting: true });
-    const loadingText = this.data.isResubmit ? '提交中...' : '发布中...';
-    showLoading(loadingText);
+    if (this.data.isResubmit || this.data.isRejectedMode) {
+      if (!this.data.imageReady) {
+        showToast('请先重新选择图片');
+        return;
+      }
+    }
+
+    if (!this._ensureLoggedIn()) {
+      return;
+    }
+
+    this._startPublishOverlay();
 
     let newUploadedIds = [];
 
     try {
       const { photos, newUploadedIds: uploaded } = await this._buildPhotosPayload();
       newUploadedIds = uploaded;
+
+      this._setPublishOverlayAudit();
 
       const payload = {
         title: form.title.trim(),
@@ -306,37 +533,19 @@ Page({
         res = await postApi.createPost(payload);
       }
 
-      hideLoading();
-
-      if (res.success) {
-        if (this._resubmitPostId) {
-          getApp().globalData.profileNeedRefresh = true;
-          showSuccess(res.message || '已提交审核');
-          setTimeout(() => {
-            wx.switchTab({ url: '/pages/profile/profile/profile' });
-          }, 1500);
-        } else {
-          if (res.message) {
-            showSuccess(res.message);
-          } else {
-            showSuccess('发布成功');
-          }
-          getApp().globalData.homeNeedRefresh = true;
-          setTimeout(() => {
-            wx.switchTab({ url: '/pages/index/index' });
-          }, 1500);
-        }
-      } else {
-        await this._cleanupCloudFiles(newUploadedIds);
-        showToast(res.message || '提交失败');
-      }
+      this._finishPublishOverlay();
+      this._handlePublishResult(res, newUploadedIds);
     } catch (e) {
       console.error('[upload] handleSubmit 失败:', e);
-      hideLoading();
+      this._finishPublishOverlay();
+      if (this._isAuthRequiredError(e)) {
+        if (!this._leftDuringSubmit && this._isOnUploadPage()) {
+          this._showLoginModal();
+        }
+        return;
+      }
       await this._cleanupCloudFiles(newUploadedIds);
-      showToast('提交失败：' + (e.message || '网络错误'));
-    } finally {
-      this.setData({ submitting: false });
+      showToast('提交失败，请稍后重试');
     }
   },
 });

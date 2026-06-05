@@ -1,0 +1,24 @@
+{
+  "timeout": 60,
+  "memorySize": 256,
+  "triggers": [
+    {
+      "name": "weeklyCleanupRejected",
+      "type": "timer",
+      "config": "0 0 3 * * 1 *"
+    }
+  ],
+  "permissions": {
+    "openapi": [],
+    "db": {
+      "posts": {
+        "read": true,
+        "write": true
+      },
+      "post_comments": {
+        "read": true,
+        "write": true
+      }
+    }
+  }
+}

@@ -9,7 +9,7 @@ const commentsCollection = db.collection('post_comments');
 const feedbackCollection = db.collection('feedbacks');
 const identity = require('./common/identity');
 const pwd = require('./common/password');
-const { deleteCloudFiles } = require('./common/postHelpers');
+const { deleteCloudFiles, assertActorOwnsCloudFiles } = require('./common/postHelpers');
 
 const DELETE_BATCH = 100;
 
@@ -48,7 +48,71 @@ async function deleteAllCommentsByAuthor(userId) {
     if (batch.length < DELETE_BATCH) break;
   }
 }
-const sec = require('./common/contentSecurity');
+const sec = require('./common/openApiSecurity');
+
+function secFail(result, defaultCode = 'text_block') {
+  return {
+    success: false,
+    message: result.message || sec.BLOCK_MSG,
+    code: result.code || defaultCode,
+  };
+}
+
+async function validateProfileTexts(cloud, openId, { nickname, bio }) {
+  const nick = nickname !== undefined ? String(nickname).trim() : undefined;
+  const bioText = bio !== undefined ? String(bio).trim() : undefined;
+  const textItems = [];
+
+  if (nick !== undefined) {
+    if (!nick) {
+      return { ok: false, message: '请输入昵称', code: 'text_block' };
+    }
+    textItems.push({
+      content: nick,
+      scene: sec.SCENE.PROFILE,
+      nickname: nick,
+    });
+  }
+  if (bioText !== undefined && bioText) {
+    textItems.push({
+      content: bioText,
+      scene: sec.SCENE.PROFILE,
+      nickname: nick || '',
+    });
+  }
+
+  if (!textItems.length) return { ok: true };
+
+  const textCheck = await sec.checkTexts(cloud, openId, textItems);
+  if (!textCheck.ok) {
+    return { ok: false, message: textCheck.message, code: textCheck.code || 'text_block' };
+  }
+  return { ok: true };
+}
+
+async function validateProfileAvatar(cloud, openId, avatar, actor) {
+  if (avatar === undefined || avatar === null || avatar === '') {
+    return { ok: true };
+  }
+  if (typeof avatar !== 'string' || !avatar.startsWith('cloud://')) {
+    return { ok: true };
+  }
+
+  const ownedCheck = assertActorOwnsCloudFiles([avatar], actor);
+  if (!ownedCheck.ok) {
+    return { ok: false, message: ownedCheck.message, code: 'image_block' };
+  }
+
+  const imageCheck = await sec.checkProfileImages(cloud, openId, [avatar]);
+  if (!imageCheck.ok) {
+    return {
+      ok: false,
+      message: imageCheck.message,
+      code: imageCheck.code || 'image_block',
+    };
+  }
+  return { ok: true };
+}
 
 // 云函数入口
 exports.main = async (event, context) => {
@@ -102,7 +166,7 @@ async function handleRegister(username, password, nickname, openId) {
       nickname,
     });
     if (!textCheck.ok) {
-      return { success: false, message: textCheck.message };
+      return secFail(textCheck);
     }
 
     const passwordHash = await pwd.hashPassword(password);
@@ -208,39 +272,35 @@ async function handleGetCurrentUser(openId) {
 // 更新用户信息（头像、昵称）
 async function handleUpdateUserInfo(avatar, nickname, openId) {
   try {
-    const userResult = await usersCollection.where({ _openid: openId }).get();
-    if (userResult.data.length === 0) {
+    const actor = await identity.resolveActor(db, openId);
+    if (!actor.userId) {
       return { success: false, message: '用户不存在' };
     }
 
-    const userId = userResult.data[0]._id;
+    const userId = actor.userId;
     const updateData = {};
     if (avatar) updateData.avatar = avatar;
     if (nickname) updateData.nickname = nickname;
     updateData.updatedAt = db.serverDate();
 
-    if (nickname) {
-      const textCheck = await sec.checkText(cloud, openId, {
-        content: nickname,
-        scene: sec.SCENE.PROFILE,
-        nickname,
-      });
-      if (!textCheck.ok) {
-        return { success: false, message: textCheck.message };
-      }
-    }
-    if (avatar) {
-      const imageCheck = await sec.checkImages(cloud, openId, [avatar], sec.SCENE.PROFILE);
-      if (!imageCheck.ok) {
-        return { success: false, message: imageCheck.message };
-      }
-    }
+    const textCheck = await validateProfileTexts(cloud, openId, { nickname });
+    if (!textCheck.ok) return secFail(textCheck);
+
+    const avatarCheck = await validateProfileAvatar(cloud, openId, avatar, actor);
+    if (!avatarCheck.ok) return secFail(avatarCheck, 'image_block');
 
     await usersCollection.doc(userId).update({ data: updateData });
 
     return { success: true, data: { avatar, nickname } };
   } catch (e) {
     console.error('更新用户信息失败:', e);
+    const raw = e && e.message ? String(e.message) : '';
+    if (/imgSecCheck|87014|risky content/i.test(raw)) {
+      return { success: false, message: sec.IMAGE_BLOCK_MSG, code: 'image_block' };
+    }
+    if (/msgSecCheck/i.test(raw)) {
+      return { success: false, message: sec.BLOCK_MSG, code: 'text_block' };
+    }
     return { success: false, message: '更新失败' };
   }
 }
@@ -250,51 +310,39 @@ async function handleUpdateUserProfile(params, openId) {
   try {
     const { avatar, nickname, gender, region, bio } = params;
 
-    const userResult = await usersCollection.where({ _openid: openId }).get();
-    if (userResult.data.length === 0) {
+    const actor = await identity.resolveActor(db, openId);
+    if (!actor.userId) {
       return { success: false, message: '用户不存在' };
     }
 
-    const userId = userResult.data[0]._id;
+    const userId = actor.userId;
+
+    const textCheck = await validateProfileTexts(cloud, openId, { nickname, bio });
+    if (!textCheck.ok) return secFail(textCheck);
+
+    const avatarCheck = await validateProfileAvatar(cloud, openId, avatar, actor);
+    if (!avatarCheck.ok) return secFail(avatarCheck, 'image_block');
 
     const updateData = {};
     if (avatar !== undefined) updateData.avatar = avatar;
-    if (nickname !== undefined) updateData.nickname = nickname;
+    if (nickname !== undefined) updateData.nickname = String(nickname).trim();
     if (gender !== undefined) updateData.gender = gender;
     if (region !== undefined) updateData.region = region;
-    if (bio !== undefined) updateData.bio = bio;
+    if (bio !== undefined) updateData.bio = String(bio).trim();
     updateData.updatedAt = db.serverDate();
-
-    const textItems = [];
-    if (nickname !== undefined) {
-      textItems.push({
-        content: nickname,
-        scene: sec.SCENE.PROFILE,
-        nickname,
-      });
-    }
-    if (bio !== undefined) {
-      textItems.push({ content: bio, scene: sec.SCENE.PROFILE, nickname });
-    }
-    if (textItems.length) {
-      const textCheck = await sec.checkTexts(cloud, openId, textItems);
-      if (!textCheck.ok) {
-        return { success: false, message: textCheck.message };
-      }
-    }
-
-    if (avatar !== undefined && avatar) {
-      const imageCheck = await sec.checkImages(cloud, openId, [avatar], sec.SCENE.PROFILE);
-      if (!imageCheck.ok) {
-        return { success: false, message: imageCheck.message };
-      }
-    }
 
     const updateRes = await usersCollection.doc(userId).update({ data: updateData });
 
     return { success: true, message: '更新成功', updateStats: updateRes.stats };
   } catch (e) {
     console.error('更新用户资料失败:', e);
+    const raw = e && e.message ? String(e.message) : '';
+    if (/imgSecCheck|87014|risky content/i.test(raw)) {
+      return { success: false, message: sec.IMAGE_BLOCK_MSG, code: 'image_block' };
+    }
+    if (/msgSecCheck/i.test(raw)) {
+      return { success: false, message: sec.BLOCK_MSG, code: 'text_block' };
+    }
     return { success: false, message: '更新失败' };
   }
 }

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老根茶 · Logo 选稿 v2（三字融入）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "STSong", "Songti SC", serif;
+    background: #e8e8e8;
+    color: #1b1b1b;
+    padding: 32px 20px 88px;
+  }
+  .head {
+    max-width: 1000px;
+    margin: 0 auto 24px;
+    text-align: center;
+  }
+  .head h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .head p { font-size: 13px; color: #666; line-height: 1.75; max-width: 680px; margin: 0 auto; }
+  .note {
+    max-width: 1000px;
+    margin: 0 auto 28px;
+    padding: 14px 18px;
+    background: #fff;
+    border-left: 4px solid #5c7a4a;
+    border-radius: 0 10px 10px 0;
+    font-size: 12px;
+    color: #555;
+    line-height: 1.65;
+  }
+  .grid {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 22px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.07);
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: .2s;
+  }
+  .card:hover { box-shadow: 0 10px 32px rgba(0,0,0,.11); }
+  .card.selected { border-color: #1b1b1b; }
+  .card-id { font-size: 11px; color: #aaa; margin-bottom: 2px; }
+  .card-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .card-desc { font-size: 12px; color: #888; line-height: 1.6; margin-bottom: 18px; min-height: 40px; }
+  .previews {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    justify-content: center;
+  }
+  .lbl { font-size: 10px; color: #ccc; width: 36px; text-align: right; flex-shrink: 0; }
+  .box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f7f7;
+    flex-shrink: 0;
+  }
+  .box.s { width: 48px; height: 48px; border-radius: 11px; }
+  .box.m { width: 80px; height: 80px; border-radius: 18px; }
+  .box.l { width: 120px; height: 120px; border-radius: 26px; }
+  .dark {
+    width: 100%;
+    background: #1b1b1b;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: center;
+  }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .tag { font-size: 10px; padding: 3px 9px; border-radius: 100px; background: #f0f0f0; color: #666; }
+  .footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(255,255,255,.97);
+    border-top: 1px solid #e0e0e0;
+    padding: 14px 20px;
+    text-align: center;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+  }
+  #pick { font-weight: 600; }
+  #pick.empty { color: #999; font-weight: 400; }
+  /* 共用 SVG 文字样式 */
+  .t-serif { font-family: "STSong", "Songti SC", "PingFang SC", serif; }
+  .t-kai { font-family: "STKaiti", "Kaiti SC", "PingFang SC", serif; }
+  .t-hei { font-family: -apple-system, "PingFang SC", sans-serif; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>老根茶 · Logo 选稿 v2</h1>
+  <p>15 款均以「老根茶」三字为核心视觉，不含房屋元素。点击卡片选中，告知编号即可定稿。</p>
+</div>
+
+<div class="note">
+  v2 要求：Logo 图形内必须完整呈现「老」「根」「茶」三字，而非仅单字或「老根茶村」四字。预览含 48 / 80 / 120px 三档及深底反白。
+</div>
+
+<div class="grid" id="grid">
+
+<!-- B01 横排宋体 -->
+<div class="card" data-id="B01">
+  <div class="card-id">B01</div>
+  <div class="card-title">横排宋体 · 白底绿边</div>
+  <div class="card-desc">三字横排等宽，外圈细绿框，经典稳重，小尺寸可读性好。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect x="2" y="2" width="44" height="44" rx="10" fill="#fff" stroke="#5c7a4a" stroke-width="1.5"/><text x="24" y="30" text-anchor="middle" class="t-serif" font-size="13" fill="#1b1b1b" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect x="3" y="3" width="74" height="74" rx="16" fill="#fff" stroke="#5c7a4a" stroke-width="2"/><text x="40" y="50" text-anchor="middle" class="t-serif" font-size="22" fill="#1b1b1b" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect x="4" y="4" width="112" height="112" rx="24" fill="#fff" stroke="#5c7a4a" stroke-width="2.5"/><text x="60" y="72" text-anchor="middle" class="t-serif" font-size="32" fill="#1b1b1b" letter-spacing="-2">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><rect x="3" y="3" width="74" height="74" rx="16" fill="#2a2a2a" stroke="#7a9a6a" stroke-width="2"/><text x="40" y="50" text-anchor="middle" class="t-serif" font-size="22" fill="#f5f5f5">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">横排</span><span class="tag">宋体</span></div>
+</div>
+
+<!-- B02 竖排三字 -->
+<div class="card" data-id="B02">
+  <div class="card-id">B02</div>
+  <div class="card-title">竖排三字 · 印章底</div>
+  <div class="card-desc">老/根/茶竖排居中，朱红方印底，传统茶品牌感。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect x="4" y="4" width="40" height="40" rx="4" fill="#8b3a3a"/><text x="24" y="17" text-anchor="middle" class="t-serif" font-size="11" fill="#fff">老</text><text x="24" y="28" text-anchor="middle" class="t-serif" font-size="11" fill="#fff">根</text><text x="24" y="39" text-anchor="middle" class="t-serif" font-size="11" fill="#fff">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect x="6" y="6" width="68" height="68" rx="6" fill="#8b3a3a"/><text x="40" y="28" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">老</text><text x="40" y="46" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">根</text><text x="40" y="64" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect x="8" y="8" width="104" height="104" rx="8" fill="#8b3a3a"/><text x="60" y="42" text-anchor="middle" class="t-serif" font-size="28" fill="#fff">老</text><text x="60" y="68" text-anchor="middle" class="t-serif" font-size="28" fill="#fff">根</text><text x="60" y="94" text-anchor="middle" class="t-serif" font-size="28" fill="#fff">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><rect x="6" y="6" width="68" height="68" rx="6" fill="#a84848"/><text x="40" y="28" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">老</text><text x="40" y="46" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">根</text><text x="40" y="64" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">竖排</span><span class="tag">印章</span></div>
+</div>
+
+<!-- B03 圆形环绕 -->
+<div class="card" data-id="B03">
+  <div class="card-id">B03</div>
+  <div class="card-title">圆形徽章 · 三字居中</div>
+  <div class="card-desc">绿圆环 + 中心横排「老根茶」，徽章感强。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><circle cx="24" cy="24" r="21" fill="#f5f8f2" stroke="#5c7a4a" stroke-width="2"/><text x="24" y="29" text-anchor="middle" class="t-serif" font-size="11" fill="#3d5232" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><circle cx="40" cy="40" r="36" fill="#f5f8f2" stroke="#5c7a4a" stroke-width="2.5"/><text x="40" y="48" text-anchor="middle" class="t-serif" font-size="18" fill="#3d5232" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><circle cx="60" cy="60" r="54" fill="#f5f8f2" stroke="#5c7a4a" stroke-width="3"/><text x="60" y="72" text-anchor="middle" class="t-serif" font-size="26" fill="#3d5232" letter-spacing="-2">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><circle cx="40" cy="40" r="36" fill="none" stroke="#7a9a6a" stroke-width="2.5"/><text x="40" y="48" text-anchor="middle" class="t-serif" font-size="18" fill="#e8e8e8">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">圆形</span><span class="tag">徽章</span></div>
+</div>
+
+<!-- B04 三字分列三格 -->
+<div class="card" data-id="B04">
+  <div class="card-id">B04</div>
+  <div class="card-title">三格分栏 · 一字一格</div>
+  <div class="card-desc">三字各占一竖格，中间「根」字加粗强调。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect width="48" height="48" rx="10" fill="#1b1b1b"/><line x1="16" y1="8" x2="16" y2="40" stroke="#333" stroke-width="1"/><line x1="32" y1="8" x2="32" y2="40" stroke="#333" stroke-width="1"/><text x="8" y="30" text-anchor="middle" class="t-hei" font-size="12" fill="#ccc">老</text><text x="24" y="30" text-anchor="middle" class="t-hei" font-size="14" fill="#fff">根</text><text x="40" y="30" text-anchor="middle" class="t-hei" font-size="12" fill="#8fbc7a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect width="80" height="80" rx="16" fill="#1b1b1b"/><line x1="27" y1="12" x2="27" y2="68" stroke="#333" stroke-width="1.5"/><line x1="53" y1="12" x2="53" y2="68" stroke="#333" stroke-width="1.5"/><text x="13" y="50" text-anchor="middle" class="t-hei" font-size="20" fill="#aaa">老</text><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="24" fill="#fff">根</text><text x="67" y="50" text-anchor="middle" class="t-hei" font-size="20" fill="#8fbc7a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect width="120" height="120" rx="24" fill="#1b1b1b"/><line x1="40" y1="16" x2="40" y2="104" stroke="#333" stroke-width="2"/><line x1="80" y1="16" x2="80" y2="104" stroke="#333" stroke-width="2"/><text x="20" y="72" text-anchor="middle" class="t-hei" font-size="30" fill="#aaa">老</text><text x="60" y="72" text-anchor="middle" class="t-hei" font-size="36" fill="#fff">根</text><text x="100" y="72" text-anchor="middle" class="t-hei" font-size="30" fill="#8fbc7a">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><rect width="80" height="80" rx="16" fill="#111"/><text x="13" y="50" text-anchor="middle" class="t-hei" font-size="20" fill="#888">老</text><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="24" fill="#fff">根</text><text x="67" y="50" text-anchor="middle" class="t-hei" font-size="20" fill="#7a9a6a">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">分栏</span><span class="tag">强调根</span></div>
+</div>
+
+<!-- B05 楷体横排 + 茶芽 -->
+<div class="card" data-id="B05">
+  <div class="card-id">B05</div>
+  <div class="card-title">楷体横排 · 顶芽点缀</div>
+  <div class="card-desc">上方小茶芽，下方「老根茶」楷体，图文一体。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect width="48" height="48" rx="10" fill="#faf8f4"/><path d="M24 14 Q24 8 20 6 Q24 9 24 4 Q24 9 28 6 Q24 8 24 14" fill="#5c7a4a"/><text x="24" y="36" text-anchor="middle" class="t-kai" font-size="12" fill="#1b1b1b">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect width="80" height="80" rx="16" fill="#faf8f4"/><path d="M40 22 Q40 12 32 8 Q40 14 40 4 Q40 14 48 8 Q40 12 40 22" fill="#5c7a4a"/><text x="40" y="58" text-anchor="middle" class="t-kai" font-size="20" fill="#1b1b1b">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect width="120" height="120" rx="24" fill="#faf8f4"/><path d="M60 32 Q60 18 48 12 Q60 22 60 6 Q60 22 72 12 Q60 18 60 32" fill="#5c7a4a"/><text x="60" y="86" text-anchor="middle" class="t-kai" font-size="30" fill="#1b1b1b">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><path d="M40 22 Q40 12 32 8 Q40 14 40 4 Q40 14 48 8 Q40 12 40 22" fill="#7a9a6a"/><text x="40" y="58" text-anchor="middle" class="t-kai" font-size="20" fill="#eee">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">楷体</span><span class="tag">茶芽</span></div>
+</div>
+
+<!-- B06 弧形排列 -->
+<div class="card" data-id="B06">
+  <div class="card-id">B06</div>
+  <div class="card-title">弧形三字 · 俯看茶盘</div>
+  <div class="card-desc">三字沿弧线排列，如茶盘俯视图，独特识别。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><ellipse cx="24" cy="26" rx="20" ry="18" fill="none" stroke="#5c7a4a" stroke-width="1.5"/><text x="10" y="22" class="t-serif" font-size="10" fill="#1b1b1b">老</text><text x="21" y="14" class="t-serif" font-size="10" fill="#1b1b1b">根</text><text x="32" y="22" class="t-serif" font-size="10" fill="#1b1b1b">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><ellipse cx="40" cy="44" rx="34" ry="30" fill="none" stroke="#5c7a4a" stroke-width="2"/><text x="14" y="38" class="t-serif" font-size="16" fill="#1b1b1b">老</text><text x="34" y="22" class="t-serif" font-size="16" fill="#1b1b1b">根</text><text x="54" y="38" class="t-serif" font-size="16" fill="#1b1b1b">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><ellipse cx="60" cy="66" rx="50" ry="44" fill="none" stroke="#5c7a4a" stroke-width="2.5"/><text x="20" y="58" class="t-serif" font-size="24" fill="#1b1b1b">老</text><text x="50" y="32" class="t-serif" font-size="24" fill="#1b1b1b">根</text><text x="82" y="58" class="t-serif" font-size="24" fill="#1b1b1b">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><ellipse cx="40" cy="44" rx="34" ry="30" fill="none" stroke="#7a9a6a" stroke-width="2"/><text x="14" y="38" class="t-serif" font-size="16" fill="#ddd">老</text><text x="34" y="22" class="t-serif" font-size="16" fill="#ddd">根</text><text x="54" y="38" class="t-serif" font-size="16" fill="#ddd">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">弧形</span><span class="tag">独特</span></div>
+</div>
+
+<!-- B07 绿底白字 -->
+<div class="card" data-id="B07">
+  <div class="card-id">B07</div>
+  <div class="card-title">茶绿底 · 白字横排</div>
+  <div class="card-desc">深茶绿圆角方块 + 白色「老根茶」，对比强、App 感。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect width="48" height="48" rx="12" fill="#3d5232"/><text x="24" y="30" text-anchor="middle" class="t-hei" font-size="12" fill="#fff" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect width="80" height="80" rx="20" fill="#3d5232"/><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="20" fill="#fff" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect width="120" height="120" rx="28" fill="#3d5232"/><text x="60" y="72" text-anchor="middle" class="t-hei" font-size="30" fill="#fff" letter-spacing="-2">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><rect width="80" height="80" rx="20" fill="#5c7a4a"/><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="20" fill="#fff">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">绿底</span><span class="tag">高对比</span></div>
+</div>
+
+<!-- B08 三叶托字 -->
+<div class="card" data-id="B08">
+  <div class="card-id">B08</div>
+  <div class="card-title">三叶托字 · 一字一叶</div>
+  <div class="card-desc">三片茶叶分别托住老/根/茶，字形与图形融合。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><path d="M8 32 Q8 22 12 18 Q10 26 8 32" fill="#5c7a4a" opacity=".5"/><path d="M22 32 Q22 20 24 14 Q24 24 22 32" fill="#5c7a4a" opacity=".7"/><path d="M36 32 Q36 22 40 18 Q38 26 36 32" fill="#5c7a4a" opacity=".5"/><text x="10" y="28" text-anchor="middle" class="t-serif" font-size="10" fill="#1b1b1b">老</text><text x="24" y="26" text-anchor="middle" class="t-serif" font-size="11" fill="#1b1b1b">根</text><text x="38" y="28" text-anchor="middle" class="t-serif" font-size="10" fill="#1b1b1b">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><path d="M12 54 Q12 36 18 28 Q14 44 12 54" fill="#5c7a4a" opacity=".45"/><path d="M36 54 Q36 32 40 22 Q40 40 36 54" fill="#5c7a4a" opacity=".65"/><path d="M60 54 Q60 36 66 28 Q62 44 60 54" fill="#5c7a4a" opacity=".45"/><text x="16" y="46" text-anchor="middle" class="t-serif" font-size="16" fill="#1b1b1b">老</text><text x="40" y="44" text-anchor="middle" class="t-serif" font-size="18" fill="#1b1b1b">根</text><text x="64" y="46" text-anchor="middle" class="t-serif" font-size="16" fill="#1b1b1b">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><path d="M18 80 Q18 54 26 42 Q20 66 18 80" fill="#5c7a4a" opacity=".4"/><path d="M54 80 Q54 48 60 32 Q60 60 54 80" fill="#5c7a4a" opacity=".6"/><path d="M90 80 Q90 54 98 42 Q92 66 90 80" fill="#5c7a4a" opacity=".4"/><text x="24" y="68" text-anchor="middle" class="t-serif" font-size="24" fill="#1b1b1b">老</text><text x="60" y="64" text-anchor="middle" class="t-serif" font-size="28" fill="#1b1b1b">根</text><text x="96" y="68" text-anchor="middle" class="t-serif" font-size="24" fill="#1b1b1b">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><text x="16" y="46" text-anchor="middle" class="t-serif" font-size="16" fill="#ccc">老</text><text x="40" y="44" text-anchor="middle" class="t-serif" font-size="18" fill="#fff">根</text><text x="64" y="46" text-anchor="middle" class="t-serif" font-size="16" fill="#ccc">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">茶叶</span><span class="tag">融合</span></div>
+</div>
+
+<!-- B09 叠字书法 -->
+<div class="card" data-id="B09">
+  <div class="card-id">B09</div>
+  <div class="card-title">叠字书法 · 老根叠茶</div>
+  <div class="card-desc">「老根」略大叠于「茶」字之上，书法层次感。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect width="48" height="48" rx="10" fill="#fff" stroke="#eee"/><text x="24" y="22" text-anchor="middle" class="t-kai" font-size="14" fill="#1b1b1b">老根</text><text x="24" y="38" text-anchor="middle" class="t-kai" font-size="16" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect width="80" height="80" rx="16" fill="#fff" stroke="#e5e5e5" stroke-width="1.5"/><text x="40" y="36" text-anchor="middle" class="t-kai" font-size="24" fill="#1b1b1b">老根</text><text x="40" y="62" text-anchor="middle" class="t-kai" font-size="28" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect width="120" height="120" rx="24" fill="#fff" stroke="#e5e5e5" stroke-width="2"/><text x="60" y="52" text-anchor="middle" class="t-kai" font-size="36" fill="#1b1b1b">老根</text><text x="60" y="92" text-anchor="middle" class="t-kai" font-size="42" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><text x="40" y="36" text-anchor="middle" class="t-kai" font-size="24" fill="#eee">老根</text><text x="40" y="62" text-anchor="middle" class="t-kai" font-size="28" fill="#8fbc7a">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">叠字</span><span class="tag">书法</span></div>
+</div>
+
+<!-- B10 环形路径 -->
+<div class="card" data-id="B10">
+  <div class="card-id">B10</div>
+  <div class="card-title">环形路径 · 三字绕圆</div>
+  <div class="card-desc">三字沿圆环内侧排列，中心留白或可加小图标。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><circle cx="24" cy="24" r="20" fill="none" stroke="#1b1b1b" stroke-width="1.5"/><text x="24" y="12" text-anchor="middle" class="t-serif" font-size="9" fill="#1b1b1b">老</text><text x="38" y="30" class="t-serif" font-size="9" fill="#1b1b1b">根</text><text x="8" y="30" class="t-serif" font-size="9" fill="#5c7a4a">茶</text><circle cx="24" cy="24" r="4" fill="#5c7a4a" opacity=".3"/></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><circle cx="40" cy="40" r="34" fill="none" stroke="#1b1b1b" stroke-width="2"/><text x="40" y="18" text-anchor="middle" class="t-serif" font-size="15" fill="#1b1b1b">老</text><text x="64" y="48" class="t-serif" font-size="15" fill="#1b1b1b">根</text><text x="12" y="48" class="t-serif" font-size="15" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><circle cx="60" cy="60" r="50" fill="none" stroke="#1b1b1b" stroke-width="2.5"/><text x="60" y="26" text-anchor="middle" class="t-serif" font-size="22" fill="#1b1b1b">老</text><text x="96" y="72" class="t-serif" font-size="22" fill="#1b1b1b">根</text><text x="18" y="72" class="t-serif" font-size="22" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><circle cx="40" cy="40" r="34" fill="none" stroke="#666" stroke-width="2"/><text x="40" y="18" text-anchor="middle" class="t-serif" font-size="15" fill="#eee">老</text><text x="64" y="48" class="t-serif" font-size="15" fill="#eee">根</text><text x="12" y="48" class="t-serif" font-size="15" fill="#8fbc7a">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">环形</span><span class="tag">路径</span></div>
+</div>
+
+<!-- B11 紧凑黑体 -->
+<div class="card" data-id="B11">
+  <div class="card-id">B11</div>
+  <div class="card-title">紧凑黑体 · 负字距</div>
+  <div class="card-desc">现代黑体紧排「老根茶」，适合数字化产品。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect width="48" height="48" rx="10" fill="#f0f0f0"/><text x="24" y="30" text-anchor="middle" class="t-hei" font-size="13" fill="#1b1b1b" letter-spacing="-3">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect width="80" height="80" rx="16" fill="#f0f0f0"/><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="22" fill="#1b1b1b" letter-spacing="-5">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect width="120" height="120" rx="24" fill="#f0f0f0"/><text x="60" y="72" text-anchor="middle" class="t-hei" font-size="34" fill="#1b1b1b" letter-spacing="-8">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="22" fill="#fff" letter-spacing="-5">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">黑体</span><span class="tag">现代</span></div>
+</div>
+
+<!-- B12 斜排阶梯 -->
+<div class="card" data-id="B12">
+  <div class="card-id">B12</div>
+  <div class="card-title">斜排阶梯 · 三字递进</div>
+  <div class="card-desc">三字从左下到右上阶梯排列，动感、有层次。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><text x="8" y="38" class="t-kai" font-size="14" fill="#1b1b1b">老</text><text x="20" y="28" class="t-kai" font-size="14" fill="#1b1b1b">根</text><text x="32" y="18" class="t-kai" font-size="14" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><text x="12" y="62" class="t-kai" font-size="24" fill="#1b1b1b">老</text><text x="32" y="46" class="t-kai" font-size="24" fill="#1b1b1b">根</text><text x="52" y="30" class="t-kai" font-size="24" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><text x="16" y="92" class="t-kai" font-size="36" fill="#1b1b1b">老</text><text x="46" y="68" class="t-kai" font-size="36" fill="#1b1b1b">根</text><text x="76" y="44" class="t-kai" font-size="36" fill="#5c7a4a">茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><text x="12" y="62" class="t-kai" font-size="24" fill="#ccc">老</text><text x="32" y="46" class="t-kai" font-size="24" fill="#eee">根</text><text x="52" y="30" class="t-kai" font-size="24" fill="#8fbc7a">茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">斜排</span><span class="tag">动感</span></div>
+</div>
+
+<!-- B13 双线框 -->
+<div class="card" data-id="B13">
+  <div class="card-id">B13</div>
+  <div class="card-title">双线框 · 横排居中</div>
+  <div class="card-desc">内外双线方框，中心「老根茶」，精致礼盒感。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect x="3" y="3" width="42" height="42" rx="2" fill="none" stroke="#1b1b1b" stroke-width="1"/><rect x="7" y="7" width="34" height="34" rx="1" fill="none" stroke="#1b1b1b" stroke-width=".8"/><text x="24" y="30" text-anchor="middle" class="t-serif" font-size="11" fill="#1b1b1b">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect x="4" y="4" width="72" height="72" rx="3" fill="none" stroke="#1b1b1b" stroke-width="1.5"/><rect x="10" y="10" width="60" height="60" rx="2" fill="none" stroke="#1b1b1b" stroke-width="1"/><text x="40" y="50" text-anchor="middle" class="t-serif" font-size="18" fill="#1b1b1b">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect x="6" y="6" width="108" height="108" rx="4" fill="none" stroke="#1b1b1b" stroke-width="2"/><rect x="14" y="14" width="92" height="92" rx="3" fill="none" stroke="#1b1b1b" stroke-width="1.5"/><text x="60" y="72" text-anchor="middle" class="t-serif" font-size="28" fill="#1b1b1b">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><rect x="4" y="4" width="72" height="72" fill="none" stroke="#666" stroke-width="1.5"/><text x="40" y="50" text-anchor="middle" class="t-serif" font-size="18" fill="#eee">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">双线</span><span class="tag">礼盒</span></div>
+</div>
+
+<!-- B14 渐变字 -->
+<div class="card" data-id="B14">
+  <div class="card-id">B14</div>
+  <div class="card-title">渐变字 · 茶色过渡</div>
+  <div class="card-desc">「老根茶」三字用茶褐到茶绿渐变，横排。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><defs><linearGradient id="g14s" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#8b6914"/><stop offset="50%" stop-color="#5c7a4a"/><stop offset="100%" stop-color="#3d5232"/></linearGradient></defs><text x="24" y="30" text-anchor="middle" class="t-hei" font-size="13" fill="url(#g14s)" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><defs><linearGradient id="g14m" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#8b6914"/><stop offset="50%" stop-color="#5c7a4a"/><stop offset="100%" stop-color="#3d5232"/></linearGradient></defs><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="22" fill="url(#g14m)" letter-spacing="-2">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><defs><linearGradient id="g14l" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#8b6914"/><stop offset="50%" stop-color="#5c7a4a"/><stop offset="100%" stop-color="#3d5232"/></linearGradient></defs><text x="60" y="72" text-anchor="middle" class="t-hei" font-size="34" fill="url(#g14l)" letter-spacing="-3">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><defs><linearGradient id="g14d" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#c4a035"/><stop offset="100%" stop-color="#8fbc7a"/></linearGradient></defs><text x="40" y="50" text-anchor="middle" class="t-hei" font-size="22" fill="url(#g14d)">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">渐变</span><span class="tag">茶色</span></div>
+</div>
+
+<!-- B15 圆角胶囊 -->
+<div class="card" data-id="B15">
+  <div class="card-id">B15</div>
+  <div class="card-title">胶囊横条 · 白字绿底</div>
+  <div class="card-desc">横向胶囊形底，「老根茶」居中，适合顶栏/标签。</div>
+  <div class="previews">
+    <div class="row"><span class="lbl">48</span><div class="box s"><svg viewBox="0 0 48 48" width="44" height="44"><rect x="2" y="14" width="44" height="20" rx="10" fill="#5c7a4a"/><text x="24" y="29" text-anchor="middle" class="t-hei" font-size="11" fill="#fff" letter-spacing="-1">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">80</span><div class="box m"><svg viewBox="0 0 80 80" width="72" height="72"><rect x="4" y="24" width="72" height="32" rx="16" fill="#5c7a4a"/><text x="40" y="46" text-anchor="middle" class="t-hei" font-size="18" fill="#fff" letter-spacing="-2">老根茶</text></svg></div></div>
+    <div class="row"><span class="lbl">120</span><div class="box l"><svg viewBox="0 0 120 120" width="108" height="108"><rect x="6" y="36" width="108" height="48" rx="24" fill="#5c7a4a"/><text x="60" y="68" text-anchor="middle" class="t-hei" font-size="28" fill="#fff" letter-spacing="-3">老根茶</text></svg></div></div>
+    <div class="dark"><svg viewBox="0 0 80 80" width="64" height="64"><rect x="4" y="24" width="72" height="32" rx="16" fill="#7a9a6a"/><text x="40" y="46" text-anchor="middle" class="t-hei" font-size="18" fill="#fff">老根茶</text></svg></div>
+  </div>
+  <div class="tags"><span class="tag">胶囊</span><span class="tag">横条</span></div>
+</div>
+
+</div>
+
+<div class="footer">
+  当前选中：<span id="pick" class="empty">点击卡片选择</span>
+</div>
+
+<script>
+  const pick = document.getElementById('pick');
+  document.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.card').forEach(x => x.classList.remove('selected'));
+      c.classList.add('selected');
+      pick.textContent = c.dataset.id + ' · ' + c.querySelector('.card-title').textContent;
+      pick.classList.remove('empty');
+    });
+  });
+</script>
+</body>
+</html>

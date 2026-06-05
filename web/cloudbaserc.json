@@ -1,0 +1,13 @@
+{
+  "envId": "cloud1-d2g545zl57f7db2de",
+  "hosting": {
+    "public": "dist",
+    "ignore": ["node_modules/**", ".git/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

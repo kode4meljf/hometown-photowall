@@ -323,10 +323,51 @@
   background: rgba(224, 32, 32, 0.88);
 }
 
+.photo-reviewing-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.photo-reviewing-mask-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 2rpx;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.35);
+}
+
 .photo-image {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.photo-image-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #f3f3f3;
+}
+
+.photo-placeholder-icon {
+  width: 72rpx;
+  height: 72rpx;
+  opacity: 0.45;
+  margin-bottom: 8rpx;
+}
+
+.photo-placeholder-text {
+  font-size: 20rpx;
+  color: #999;
 }
 
 .photo-overlay {

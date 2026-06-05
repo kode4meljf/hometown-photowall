@@ -1,4 +1,6 @@
 {
+  "timeout": 60,
+  "memorySize": 512,
   "permissions": {
     "openapi": [
       "security.msgSecCheck",
@@ -8,6 +10,10 @@
     ],
     "db": {
       "posts": {
+        "read": true,
+        "write": true
+      },
+      "media_audit_tasks": {
         "read": true,
         "write": true
       }

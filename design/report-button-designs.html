@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>详情页举报入口 · 位置与交互设计</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #ececec;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  color: #1b1b1b;
+  padding: 24px 16px 56px;
+  -webkit-font-smoothing: antialiased;
+}
+.page-head { max-width: 900px; margin: 0 auto 24px; }
+.page-head h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.page-head p { font-size: 13px; color: #666; line-height: 1.65; }
+
+.compare {
+  max-width: 900px;
+  margin: 0 auto 32px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+}
+.compare h2 { font-size: 15px; margin-bottom: 12px; }
+.compare table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.compare th, .compare td { padding: 10px 10px; text-align: left; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.compare th { color: #888; font-weight: 500; }
+.tag-rec {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #07a84f;
+  background: #e8f8ee;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.grid {
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 28px;
+}
+.plan-block {}
+.plan-label { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.plan-note { font-size: 12px; color: #888; line-height: 1.55; margin-bottom: 14px; min-height: 40px; }
+
+.phone {
+  width: 100%;
+  max-width: 390px;
+  aspect-ratio: 390 / 844;
+  margin: 0 auto;
+  border-radius: 36px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,.18), inset 0 0 0 1px rgba(255,255,255,.6);
+  background: #fff;
+}
+
+.capsule-mock {
+  position: absolute;
+  top: 48px;
+  right: 10px;
+  width: 87px;
+  height: 32px;
+  border-radius: 16px;
+  background: rgba(0,0,0,.08);
+  z-index: 30;
+  pointer-events: none;
+}
+
+.detail-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.panel-header {
+  height: 88px;
+  padding: 48px 100px 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+.back { font-size: 28px; line-height: 1; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: #ddd; }
+.author { font-size: 15px; font-weight: 500; }
+
+.photo-area {
+  height: 42%;
+  background: linear-gradient(180deg, #d4cfc7, #b8b0a4);
+  flex-shrink: 0;
+}
+
+.scroll-body {
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+}
+.desc-block { padding: 14px 16px 8px; }
+.desc { font-size: 14px; line-height: 1.5; color: #333; display: block; }
+.date { font-size: 12px; color: #999; margin-top: 6px; display: block; }
+.divider { height: 1px; background: #f0f0f0; margin: 0 16px; }
+
+.comment-count-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  min-height: 52px;
+}
+.comment-count-text { font-size: 14px; color: #666; }
+
+.btn-delete {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e02020;
+  border-radius: 16px;
+  box-shadow: 0 3px 10px rgba(224,32,32,.14);
+}
+.btn-report {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  border-radius: 16px;
+  background: #f5f5f5;
+}
+.btn-report.hot {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  color: #4338ca;
+  background: #eef2ff;
+}
+
+.comment-item { display: flex; gap: 10px; padding: 14px 16px; }
+.c-avatar { width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8; flex-shrink: 0; }
+.c-body { flex: 1; min-width: 0; }
+.c-author { font-size: 13px; font-weight: 500; }
+.c-text { font-size: 14px; line-height: 1.5; margin-top: 4px; color: #333; }
+.c-foot { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: #999; }
+.c-report-link { color: #999; margin-left: 10px; }
+
+.bottom-bar {
+  border-top: 1px solid #f0f0f0;
+  padding: 10px 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.input-fake {
+  flex: 1;
+  height: 36px;
+  background: #f5f5f5;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #bbb;
+}
+.actions { display: flex; gap: 14px; font-size: 11px; color: #666; }
+.action-dot { width: 22px; height: 22px; border-radius: 50%; background: #eee; margin: 0 auto 2px; }
+
+.more-btn-header {
+  position: absolute;
+  top: 54px;
+  right: 108px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #666;
+  z-index: 25;
+}
+
+.flow-section {
+  max-width: 900px;
+  margin: 40px auto 0;
+}
+.flow-section h2 { font-size: 18px; margin-bottom: 8px; }
+.flow-section p { font-size: 13px; color: #666; margin-bottom: 20px; line-height: 1.6; }
+
+.demo-wrap {
+  display: grid;
+  grid-template-columns: minmax(280px, 390px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 820px) {
+  .demo-wrap { grid-template-columns: 1fr; }
+}
+
+.demo-phone { position: relative; }
+.demo-phone .phone { cursor: default; }
+
+/* overlays */
+.mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.mask.show { opacity: 1; pointer-events: auto; }
+
+.sheet {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  z-index: 50;
+  transform: translateY(100%);
+  transition: transform .28s cubic-bezier(.25,.1,.25,1);
+  padding-bottom: 20px;
+}
+.sheet.show { transform: translateY(0); }
+.sheet-title {
+  text-align: center;
+  font-size: 13px;
+  color: #999;
+  padding: 14px 16px 10px;
+}
+.sheet-item {
+  padding: 16px 20px;
+  font-size: 16px;
+  text-align: center;
+  border-top: 1px solid #f5f5f5;
+  cursor: pointer;
+}
+.sheet-item:active { background: #f8f8f8; }
+.sheet-item.danger { color: #e02020; }
+.sheet-cancel {
+  margin-top: 8px;
+  padding: 16px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 500;
+  background: #fff;
+  border-top: 8px solid #f5f5f5;
+  cursor: pointer;
+}
+
+.modal {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -46%) scale(.92);
+  width: 86%;
+  max-width: 320px;
+  background: #fff;
+  border-radius: 16px;
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .22s, transform .22s;
+  overflow: hidden;
+}
+.modal.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+.modal-head {
+  padding: 18px 18px 8px;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+}
+.modal-sub {
+  padding: 0 18px 12px;
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  line-height: 1.5;
+}
+.modal-reason {
+  margin: 0 16px;
+  padding: 10px 12px;
+  background: #f8f8f8;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #666;
+}
+.modal-textarea {
+  width: calc(100% - 32px);
+  height: 88px;
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+}
+.modal-actions {
+  display: flex;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 16px;
+}
+.modal-actions button {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.modal-actions .primary { color: #576b95; font-weight: 600; border-left: 1px solid #f0f0f0; }
+
+.toast {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,.72);
+  color: #fff;
+  padding: 14px 22px;
+  border-radius: 10px;
+  font-size: 14px;
+  z-index: 70;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+.flow-steps {
+  background: #fff;
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+}
+.flow-steps h3 { font-size: 15px; margin-bottom: 14px; }
+.step {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 14px;
+  align-items: flex-start;
+}
+.step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step-body { flex: 1; }
+.step-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.step-desc { font-size: 12px; color: #888; line-height: 1.55; }
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.demo-controls button {
+  padding: 8px 14px;
+  border: 1px solid #dbe3f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.demo-controls button.primary {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #fff;
+}
+
+.arrow-note {
+  position: absolute;
+  z-index: 35;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4338ca;
+  background: #eef2ff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.arrow-note::after {
+  content: '';
+  position: absolute;
+  width: 0; height: 0;
+  border: 5px solid transparent;
+}
+.arrow-note.right {
+  right: 18px;
+  top: 49.5%;
+}
+.arrow-note.right::after {
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border-right-color: #eef2ff;
+}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>详情页举报 · 位置与交互设计</h1>
+  <p>基于现有详情浮层布局（评论数行 + 底栏 + 评论列表）。推荐方案 A：与作者「删除」同位互斥，非作者可见「举报」。下方有可点击的交互演示。</p>
+</div>
+
+<div class="compare">
+  <h2>方案对比</h2>
+  <table>
+    <tr>
+      <th>方案</th>
+      <th>位置</th>
+      <th>优点</th>
+      <th>缺点</th>
+    </tr>
+    <tr>
+      <td><strong>A 评论数行右侧</strong><span class="tag-rec">推荐</span></td>
+      <td>「共 N 条评论」同一行，作者见删除、他人见举报</td>
+      <td>与现有删除按钮一致；UGC 审核常见；不碰胶囊区</td>
+      <td>需与 canDelete 互斥展示</td>
+    </tr>
+    <tr>
+      <td><strong>B 顶栏更多</strong></td>
+      <td>作者名右侧 ··· 菜单</td>
+      <td>不占评论区；可扩展分享/复制链接</td>
+      <td>需避让微信胶囊；入口较深</td>
+    </tr>
+    <tr>
+      <td><strong>C 评论项内</strong></td>
+      <td>每条评论「回复」旁加「举报」</td>
+      <td>可精确举报评论</td>
+      <td>列表略挤；帖子级举报还要另做</td>
+    </tr>
+    <tr>
+      <td><strong>D 底栏第四项</strong></td>
+      <td>分享旁加 ···</td>
+      <td>拇指可及</td>
+      <td>与点赞评论分享并列，语义略混</td>
+    </tr>
+  </table>
+</div>
+
+<div class="grid">
+
+  <!-- 方案 A -->
+  <div class="plan-block">
+    <div class="plan-label">方案 A · 评论数行「举报」（推荐）</div>
+    <p class="plan-note">非作者：右侧灰色胶囊按钮「举报」。作者：仍显示红色「删除」。样式与现有 delete 对称，仅颜色不同。</p>
+    <div class="phone">
+      <div class="capsule-mock"></div>
+      <div class="detail-shell">
+        <div class="panel-header">
+          <span class="back">‹</span>
+          <div class="avatar"></div>
+          <span class="author">茶村小记</span>
+        </div>
+        <div class="photo-area"></div>
+        <div class="scroll-body">
+          <div class="desc-block">
+            <span class="desc">老根茶树下的晨雾，今年春茶开采了。</span>
+            <span class="date">2026.3.15</span>
+          </div>
+          <div class="divider"></div>
+          <div class="comment-count-row">
+            <span class="comment-count-text">共 12 条评论</span>
+            <span class="btn-report hot">举报</span>
+          </div>
+          <div class="comment-item">
+            <div class="c-avatar"></div>
+            <div class="c-body">
+              <div class="c-author">访客甲</div>
+              <div class="c-text">照片拍得真好，想回家看看。</div>
+              <div class="c-foot"><span>2小时前 · 回复</span><span>♡ 3</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-bar">
+          <div class="input-fake">说点什么...</div>
+          <div class="actions">
+            <div><div class="action-dot"></div>赞</div>
+            <div><div class="action-dot"></div>评</div>
+            <div><div class="action-dot"></div>享</div>
+          </div>
+        </div>
+      </div>
+      <div class="arrow-note right">举报入口</div>
+    </div>
+  </div>
+
+  <!-- 方案 B -->
+  <div class="plan-block">
+    <div class="plan-label">方案 B · 顶栏 ··· 菜单</div>
+    <p class="plan-note">胶囊左侧放 ···，点击 ActionSheet：举报 / 复制链接。适合后续扩展，但需严格左移避让胶囊。</p>
+    <div class="phone">
+      <div class="capsule-mock"></div>
+      <div class="more-btn-header">···</div>
+      <div class="detail-shell">
+        <div class="panel-header">
+          <span class="back">‹</span>
+          <div class="avatar"></div>
+          <span class="author">茶村小记</span>
+        </div>
+        <div class="photo-area"></div>
+        <div class="scroll-body">
+          <div class="desc-block">
+            <span class="desc">老根茶树下的晨雾</span>
+            <span class="date">2026.3.15</span>
+          </div>
+          <div class="divider"></div>
+          <div class="comment-count-row">
+            <span class="comment-count-text">共 12 条评论</span>
+          </div>
+        </div>
+        <div class="bottom-bar">
+          <div class="input-fake">说点什么...</div>
+          <div class="actions"><div><div class="action-dot"></div>赞</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 C -->
+  <div class="plan-block">
+    <div class="plan-label">方案 C · 评论级举报（补充）</div>
+    <p class="plan-note">帖子用方案 A；评论在「回复」后加「举报」链接。两者可并存，数据 type 区分 post / comment。</p>
+    <div class="phone">
+      <div class="capsule-mock"></div>
+      <div class="detail-shell">
+        <div class="panel-header"><span class="back">‹</span><div class="avatar"></div><span class="author">茶村小记</span></div>
+        <div class="photo-area" style="height:36%"></div>
+        <div class="scroll-body">
+          <div class="comment-count-row"><span class="comment-count-text">共 12 条评论</span><span class="btn-report">举报</span></div>
+          <div class="comment-item">
+            <div class="c-avatar"></div>
+            <div class="c-body">
+              <div class="c-author">用户B</div>
+              <div class="c-text">疑似广告内容……</div>
+              <div class="c-foot">
+                <span>1小时前 · 回复 <span class="c-report-link" style="color:#4338ca">举报</span></span>
+                <span>♡ 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-bar"><div class="input-fake">说点什么...</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 交互演示 -->
+<div class="flow-section">
+  <h2>推荐方案 A · 点击后交互（可演示）</h2>
+  <p>流程：点「举报」→ 底部选择原因 → 补充说明（选填）→ 提交 → Toast。未登录时先弹登录窗（与点赞一致）。</p>
+
+  <div class="demo-wrap">
+    <div class="demo-phone">
+      <div class="phone" id="demoPhone">
+        <div class="capsule-mock"></div>
+        <div class="detail-shell">
+          <div class="panel-header">
+            <span class="back">‹</span>
+            <div class="avatar"></div>
+            <span class="author">茶村小记</span>
+          </div>
+          <div class="photo-area"></div>
+          <div class="scroll-body">
+            <div class="desc-block">
+              <span class="desc">老根茶树下的晨雾，今年春茶开采了。</span>
+              <span class="date">2026.3.15</span>
+            </div>
+            <div class="divider"></div>
+            <div class="comment-count-row">
+              <span class="comment-count-text">共 12 条评论</span>
+              <span class="btn-report" id="btnReport" style="cursor:pointer">举报</span>
+            </div>
+            <div class="comment-item">
+              <div class="c-avatar"></div>
+              <div class="c-body">
+                <div class="c-author">访客甲</div>
+                <div class="c-text">照片拍得真好。</div>
+                <div class="c-foot"><span>2小时前 · 回复</span><span>♡ 3</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="bottom-bar">
+            <div class="input-fake">说点什么...</div>
+            <div class="actions">
+              <div><div class="action-dot"></div>赞</div>
+              <div><div class="action-dot"></div>评</div>
+              <div><div class="action-dot"></div>享</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mask" id="mask"></div>
+
+        <div class="sheet" id="reasonSheet">
+          <div class="sheet-title">请选择举报原因</div>
+          <div class="sheet-item danger" data-reason="违法违规">违法违规</div>
+          <div class="sheet-item danger" data-reason="色情低俗">色情低俗</div>
+          <div class="sheet-item danger" data-reason="垃圾广告">垃圾广告</div>
+          <div class="sheet-item danger" data-reason="侵犯权益">侵犯权益</div>
+          <div class="sheet-item danger" data-reason="其他">其他</div>
+          <div class="sheet-cancel" id="sheetCancel">取消</div>
+        </div>
+
+        <div class="modal" id="reportModal">
+          <div class="modal-head">补充说明</div>
+          <div class="modal-sub">您的举报将提交给平台处理，我们会尽快核实。</div>
+          <div class="modal-reason" id="selectedReason">原因：违法违规</div>
+          <textarea class="modal-textarea" id="reportDetail" placeholder="请补充具体情况（选填）" maxlength="200"></textarea>
+          <div class="modal-actions">
+            <button type="button" id="modalCancel">取消</button>
+            <button type="button" class="primary" id="modalSubmit">提交举报</button>
+          </div>
+        </div>
+
+        <div class="toast" id="toast">感谢举报，我们会尽快处理</div>
+      </div>
+    </div>
+
+    <div class="flow-steps">
+      <h3>交互步骤</h3>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">点击「举报」</div>
+          <div class="step-desc">位于评论数行右侧。作者本人不显示此按钮，仅显示「删除」。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">选择举报原因</div>
+          <div class="step-desc">底部 ActionSheet，五项常见 UGC 原因 + 取消。选中后进入下一步。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">补充说明（选填）</div>
+          <div class="step-desc">居中 Modal，展示已选原因 + 200 字内补充。提交后写入 feedbacks 集合（type=report）。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">提交成功</div>
+          <div class="step-desc">Toast「感谢举报，我们会尽快处理」，关闭所有浮层。Web 管理台「意见反馈」可筛选举报类处理。</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:20px">样式规范（对齐现有 UI）</h3>
+      <div class="step">
+        <div class="step-body">
+          <div class="step-desc">
+            · 举报按钮：<code>comment-report-btn</code>，灰底 #f5f5f5、字色 #666，与红色删除区分<br>
+            · 按压：<code>scale(0.94)</code> + opacity 0.78<br>
+            · 原因 Sheet：系统 ActionSheet 或自绘 bottom sheet（与微信风格一致）<br>
+            · 未登录：拦截并弹出已有 login-modal
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-controls">
+        <button type="button" class="primary" id="btnReplay">重新演示</button>
+        <button type="button" id="btnReset">重置</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const mask = document.getElementById('mask');
+  const reasonSheet = document.getElementById('reasonSheet');
+  const reportModal = document.getElementById('reportModal');
+  const toast = document.getElementById('toast');
+  const selectedReason = document.getElementById('selectedReason');
+  const btnReport = document.getElementById('btnReport');
+  const sheetCancel = document.getElementById('sheetCancel');
+  const modalCancel = document.getElementById('modalCancel');
+  const modalSubmit = document.getElementById('modalSubmit');
+  const reportDetail = document.getElementById('reportDetail');
+
+  let currentReason = '';
+
+  function resetAll() {
+    mask.classList.remove('show');
+    reasonSheet.classList.remove('show');
+    reportModal.classList.remove('show');
+    toast.classList.remove('show');
+    reportDetail.value = '';
+    currentReason = '';
+  }
+
+  function openSheet() {
+    resetAll();
+    mask.classList.add('show');
+    reasonSheet.classList.add('show');
+  }
+
+  function openModal(reason) {
+    currentReason = reason;
+    selectedReason.textContent = '原因：' + reason;
+    reasonSheet.classList.remove('show');
+    reportModal.classList.add('show');
+  }
+
+  function submitReport() {
+    reportModal.classList.remove('show');
+    toast.classList.add('show');
+    setTimeout(resetAll, 1600);
+  }
+
+  btnReport.addEventListener('click', openSheet);
+  sheetCancel.addEventListener('click', resetAll);
+  mask.addEventListener('click', resetAll);
+  modalCancel.addEventListener('click', resetAll);
+  modalSubmit.addEventListener('click', submitReport);
+
+  reasonSheet.querySelectorAll('.sheet-item[data-reason]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      openModal(el.getAttribute('data-reason'));
+    });
+  });
+
+  document.getElementById('btnReplay').addEventListener('click', openSheet);
+  document.getElementById('btnReset').addEventListener('click', resetAll);
+})();
+</script>
+
+</body>
+</html>

@@ -1,8 +1,9 @@
 // pages/profile/profile.js
 const { postApi } = require('../../../utils/api');
-const { showToast, showLoading, hideLoading } = require('../../../utils/util');
+const { showToast, showLoading, hideLoading, showSuccess, showContentAuditModal, isContentAuditFailure } = require('../../../utils/util');
 const { isLoggedIn, ensureSession } = require('../../../utils/session');
 const { POST_STATUS, getUserStatusHint, getEmptyWorksText, isUserToggleableStatus, POST_STATUS_USER_BADGE } = require('../../../utils/postStatus');
+const { mapApiErrorMessage } = require('../../../utils/apiErrors');
 const app = getApp();
 
 Page({
@@ -23,8 +24,6 @@ Page({
     likedCount: 0,
     loading: false,
     hiddenCount: 0,
-    reviewingCount: 0,
-    rejectedCount: 0,
     showPhotoAction: false,
     currentPhotoStatus: POST_STATUS.RELEASED,
     statusTipText: '',
@@ -56,12 +55,33 @@ Page({
       const tabBar = this.getTabBar && this.getTabBar();
       if (tabBar) tabBar.setData({ selected: 2 });
     }, 0);
+
+    const publishFeedback = app.globalData.publishFeedback;
+    if (publishFeedback && publishFeedback.res) {
+      app.globalData.publishFeedback = null;
+      const { res } = publishFeedback;
+      if (res.success) {
+        const isReviewing = res.data && res.data.status === 'reviewing';
+        if (!isReviewing) {
+          showSuccess('发布成功，作品已展示在首页');
+        }
+        app.globalData.profileNeedRefresh = true;
+      } else if (isContentAuditFailure(res)) {
+        showContentAuditModal(res.message, res.code);
+      } else {
+        showToast(mapApiErrorMessage(res));
+      }
+    }
+
     const needRefresh = app.globalData.profileNeedRefresh;
     if (needRefresh) {
       app.globalData.profileNeedRefresh = false;
     }
     this.updateUserStatus();
     if (isLoggedIn() && (needRefresh || !this._loaded)) {
+      if (this.data.worksFilter !== 'all' && this.data.worksFilter !== POST_STATUS.HIDDEN) {
+        this.setData({ worksFilter: 'all', emptyWorksText: getEmptyWorksText('all') });
+      }
       this.loadData();
     } else if (isLoggedIn() && app.globalData.profileNeedUserRefresh) {
       app.globalData.profileNeedUserRefresh = false;
@@ -123,8 +143,6 @@ Page({
         worksCount: 0,
         likedCount: 0,
         hiddenCount: 0,
-        reviewingCount: 0,
-        rejectedCount: 0,
         worksPage: 1,
         likedPage: 1,
         worksHasMore: true,
@@ -202,25 +220,10 @@ Page({
 
   async loadStatusCounts() {
     if (!isLoggedIn()) return;
-    const pageSize = 1;
     try {
-      const [hiddenRes, reviewingRes, rejectedRes] = await Promise.all([
-        postApi.getMyWorks({ page: 1, pageSize, status: POST_STATUS.HIDDEN }),
-        postApi.getMyWorks({ page: 1, pageSize, status: POST_STATUS.REVIEWING }),
-        postApi.getMyWorks({ page: 1, pageSize, status: POST_STATUS.REJECTED }),
-      ]);
-      const setData = {};
+      const hiddenRes = await postApi.getMyWorks({ page: 1, pageSize: 1, status: POST_STATUS.HIDDEN });
       if (hiddenRes.success) {
-        setData.hiddenCount = hiddenRes.data.total || 0;
-      }
-      if (reviewingRes.success) {
-        setData.reviewingCount = reviewingRes.data.total || 0;
-      }
-      if (rejectedRes.success) {
-        setData.rejectedCount = rejectedRes.data.total || 0;
-      }
-      if (Object.keys(setData).length) {
-        this.setData(setData);
+        this.setData({ hiddenCount: hiddenRes.data.total || 0 });
       }
     } catch (e) {
       console.error('加载作品状态数量失败:', e);
@@ -230,14 +233,13 @@ Page({
   async loadWorks(reset = false, silentFilter = null) {
     if (!isLoggedIn()) return;
     const filter = silentFilter ?? this.data.worksFilter;
-    const status =
-      filter === POST_STATUS.HIDDEN
-        ? POST_STATUS.HIDDEN
-        : filter === POST_STATUS.REVIEWING
-          ? POST_STATUS.REVIEWING
-          : filter === POST_STATUS.REJECTED
-            ? POST_STATUS.REJECTED
-            : undefined;
+    if (filter === POST_STATUS.REVIEWING || filter === POST_STATUS.REJECTED) {
+      this.setData({ worksFilter: 'all', emptyWorksText: getEmptyWorksText('all') });
+    }
+    const effectiveFilter = (filter === POST_STATUS.REVIEWING || filter === POST_STATUS.REJECTED)
+      ? 'all'
+      : filter;
+    const status = effectiveFilter === POST_STATUS.HIDDEN ? POST_STATUS.HIDDEN : undefined;
 
     if (reset && !silentFilter) {
       this.setData({ works: [], worksPage: 1, worksHasMore: true });
@@ -253,21 +255,18 @@ Page({
           ...p,
           id: p._id,
           imageUrl: p.imageUrl,
-          status: p.status,
+          status: p.status === 'failed' ? POST_STATUS.REJECTED : p.status,
         }));
-        const works = reset ? photos : [...this.data.works, ...photos];
+        let works = reset ? photos : [...this.data.works, ...photos];
+        works = this._dedupeWorksById(works);
         const setData = {};
         if (!silentFilter) {
           setData.works = works;
           setData.worksPage = page + 1;
           setData.worksHasMore = res.data.hasMore !== false;
         }
-        if (filter === POST_STATUS.HIDDEN) {
+        if (effectiveFilter === POST_STATUS.HIDDEN) {
           setData.hiddenCount = res.data.total || photos.length;
-        } else if (filter === POST_STATUS.REVIEWING) {
-          setData.reviewingCount = res.data.total || photos.length;
-        } else if (filter === POST_STATUS.REJECTED) {
-          setData.rejectedCount = res.data.total || photos.length;
         } else {
           setData.worksCount = res.data.total || works.length;
         }
@@ -276,6 +275,16 @@ Page({
     } catch (e) {
       console.error('加载作品失败:', e);
     }
+  },
+
+  _dedupeWorksById(works) {
+    const seenIds = new Set();
+    return (works || []).filter((w) => {
+      const id = w && w.id;
+      if (!id || seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    });
   },
 
   onWorksFilterTap(e) {
@@ -416,10 +425,19 @@ Page({
   goToDetail(e) {
     const id = e.currentTarget.dataset.id;
     if (!id) return;
-    const { openPostDetail } = require('../../../utils/openPostDetail');
     const post =
       this.data.works.find((p) => p.id === id) ||
       this.data.liked.find((p) => p.id === id);
+    const status = post && post.status;
+    if (status === POST_STATUS.REVIEWING) {
+      showToast('审核中，请耐心等待');
+      return;
+    }
+    if (status === POST_STATUS.REJECTED || status === 'failed') {
+      wx.navigateTo({ url: `/pages/upload/upload?mode=resubmit&postId=${id}` });
+      return;
+    }
+    const { openPostDetail } = require('../../../utils/openPostDetail');
     openPostDetail(post || { id });
   },
 

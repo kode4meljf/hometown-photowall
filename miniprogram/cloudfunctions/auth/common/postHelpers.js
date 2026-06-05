@@ -49,8 +49,40 @@ function normalizePostForAdmin(post) {
   };
 }
 
+function cloudStoragePath(fileId) {
+  if (!fileId || typeof fileId !== 'string' || !fileId.startsWith('cloud://')) return '';
+  const rest = fileId.slice('cloud://'.length);
+  const slash = rest.indexOf('/');
+  return slash >= 0 ? rest.slice(slash + 1) : '';
+}
+
+function assertActorOwnsCloudFile(fileId, actor) {
+  const path = cloudStoragePath(fileId);
+  if (!path || path.includes('..')) {
+    return { ok: false, message: '无效的图片地址' };
+  }
+  const userId = String(actor.userId || '');
+  if (!userId) {
+    return { ok: false, message: '请先登录' };
+  }
+  if (path.startsWith(`photos/${userId}/`) || path.startsWith(`avatars/${userId}/`)) {
+    return { ok: true };
+  }
+  return { ok: false, message: '图片地址无效，请重新上传' };
+}
+
+function assertActorOwnsCloudFiles(fileIds, actor) {
+  const list = (fileIds || []).filter(Boolean);
+  for (let i = 0; i < list.length; i++) {
+    const check = assertActorOwnsCloudFile(list[i], actor);
+    if (!check.ok) return check;
+  }
+  return { ok: true };
+}
+
 module.exports = {
   deleteCloudFiles,
   normalizePostForClient,
   normalizePostForAdmin,
+  assertActorOwnsCloudFiles,
 };

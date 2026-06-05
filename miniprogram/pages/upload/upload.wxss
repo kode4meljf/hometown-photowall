@@ -390,6 +390,79 @@
   background: #fff;
 }
 
+.publish-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64rpx;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.publish-overlay-card {
+  width: 82%;
+  max-width: 520rpx;
+  padding: 64rpx 48rpx 52rpx;
+  background: #fff;
+  border-radius: 40rpx;
+  text-align: center;
+  box-shadow: 0 40rpx 112rpx rgba(0, 0, 0, 0.2);
+}
+
+.publish-spinner {
+  width: 80rpx;
+  height: 80rpx;
+  margin: 0 auto 40rpx;
+  border: 6rpx solid #eee;
+  border-top-color: #333;
+  border-radius: 50%;
+  animation: publish-spin 0.85s linear infinite;
+}
+
+@keyframes publish-spin {
+  to { transform: rotate(360deg); }
+}
+
+.publish-overlay-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 28rpx;
+}
+
+.publish-overlay-status {
+  display: block;
+  min-height: 44rpx;
+  font-size: 30rpx;
+  color: #666;
+  margin-bottom: 56rpx;
+}
+
+.publish-overlay-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: 28rpx;
+  line-height: 1.5;
+}
+
+.publish-overlay-link-muted {
+  color: #999;
+}
+
+.publish-overlay-link-em {
+  color: #e8860a;
+}
+
+.publish-overlay-link:active .publish-overlay-link-em {
+  opacity: 0.65;
+}
+
 .submit-btn {
   display: flex;
   align-items: center;
@@ -417,4 +490,57 @@
 
 .submit-btn.submitting {
   background: #ccc;
+  pointer-events: none;
+}
+
+.rejected-tip {
+  margin-bottom: 16rpx;
+  padding: 16rpx 20rpx;
+  background: #fff8e8;
+  border-radius: 12rpx;
+}
+
+.rejected-tip-text {
+  font-size: 24rpx;
+  color: #8a6a1a;
+  line-height: 1.5;
+}
+
+.rejected-actions {
+  display: flex;
+  gap: 20rpx;
+}
+
+.reject-action-btn {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.reject-action-btn-danger {
+  background: #fff;
+  color: #e54d42;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.08);
+}
+
+.reject-action-btn-primary {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.12);
+}
+
+.reject-action-btn-primary.submitting {
+  background: #ccc;
+  color: #666;
+  pointer-events: none;
+}
+
+.reject-action-btn.disabled {
+  opacity: 0.45;
+  pointer-events: none;
 }

@@ -10,12 +10,17 @@ const commentsCollection = db.collection('post_comments');
 const usersCollection = db.collection('users');
 const identity = require('./common/identity');
 const sec = require('./openApiSecurity');
-const { POST_STATUS, POST_STATUS_LIST, isPublicStatus, isUserToggleableStatus } = require('./common/postStatus');
+const { POST_STATUS, POST_STATUS_LIST, isPublicStatus, isUserToggleableStatus, normalizePostStatus } = require('./common/postStatus');
 const {
   deleteCloudFiles,
   normalizePostForClient: normalizePost,
   assertActorOwnsCloudFiles,
+  assertCloudFilesExist,
+  extractCloudFileIds,
+  clearPhotosCloudUrls,
 } = require('./common/postHelpers');
+const { apiError, API_ERROR } = require('./common/apiErrors');
+const mediaAudit = require('./common/mediaAudit');
 
 const PAGE_SIZE_MAX = 50;
 const PAGE_SIZE_DEFAULT = 20;
@@ -629,86 +634,6 @@ async function getMoreComments(data, openId) {
   }
 }
 
-// 创建帖子（写入 posts 集合）
-async function createPost(data, openId) {
-  const actor = await getActor(openId);
-  if (!actor.userId) {
-    return { success: false, message: '请先登录' };
-  }
-  try {
-    const title = (data.title || '').trim();
-    if (!title) {
-      return { success: false, message: '请填写标题' };
-    }
-
-    const photos = normalizePhotosInput(data.photos);
-    if (!photos.length) {
-      return { success: false, message: '请至少上传一张图片' };
-    }
-
-    const ownedCheck = assertActorOwnsCloudFiles(photos.map((p) => p.imageUrl), actor);
-    if (!ownedCheck.ok) {
-      return { success: false, message: ownedCheck.message };
-    }
-
-    let authorNickname = '匿名用户';
-    let authorAvatar = '';
-    if (actor.user) {
-      authorNickname = actor.user.nickname || '匿名用户';
-      authorAvatar = actor.user.avatar || '';
-    }
-
-    const addData = {
-      title,
-      description: data.description || '',
-      location: data.location || '',
-      photos,
-      author: authorNickname,
-      authorId: identity.writeAuthorId(actor),
-      authorAvatar,
-      likes: 0,
-      views: 0,
-      likedUsers: [],
-      status: POST_STATUS.RELEASED,
-      createdAt: db.serverDate()
-    };
-
-    const textCheck = await sec.checkTexts(cloud, openId, [
-      { content: addData.title, scene: sec.SCENE.SOCIAL, title: addData.title },
-      { content: addData.description, scene: sec.SCENE.SOCIAL },
-      { content: addData.location, scene: sec.SCENE.SOCIAL },
-    ]);
-    if (!textCheck.ok) {
-      return { success: false, message: textCheck.message };
-    }
-
-    const imageIds = photos.map((p) => p.imageUrl).filter(Boolean);
-    if (imageIds.length) {
-      const imageCheck = await sec.checkImages(cloud, openId, imageIds, sec.SCENE.SOCIAL);
-      if (!imageCheck.ok) {
-        return { success: false, message: imageCheck.message };
-      }
-      if (imageCheck.needsReview) {
-        addData.status = POST_STATUS.REVIEWING;
-        addData.mediaTraceIds = imageCheck.mediaTraceIds || [];
-      }
-    }
-
-    const result = await postsCollection.add({ data: addData });
-    if (addData.status === POST_STATUS.REVIEWING) {
-      return {
-        success: true,
-        data: { id: result._id, status: POST_STATUS.REVIEWING },
-        message: '作品已提交，审核通过后将展示在首页',
-      };
-    }
-    return { success: true, data: { id: result._id } };
-  } catch (e) {
-    console.error('[createPost] 失败:', e.message, e.stack);
-    return { success: false, message: '发布失败: ' + e.message };
-  }
-}
-
 function normalizePhotosInput(rawPhotos) {
   return (rawPhotos || []).map((p, idx) => ({
     imageUrl: p.imageUrl || '',
@@ -716,6 +641,231 @@ function normalizePhotosInput(rawPhotos) {
     height: parseInt(p.height, 10) || 1,
     order: p.order !== undefined ? p.order : idx,
   })).filter((p) => p.imageUrl);
+}
+
+async function rejectExistingPost(postId, addData, fileIds, reason, code) {
+  await deleteCloudFiles(cloud, fileIds);
+  await postsCollection.doc(postId).update({
+    data: {
+      status: POST_STATUS.REJECTED,
+      photos: clearPhotosCloudUrls(addData.photos),
+      imageRemoved: true,
+      reviewAdminNote: reason || '',
+      rejectedAt: db.serverDate(),
+      updatedAt: db.serverDate(),
+    },
+  });
+  return apiError(code || API_ERROR.POST_REJECTED, {
+    message: reason,
+    data: { id: postId, status: POST_STATUS.REJECTED },
+  });
+}
+
+async function persistRejectedPost(addData, fileIds, reason, code) {
+  const data = {
+    ...addData,
+    status: POST_STATUS.REJECTED,
+    photos: clearPhotosCloudUrls(addData.photos),
+    imageRemoved: true,
+    reviewAdminNote: reason || '',
+    rejectedAt: db.serverDate(),
+    updatedAt: db.serverDate(),
+  };
+  const result = await postsCollection.add({ data });
+  await deleteCloudFiles(cloud, fileIds);
+  return apiError(code || API_ERROR.POST_REJECTED, {
+    message: reason,
+    data: { id: result._id, status: POST_STATUS.REJECTED },
+  });
+}
+
+async function validateSubmitPhotos(photos, actor, { previousPost } = {}) {
+  const normalized = normalizePhotosInput(photos);
+  if (!normalized.length) {
+    return { ok: false, response: apiError(API_ERROR.IMAGE_NOT_RESELECTED) };
+  }
+  const fileIds = normalized.map((p) => p.imageUrl);
+  const ownedCheck = assertActorOwnsCloudFiles(fileIds, actor);
+  if (!ownedCheck.ok) {
+    return {
+      ok: false,
+      response: apiError(API_ERROR.IMAGE_INVALID, { message: ownedCheck.message }),
+    };
+  }
+  if (
+    previousPost
+    && (previousPost.imageRemoved
+      || previousPost.status === POST_STATUS.REJECTED
+      || previousPost.status === 'failed')
+  ) {
+    const oldIds = extractCloudFileIds(previousPost.photos);
+    for (let i = 0; i < fileIds.length; i++) {
+      if (oldIds.includes(fileIds[i])) {
+        return { ok: false, response: apiError(API_ERROR.IMAGE_INVALID) };
+      }
+    }
+  }
+  const existCheck = await assertCloudFilesExist(cloud, fileIds);
+  if (!existCheck.ok) {
+    return { ok: false, response: apiError(existCheck.code || API_ERROR.IMAGE_INVALID) };
+  }
+  return { ok: true, photos: normalized, fileIds };
+}
+
+// 创建帖子（写入 posts 集合）
+async function createPost(data, openId) {
+  const actor = await getActor(openId);
+  if (!actor.userId) {
+    return { success: false, message: '请先登录' };
+  }
+  try {
+    let authorNickname = '匿名用户';
+    let authorAvatar = '';
+    if (actor.user) {
+      authorNickname = actor.user.nickname || '匿名用户';
+      authorAvatar = actor.user.avatar || '';
+    }
+
+    const title = (data.title || '').trim();
+    if (!title) {
+      return { success: false, message: '请填写标题' };
+    }
+    const description = (data.description || '').trim();
+    const location = (data.location || '').trim();
+
+    const textCheck = await sec.checkTexts(cloud, openId, [
+      { content: title, scene: sec.SCENE.SOCIAL, title },
+      { content: description, scene: sec.SCENE.SOCIAL },
+      { content: location, scene: sec.SCENE.SOCIAL },
+    ]);
+    if (!textCheck.ok) {
+      const draftPhotos = normalizePhotosInput(data.photos);
+      const draftFileIds = extractCloudFileIds(draftPhotos);
+      if (draftPhotos.length) {
+        return persistRejectedPost(
+          {
+            title,
+            description,
+            location,
+            photos: draftPhotos,
+            author: authorNickname,
+            authorId: identity.writeAuthorId(actor),
+            authorAvatar,
+            likes: 0,
+            views: 0,
+            likedUsers: [],
+            createdAt: db.serverDate(),
+          },
+          draftFileIds,
+          textCheck.message,
+          textCheck.code || API_ERROR.POST_REJECTED
+        );
+      }
+      return { success: false, message: textCheck.message, code: textCheck.code };
+    }
+
+    const photoCheck = await validateSubmitPhotos(data.photos, actor);
+    if (!photoCheck.ok) {
+      return photoCheck.response;
+    }
+    const photos = photoCheck.photos;
+
+    const addData = {
+      title,
+      description,
+      location,
+      photos,
+      author: authorNickname,
+      authorId: identity.writeAuthorId(actor),
+      authorAvatar,
+      likes: 0,
+      views: 0,
+      likedUsers: [],
+      status: POST_STATUS.REVIEWING,
+      createdAt: db.serverDate(),
+    };
+
+    const fileIds = extractCloudFileIds(photos);
+
+    const result = await postsCollection.add({ data: addData });
+    const postId = result._id;
+
+    let imageCheck = { ok: true, needsReview: false, mediaTraceEntries: [] };
+    if (fileIds.length) {
+      imageCheck = await sec.checkImages(cloud, openId, fileIds, sec.SCENE.SOCIAL);
+      if (!imageCheck.ok) {
+        return rejectExistingPost(
+          postId,
+          addData,
+          fileIds,
+          imageCheck.message,
+          imageCheck.code || API_ERROR.POST_REJECTED
+        );
+      }
+    }
+
+    if (imageCheck.needsReview && imageCheck.mediaTraceEntries && imageCheck.mediaTraceEntries.length) {
+      await postsCollection.doc(postId).update({
+        data: {
+          mediaTraceIds: imageCheck.mediaTraceIds || [],
+          mediaAuditBatch: 1,
+          mediaPendingCount: imageCheck.mediaTraceEntries.length,
+          updatedAt: db.serverDate(),
+        },
+      });
+      try {
+        await mediaAudit.createAuditTasks(db, {
+          postId,
+          auditBatch: 1,
+          entries: imageCheck.mediaTraceEntries,
+        });
+      } catch (e) {
+        console.error('[createPost] createAuditTasks failed:', e.message);
+      }
+      return {
+        success: true,
+        data: { id: postId, status: POST_STATUS.REVIEWING },
+        message: '作品已提交，审核通过后将展示在首页',
+      };
+    }
+
+    await postsCollection.doc(postId).update({
+      data: {
+        status: POST_STATUS.RELEASED,
+        mediaPendingCount: 0,
+        updatedAt: db.serverDate(),
+      },
+    });
+    return { success: true, data: { id: postId, status: POST_STATUS.RELEASED } };
+  } catch (e) {
+    console.error('[createPost] 失败:', e.message, e.stack);
+    const raw = e && e.message ? String(e.message) : '';
+    if (/imgSecCheck|mediaCheckAsync|87014|risky content/i.test(raw)) {
+      return { success: false, message: sec.IMAGE_BLOCK_MSG, code: 'image_block' };
+    }
+    if (/msgSecCheck/i.test(raw)) {
+      return { success: false, message: sec.BLOCK_MSG, code: 'text_block' };
+    }
+    return { success: false, message: '发布失败，请稍后重试' };
+  }
+}
+
+async function applyResubmitRejected(postId, attemptedPhotos, fileIds, reason, code) {
+  await deleteCloudFiles(cloud, fileIds);
+  await postsCollection.doc(postId).update({
+    data: {
+      status: POST_STATUS.REJECTED,
+      photos: clearPhotosCloudUrls(attemptedPhotos),
+      imageRemoved: true,
+      reviewAdminNote: reason || '',
+      rejectedAt: db.serverDate(),
+      updatedAt: db.serverDate(),
+    },
+  });
+  return apiError(code || API_ERROR.POST_REJECTED, {
+    message: reason,
+    data: { id: postId, status: POST_STATUS.REJECTED },
+  });
 }
 
 // 驳回作品重新提交：更新同一条记录，status 一律变为 reviewing
@@ -739,18 +889,8 @@ async function resubmitPost(data, openId) {
     if (!identity.isAuthor(post.authorId, actor)) {
       return { success: false, message: '无权操作' };
     }
-    if (post.status !== POST_STATUS.REJECTED) {
+    if (normalizePostStatus(post.status) !== POST_STATUS.REJECTED) {
       return { success: false, message: '当前状态不可重新提交' };
-    }
-
-    const photos = normalizePhotosInput(data.photos);
-    if (!photos.length) {
-      return { success: false, message: '请至少保留一张图片' };
-    }
-
-    const ownedCheck = assertActorOwnsCloudFiles(photos.map((p) => p.imageUrl), actor);
-    if (!ownedCheck.ok) {
-      return { success: false, message: ownedCheck.message };
     }
 
     const title = (data.title || '').trim();
@@ -766,18 +906,43 @@ async function resubmitPost(data, openId) {
       { content: location, scene: sec.SCENE.SOCIAL },
     ]);
     if (!textCheck.ok) {
-      return { success: false, message: textCheck.message };
+      const draftPhotos = normalizePhotosInput(data.photos);
+      const draftFileIds = extractCloudFileIds(draftPhotos);
+      if (draftPhotos.length) {
+        return applyResubmitRejected(
+          postId,
+          draftPhotos,
+          draftFileIds,
+          textCheck.message,
+          textCheck.code || API_ERROR.POST_REJECTED
+        );
+      }
+      return { success: false, message: textCheck.message, code: textCheck.code };
     }
 
-    const imageIds = photos.map((p) => p.imageUrl);
-    const imageCheck = await sec.checkImages(cloud, openId, imageIds, sec.SCENE.SOCIAL);
+    const photoCheck = await validateSubmitPhotos(data.photos, actor, { previousPost: post });
+    if (!photoCheck.ok) {
+      return photoCheck.response;
+    }
+    const photos = photoCheck.photos;
+    const newFileIds = photoCheck.fileIds;
+
+    const imageCheck = await sec.checkImages(cloud, openId, newFileIds, sec.SCENE.SOCIAL);
     if (!imageCheck.ok) {
-      return { success: false, message: imageCheck.message };
+      return applyResubmitRejected(
+        postId,
+        photos,
+        newFileIds,
+        imageCheck.message,
+        imageCheck.code || API_ERROR.POST_REJECTED
+      );
     }
 
-    const oldFileIds = (post.photos || []).map((p) => p.imageUrl).filter(Boolean);
-    const newFileIds = photos.map((p) => p.imageUrl);
+    const oldFileIds = extractCloudFileIds(post.photos);
     const removedFileIds = oldFileIds.filter((id) => !newFileIds.includes(id));
+
+    const nextAuditBatch = (post.mediaAuditBatch || 0) + 1;
+    const traceEntries = imageCheck.mediaTraceEntries || [];
 
     const updateData = {
       title,
@@ -785,21 +950,58 @@ async function resubmitPost(data, openId) {
       location,
       photos,
       status: POST_STATUS.REVIEWING,
+      imageRemoved: false,
       mediaTraceIds: imageCheck.mediaTraceIds || [],
+      mediaAuditBatch: nextAuditBatch,
+      mediaPendingCount: traceEntries.length,
       updatedAt: db.serverDate(),
     };
 
     await postsCollection.doc(postId).update({ data: updateData });
-    await deleteCloudFiles(cloud, removedFileIds);
+    if (removedFileIds.length) {
+      await deleteCloudFiles(cloud, removedFileIds);
+    }
 
+    if (traceEntries.length) {
+      try {
+        await mediaAudit.createAuditTasks(db, {
+          postId,
+          auditBatch: nextAuditBatch,
+          entries: traceEntries,
+        });
+      } catch (e) {
+        console.error('[resubmitPost] createAuditTasks failed:', e.message);
+      }
+      return {
+        success: true,
+        message: '已提交审核，通过后将展示在首页',
+        data: { id: postId, status: POST_STATUS.REVIEWING },
+      };
+    }
+
+    await postsCollection.doc(postId).update({
+      data: {
+        status: POST_STATUS.RELEASED,
+        mediaPendingCount: 0,
+        mediaAuditResolvedAt: db.serverDate(),
+        updatedAt: db.serverDate(),
+      },
+    });
     return {
       success: true,
-      message: '已提交审核，通过后将展示在首页',
-      data: { id: postId, status: POST_STATUS.REVIEWING },
+      message: '发布成功',
+      data: { id: postId, status: POST_STATUS.RELEASED },
     };
   } catch (e) {
     console.error('[resubmitPost] 失败:', e.message, e.stack);
-    return { success: false, message: '提交失败: ' + e.message };
+    const raw = e && e.message ? String(e.message) : '';
+    if (/imgSecCheck|mediaCheckAsync|87014|risky content/i.test(raw)) {
+      return { success: false, message: sec.IMAGE_BLOCK_MSG, code: 'image_block' };
+    }
+    if (/msgSecCheck/i.test(raw)) {
+      return { success: false, message: sec.BLOCK_MSG, code: 'text_block' };
+    }
+    return { success: false, message: '提交失败，请稍后重试' };
   }
 }
 
@@ -1209,7 +1411,11 @@ async function getMyWorks(openId, params = {}) {
   const { page, pageSize } = normalizePagePagination(params);
   const whereCond = { ...identity.authorOwnerWhere(db, actor) };
   if (status && POST_STATUS_LIST.includes(status)) {
-    whereCond.status = status;
+    if (status === POST_STATUS.REJECTED) {
+      whereCond.status = _.in([POST_STATUS.REJECTED, 'failed']);
+    } else {
+      whereCond.status = status;
+    }
   }
   try {
     const countResult = await postsCollection.where(whereCond).count();
@@ -1222,9 +1428,9 @@ async function getMyWorks(openId, params = {}) {
       .limit(pageSize)
       .get();
 
-    let posts = result.data.map(post => ({
-      ...normalizePost(post),
-      liked: identity.isLikedBy(post.likedUsers, actor)
+    let posts = result.data.map((post) => ({
+      ...normalizePost({ ...post, status: normalizePostStatus(post.status) }),
+      liked: identity.isLikedBy(post.likedUsers, actor),
     }));
 
     return { success: true, data: { posts, hasMore: page * pageSize < total, total } };

@@ -147,9 +147,41 @@
 
   <!-- 底部发布按钮 -->
   <view class="submit-bar">
-    <view class="submit-btn {{submitting ? 'submitting' : ''}}" bindtap="handleSubmit">
+    <view wx:if="{{isRejectedMode}}" class="rejected-tip">
+      <text class="rejected-tip-text">{{rejectedTip}}</text>
+    </view>
+    <view wx:if="{{isRejectedMode}}" class="rejected-actions">
+      <view class="reject-action-btn reject-action-btn-danger {{submitting ? 'disabled' : ''}}" bindtap="handleDeleteRejected">删除</view>
+      <view class="reject-action-btn reject-action-btn-primary {{submitting ? 'submitting' : ''}}" bindtap="handleSubmit">
+        <text>{{submitting ? '提交中…' : submitBtnText}}</text>
+      </view>
+    </view>
+    <view wx:else class="submit-btn {{submitting ? 'submitting' : ''}}" bindtap="handleSubmit">
       <image class="submit-icon" src="/assets/icons/camera-empty.png" mode="aspectFit" wx:if="{{!submitting}}" />
       <text>{{submitting ? (isResubmit ? '提交中…' : '发布中…') : submitBtnText}}</text>
     </view>
   </view>
+
+  <!-- 发布中全屏遮罩 -->
+  <view wx:if="{{publishOverlayVisible}}" class="publish-overlay" catchtouchmove="preventTouchMove">
+    <view class="publish-overlay-card">
+      <view class="publish-spinner"></view>
+      <text class="publish-overlay-title">{{publishOverlayTitle}}</text>
+      <text class="publish-overlay-status">{{publishOverlayStatus}}</text>
+      <view class="publish-overlay-link" catchtap="goProfileWhileSubmitting">
+        <text class="publish-overlay-link-muted">先去</text>
+        <text class="publish-overlay-link-em">个人中心</text>
+        <text class="publish-overlay-link-muted">看看</text>
+      </view>
+    </view>
+  </view>
 </view>
+
+<login-modal
+  visible="{{loginModalShow}}"
+  title="登录"
+  subtitle="登录后即可发布作品"
+  cancel-text="取消"
+  bind:close="onLoginModalClose"
+  bind:success="onLoginSuccess"
+/>

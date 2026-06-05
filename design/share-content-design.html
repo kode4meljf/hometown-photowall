@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分享内容设计 · 最终方案</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+    padding: 32px 16px 64px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    line-height: 1.7;
+    max-width: 520px;
+    margin: 0 auto 40px;
+  }
+  .section { margin-bottom: 48px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 0 8px;
+  }
+  .section-tag {
+    font-size: 11px;
+    color: #07c160;
+    border: 1px solid #07c160;
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+  .section-title { font-size: 16px; font-weight: 600; }
+  .section-desc {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+    padding: 0 8px 12px;
+    line-height: 1.6;
+  }
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+  }
+  .card-wrap { text-align: center; }
+  .card-label {
+    font-size: 12px;
+    color: #666;
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+  .phone {
+    width: 280px;
+    background: #1c1c1c;
+    border-radius: 36px;
+    padding: 12px;
+    box-shadow: 0 24px 48px rgba(0,0,0,.5);
+  }
+  .screen {
+    background: #f5f5f5;
+    border-radius: 28px;
+    overflow: hidden;
+    min-height: 420px;
+    position: relative;
+  }
+
+  /* 详情底栏 */
+  .detail-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 72px;
+    background: #fff;
+    border-top: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .detail-input {
+    flex: 1;
+    height: 32px;
+    background: #f0f0f0;
+    border-radius: 16px;
+    font-size: 12px;
+    color: #999;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+  }
+  .detail-actions { display: flex; gap: 14px; font-size: 11px; color: #666; }
+  .detail-actions .share { color: #1b1b1b; font-weight: 600; }
+
+  /* 分享面板 */
+  .sheet-mask {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+  }
+  .sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 20px 28px;
+  }
+  .sheet-handle {
+    width: 32px; height: 4px;
+    background: #ddd;
+    border-radius: 2px;
+    margin: 0 auto 14px;
+  }
+  .sheet-title { text-align: center; font-size: 12px; color: #999; margin-bottom: 16px; }
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 0 24px;
+  }
+  .sheet-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .sheet-icon {
+    width: 52px; height: 52px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .icon-wechat { background: #07c160; color: #fff; }
+  .icon-poster { background: linear-gradient(135deg, #e8a040, #c87830); color: #fff; }
+  .sheet-label { font-size: 12px; color: #333; }
+  .sheet-note {
+    margin-top: 14px;
+    font-size: 11px;
+    color: #aaa;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .sheet-cancel {
+    margin-top: 16px;
+    text-align: center;
+    background: #f5f5f5;
+    border-radius: 10px;
+    padding: 11px;
+    font-size: 14px;
+    color: #333;
+  }
+
+  /* 微信聊天卡片 */
+  .chat-screen { background: #ededed; min-height: 380px; padding: 16px; }
+  .chat-bubble {
+    max-width: 220px;
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  }
+  .chat-bubble::before {
+    content: '';
+    position: absolute;
+    /* decorative */
+  }
+  .chat-thumb {
+    width: 100%;
+    height: 140px;
+    background: linear-gradient(160deg, #8b6914 0%, #c4a060 40%, #6b5030 100%);
+    position: relative;
+  }
+  .chat-thumb-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .chat-body { padding: 10px 10px 8px; }
+  .chat-title {
+    font-size: 13px;
+    color: #1b1b1b;
+    line-height: 1.45;
+    margin-bottom: 6px;
+  }
+  .chat-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: #999;
+  }
+  .chat-app {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 10px;
+    color: #576b95;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .chat-app-dot {
+    width: 14px; height: 14px;
+    background: #07c160;
+    border-radius: 3px;
+  }
+  .chat-caption {
+    margin-top: 12px;
+    font-size: 11px;
+    color: #888;
+    text-align: left;
+    line-height: 1.5;
+  }
+
+  /* 海报 */
+  .poster-screen {
+    background: rgba(0,0,0,.88);
+    min-height: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    gap: 16px;
+  }
+  .poster-card {
+    width: 240px;
+    background: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0,0,0,.4);
+  }
+  .poster-img {
+    height: 260px;
+    background: linear-gradient(160deg, #8b6914 0%, #c4a060 45%, #5a4020 100%);
+    position: relative;
+  }
+  .poster-brand {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: rgba(255,255,255,.92);
+    border-radius: 14px;
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #1b1b1b;
+  }
+  .poster-index {
+    position: absolute;
+    bottom: 10px; right: 10px;
+    background: rgba(0,0,0,.5);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .poster-body { padding: 14px; }
+  .poster-desc {
+    font-size: 12px;
+    color: #333;
+    line-height: 1.55;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .poster-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    color: #666;
+  }
+  .poster-avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #ddd;
+  }
+  .poster-loc { margin-left: auto; color: #999; font-size: 10px; }
+  .poster-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+  }
+  .poster-qr {
+    width: 52px; height: 52px;
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .poster-qr-inner {
+    width: 100%; height: 100%;
+    background:
+      linear-gradient(90deg, #000 2px, transparent 2px) 0 0/8px 8px,
+      linear-gradient(#000 2px, transparent 2px) 0 0/8px 8px;
+    opacity: .85;
+  }
+  .poster-qr-text { flex: 1; }
+  .poster-qr-title { font-size: 11px; font-weight: 600; color: #1b1b1b; }
+  .poster-qr-sub { font-size: 10px; color: #999; line-height: 1.4; margin-top: 2px; }
+  .poster-save {
+    background: #07c160;
+    color: #fff;
+    font-size: 14px;
+    padding: 10px 28px;
+    border-radius: 22px;
+  }
+  .poster-hint { font-size: 11px; color: #666; }
+
+  /* 对比说明 */
+  .compare {
+    max-width: 640px;
+    margin: 0 auto 40px;
+    background: #1a1a1a;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #ccc;
+  }
+  .compare strong { color: #fff; }
+  .compare .no { color: #ff6b6b; }
+  .compare .yes { color: #07c160; }
+</style>
+</head>
+<body>
+
+<h1>分享内容 · 最终方案</h1>
+<p class="subtitle">点「分享」后出现面板；两种出口，图都用<strong style="color:#fff">当前正在看的那张</strong>，不是固定封面。</p>
+
+<div class="compare">
+  <strong>结论一览</strong><br>
+  <span class="yes">用</span> 当前 swiper 图（多图帖分享所见即所得）<br>
+  <span class="no">不用</span> 固定封面图、普通 URL 二维码、单独「帖子二维码」<br>
+  <span class="yes">仅海报</span> 带小程序码（扫码进小程序打开该帖）<br>
+  <span class="yes">微信好友卡片</span> 无码，靠 path 深链落地
+</div>
+
+<!-- Step 1 -->
+<div class="section">
+  <div class="section-head">
+    <span class="section-tag">1</span>
+    <span class="section-title">点分享 → 面板（两项就够）</span>
+  </div>
+  <p class="section-desc">不做四宫格。朋友圈走右上角菜单，面板里不必单独占一格。</p>
+  <div class="row">
+    <div class="card-wrap">
+      <div class="phone">
+        <div class="screen">
+          <div style="height:200px;background:linear-gradient(160deg,#8b6914,#c4a060);position:relative;">
+            <div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;padding:2px 7px;border-radius:4px;">3/5 ← 当前图</div>
+          </div>
+          <div class="sheet-mask"></div>
+          <div class="sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-title">分享</div>
+            <div class="sheet-grid">
+              <div class="sheet-item">
+                <div class="sheet-icon icon-wechat">微</div>
+                <div class="sheet-label">发给微信好友</div>
+              </div>
+              <div class="sheet-item">
+                <div class="sheet-icon icon-poster">图</div>
+                <div class="sheet-label">生成分享图</div>
+              </div>
+            </div>
+            <div class="sheet-note">分享图含小程序码，可存相册后发到群/朋友圈</div>
+            <div class="sheet-cancel">取消</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-label">用户先选出口，不是直接弹一种样式</div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2A -->
+<div class="section">
+  <div class="section-head">
+    <span class="section-tag">2A</span>
+    <span class="section-title">发给好友 · 对方看到什么</span>
+  </div>
+  <p class="section-desc">微信标准小程序卡片：缩略图 = 当前图；标题 = 帖子标题或一句描述；点开直达该帖（可带 photoIndex）。</p>
+  <div class="row">
+    <div class="card-wrap">
+      <div class="phone">
+        <div class="screen chat-screen">
+          <div class="chat-bubble">
+            <div class="chat-thumb">
+              <div class="chat-thumb-badge">第 3 张</div>
+            </div>
+            <div class="chat-body">
+              <div class="chat-title">石板街的老槐树，爷爷常在这儿喝茶</div>
+              <div class="chat-meta">老根茶村 · 故乡照片墙</div>
+              <div class="chat-app">
+                <div class="chat-app-dot"></div>
+                小程序
+              </div>
+            </div>
+          </div>
+          <div class="chat-caption">无二维码。好友点击卡片 → 打开小程序到这条帖子。</div>
+        </div>
+      </div>
+      <div class="card-label">聊天里是一张「带图链接卡片」</div>
+    </div>
+  </div>
+</div>
+
+<!-- Step 2B -->
+<div class="section">
+  <div class="section-head">
+    <span class="section-tag">2B</span>
+    <span class="section-title">生成分享图 · 用户看到什么</span>
+  </div>
+  <p class="section-desc">全屏预览一张竖图：大图是当前图 + 文案 + 作者 + 地点 + 小程序码。保存后可任意渠道传播。</p>
+  <div class="row">
+    <div class="card-wrap">
+      <div class="phone">
+        <div class="screen poster-screen">
+          <div class="poster-card">
+            <div class="poster-img">
+              <div class="poster-brand">老根茶村</div>
+              <div class="poster-index">3/5</div>
+            </div>
+            <div class="poster-body">
+              <div class="poster-desc">石板街的老槐树，爷爷常在这儿喝茶…</div>
+              <div class="poster-user">
+                <div class="poster-avatar"></div>
+                <span>张三</span>
+                <span class="poster-loc">石板街</span>
+              </div>
+              <div class="poster-footer">
+                <div class="poster-qr"><div class="poster-qr-inner"></div></div>
+                <div class="poster-qr-text">
+                  <div class="poster-qr-title">长按识别小程序码</div>
+                  <div class="poster-qr-sub">查看这条故乡照片</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="poster-save">保存到相册</div>
+          <div class="poster-hint">仅此处出现码 · 必须是小程序码</div>
+        </div>
+      </div>
+      <div class="card-label">适合存图后发朋友圈 / 家族群</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
