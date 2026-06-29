@@ -6,7 +6,6 @@ const {
 } = require('../../utils/heroController');
 const { formatPostCountTexts } = require('../../utils/util');
 const { isLoggedIn } = require('../../utils/session');
-const { getDetailSlotHeight } = require('../../utils/heroLayout');
 const { rectToStyle } = require('../../utils/heroLayout');
 const { getNavBarLayout } = require('../../utils/navBarLayout');
 const postDetailBehavior = require('../../behaviors/post-detail-behavior');
@@ -204,17 +203,9 @@ Component({
 
     onPhotoLoad(e) {
       const { width, height } = e.detail;
-      const index = Number(e.currentTarget.dataset.index);
       if (width && height) {
         this._imgNaturalW = width;
         this._imgNaturalH = height;
-        if (index === this.data.currentPhotoIndex) {
-          const winW = this._windowWidth || wx.getSystemInfoSync().windowWidth;
-          const imageSlotHeight = getDetailSlotHeight(winW, height / width);
-          if (imageSlotHeight !== this.data.imageSlotHeight) {
-            this.setData({ imageSlotHeight });
-          }
-        }
       }
       this.onHeroPhotoLoad(e);
     },

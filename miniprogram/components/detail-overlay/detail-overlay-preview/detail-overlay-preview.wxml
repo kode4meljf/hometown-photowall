@@ -40,7 +40,6 @@
       ></view>
       <view
         class="preview-progress-bar {{previewProgressVisible ? 'progress-show' : ''}}"
-        style="{{previewProgressStyle}}"
         wx:if="{{post.photos.length > 1}}"
       >
         <view

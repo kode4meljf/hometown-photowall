@@ -1,4 +1,6 @@
 // cloudfunctions/signin/index.js - 每日签到云函数
+//
+// 建议在云开发控制台为 user_signins 创建复合唯一索引：(_openid 升序, date 升序)
 const cloud = require('wx-server-sdk');
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
@@ -7,14 +9,14 @@ const _ = db.command;
 const signinsCollection = db.collection('user_signins');
 const usersCollection = db.collection('users');
 
-// 获取今天是本周第几天（周一=1，周日=7）
+const STREAK_LOOKBACK_DAYS = 400;
+
 function getWeekDay(date) {
   const d = new Date(date);
-  const day = d.getDay(); // 0=周日
+  const day = d.getDay();
   return day === 0 ? 7 : day;
 }
 
-// 获取本周一日期字符串
 function getWeekStart(dateStr) {
   const d = new Date(dateStr);
   const day = getWeekDay(dateStr);
@@ -22,7 +24,6 @@ function getWeekStart(dateStr) {
   return formatDate(d);
 }
 
-// 获取下周一日期字符串
 function getWeekEnd(dateStr) {
   const d = new Date(dateStr);
   const day = getWeekDay(dateStr);
@@ -30,7 +31,6 @@ function getWeekEnd(dateStr) {
   return formatDate(d);
 }
 
-// 格式化日期为 YYYY-MM-DD
 function formatDate(d) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -38,30 +38,44 @@ function formatDate(d) {
   return `${year}-${month}-${day}`;
 }
 
-// 获取连续签到天数（从今天往前推）
-async function getStreak(openId, todayStr) {
+function addDays(dateStr, delta) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + delta);
+  return formatDate(d);
+}
+
+function computeStreakFromDates(signedDates, todayStr) {
+  const signedSet = signedDates instanceof Set ? signedDates : new Set(signedDates);
   let streak = 0;
-  let checkDate = new Date(todayStr);
-
-  while (true) {
-    const dateStr = formatDate(checkDate);
-    const result = await signinsCollection.where({
-      _openid: openId,
-      date: dateStr
-    }).count();
-
-    if (result.total > 0) {
-      streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-      break;
-    }
+  let checkDate = todayStr;
+  while (signedSet.has(checkDate)) {
+    streak += 1;
+    checkDate = addDays(checkDate, -1);
   }
-
   return streak;
 }
 
-// 云函数入口
+async function fetchSignedDatesInRange(openId, fromStr, toStr, collection = signinsCollection) {
+  const result = await collection.where({
+    _openid: openId,
+    date: _.gte(fromStr).and(_.lte(toStr)),
+  }).field({ date: true }).limit(500).get();
+  return new Set(result.data.map((item) => item.date));
+}
+
+async function getStreak(openId, todayStr) {
+  const fromStr = addDays(todayStr, -(STREAK_LOOKBACK_DAYS - 1));
+  const signedDates = await fetchSignedDatesInRange(openId, fromStr, todayStr);
+  return computeStreakFromDates(signedDates, todayStr);
+}
+
+function computeCheckinReward(streak) {
+  let reward = 1;
+  if (streak === 4) reward += 1;
+  if (streak === 7) reward += 2;
+  return reward;
+}
+
 exports.main = async (event, context) => {
   const { action } = event;
   const wxContext = cloud.getWXContext();
@@ -77,31 +91,24 @@ exports.main = async (event, context) => {
   }
 };
 
-// 获取签到信息
 async function handleGetSigninInfo(openId) {
   try {
     const today = formatDate(new Date());
     const weekStart = getWeekStart(today);
     const weekEnd = getWeekEnd(today);
 
-    // 查询本周所有签到记录
     const weekResult = await signinsCollection.where({
       _openid: openId,
-      date: _.gte(weekStart).and(_.lte(weekEnd))
+      date: _.gte(weekStart).and(_.lte(weekEnd)),
     }).orderBy('date', 'asc').get();
 
-    const weekDates = weekResult.data.map(item => item.date);
+    const weekDates = weekResult.data.map((item) => item.date);
     const streak = await getStreak(openId, today);
 
-    // 读取用户积分余额
     const userRes = await usersCollection.where({ _openid: openId }).get();
     const credits = userRes.data.length > 0 ? (userRes.data[0].credits || 0) : 0;
-
-    // 判断今天是否已签到
     const signedToday = weekDates.includes(today);
 
-    // 本周周一到今天的日期列表（用于前端渲染7个圆点）
-    const weekDayIndex = getWeekDay(today); // 今天本周第几天
     const weekDays = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
@@ -112,7 +119,7 @@ async function handleGetSigninInfo(openId) {
         dayLabel: ['一', '二', '三', '四', '五', '六', '日'][i],
         signed: weekDates.includes(dateStr),
         isToday: dateStr === today,
-        isFuture: dateStr > today
+        isFuture: dateStr > today,
       });
     }
 
@@ -121,10 +128,10 @@ async function handleGetSigninInfo(openId) {
       data: {
         streak,
         credits,
-        today: today,
+        today,
         signedToday,
-        weekDays
-      }
+        weekDays,
+      },
     };
   } catch (e) {
     console.error('获取签到信息失败:', e);
@@ -132,53 +139,53 @@ async function handleGetSigninInfo(openId) {
   }
 }
 
-// 执行签到
 async function handleCheckin(openId) {
+  const today = formatDate(new Date());
+  const transaction = await db.startTransaction();
+
   try {
-    const today = formatDate(new Date());
+    const signColl = transaction.collection('user_signins');
+    const userColl = transaction.collection('users');
 
-    // 检查今天是否已签到
-    const existResult = await signinsCollection.where({
+    const existResult = await signColl.where({
       _openid: openId,
-      date: today
+      date: today,
     }).count();
-
     if (existResult.total > 0) {
+      await transaction.rollback();
       return { success: false, message: '今日已签到' };
     }
 
-    // 写入签到记录
-    await signinsCollection.add({
+    await signColl.add({
       data: {
         _openid: openId,
         date: today,
-        createdAt: db.serverDate()
-      }
+        createdAt: db.serverDate(),
+      },
     });
 
-    // 重新计算连续天数
-    const streak = await getStreak(openId, today);
+    const lookbackFrom = addDays(today, -(STREAK_LOOKBACK_DAYS - 1));
+    const signedDates = await fetchSignedDatesInRange(openId, lookbackFrom, today, signColl);
+    signedDates.add(today);
+    const streak = computeStreakFromDates(signedDates, today);
+    const reward = computeCheckinReward(streak);
 
-    // 计算本次奖励积分
-    let reward = 1; // 每次签到 +1
-    if (streak === 4) reward += 1; // 连续4天额外+1
-    if (streak === 7) reward += 2; // 连续7天额外+2（7天时总共+3）
-
-    // 更新用户积分（无记录则创建）
-    const userRes = await usersCollection.where({ _openid: openId }).get();
+    const userRes = await userColl.where({ _openid: openId }).get();
+    let newCredits;
     if (userRes.data.length > 0) {
-      await usersCollection.where({ _openid: openId }).update({
-        data: { credits: _.inc(reward) }
+      const user = userRes.data[0];
+      newCredits = (user.credits || 0) + reward;
+      await userColl.doc(user._id).update({
+        data: { credits: newCredits },
       });
     } else {
-      await usersCollection.add({
-        data: { _openid: openId, credits: reward }
+      newCredits = reward;
+      await userColl.add({
+        data: { _openid: openId, credits: reward },
       });
     }
 
-    // 重新读取最新积分
-    const newUserRes = await usersCollection.where({ _openid: openId }).get();
-    const newCredits = newUserRes.data.length > 0 ? (newUserRes.data[0].credits || 0) : 0;
+    await transaction.commit();
 
     return {
       success: true,
@@ -186,10 +193,11 @@ async function handleCheckin(openId) {
         date: today,
         streak,
         credits: newCredits,
-        message: streak > 1 ? `已连续签到 ${streak} 天` : '签到成功'
-      }
+        message: streak > 1 ? `已连续签到 ${streak} 天` : '签到成功',
+      },
     };
   } catch (e) {
+    await transaction.rollback();
     console.error('签到失败:', e);
     return { success: false, message: '签到失败，请重试' };
   }

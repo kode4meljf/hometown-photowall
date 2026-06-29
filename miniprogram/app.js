@@ -5,6 +5,8 @@ App({
   globalData: {
     userInfo: null,
     isLoggedIn: false,
+    /** null=待校验, true=已与服务器确认, false=校验失败或未登录 */
+    sessionVerified: null,
     homeNeedRefresh: false,
     profileNeedRefresh: false,
     profileNeedUserRefresh: false,
@@ -17,7 +19,7 @@ App({
       console.error('请使用 2.2.3 或以上的基础库以使用云能力');
     } else {
       wx.cloud.init({
-        env: 'cloud1-d2g545zl57f7db2de', // 替换为你的云开发环境ID
+        env: 'hometown-photos-d4fm4k2ca299019d',
         traceUser: true
       });
     }
@@ -41,6 +43,7 @@ App({
   _applyLoginUser(user) {
     this.globalData.userInfo = user;
     this.globalData.isLoggedIn = true;
+    this.globalData.sessionVerified = true;
     wx.setStorageSync('userInfo', user);
   },
 
@@ -72,6 +75,7 @@ App({
   logout() {
     this.globalData.userInfo = null;
     this.globalData.isLoggedIn = false;
+    this.globalData.sessionVerified = false;
     wx.removeStorageSync('userInfo');
     this.globalData.homeNeedRefresh = true;
     this.globalData.profileNeedRefresh = true;
@@ -84,6 +88,7 @@ App({
   syncSession(options = {}) {
     const { toast = false } = options;
     if (!this.globalData.isLoggedIn) {
+      this.globalData.sessionVerified = false;
       return Promise.resolve(false);
     }
     return this._callAuth('getCurrentUser')
@@ -98,7 +103,13 @@ App({
         }
         return false;
       })
-      .catch(() => this.globalData.isLoggedIn);
+      .catch(() => {
+        this.globalData.sessionVerified = false;
+        if (toast) {
+          wx.showToast({ title: '网络异常，请稍后重试', icon: 'none' });
+        }
+        return false;
+      });
   },
 
   // 检查是否登录

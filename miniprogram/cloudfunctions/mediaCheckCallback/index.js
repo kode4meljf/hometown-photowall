@@ -9,11 +9,16 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 
 const db = cloud.database();
 const mediaAudit = require('./common/mediaAudit');
-
-const DEV_SEED_KEY = 'photowall-dev-seed';
+const { isDevActionsEnabled, assertDevKey, devActionsDisabledResponse } = require('./common/devGate');
 
 exports.main = async (event) => {
-  if (event.action === 'devSimulateCallback' && event.data && event.data.devKey === DEV_SEED_KEY) {
+  if (event.action === 'devSimulateCallback') {
+    if (!isDevActionsEnabled()) {
+      return devActionsDisabledResponse();
+    }
+    if (!assertDevKey(event.data)) {
+      return { success: false, message: '无权限' };
+    }
     return devSimulateCallback(event.data);
   }
 

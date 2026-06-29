@@ -8,6 +8,8 @@
     "build:admin": "npm run build --prefix web",
     "preview:admin": "npm run preview --prefix web",
     "login:admin": "npm exec --prefix web tcb login",
-    "deploy:admin": "npm run deploy:hosting --prefix web"
+    "deploy:fn": "npm run deploy:fn --prefix web --",
+    "deploy:fns": "npm run deploy:fns --prefix web",
+    "deploy:admin": "npm run deploy:admin --prefix web"
   }
 }

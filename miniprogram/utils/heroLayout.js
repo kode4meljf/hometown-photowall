@@ -51,10 +51,16 @@ function getDetailSlotHeight(windowWidth, aspectRatioHW) {
   return Math.round(Math.min(Math.max(natural, minH), maxH));
 }
 
-function getDetailImageRect(windowWidth, headerTop, aspectRatioHW) {
+/** 详情图区固定高度（3:4 竖图上限），多图切换时不随当前图比例变化 */
+function getDetailMaxSlotHeight(windowWidth) {
+  const w = windowWidth || 375;
+  return Math.round(w * DETAIL_SLOT_MAX_RATIO);
+}
+
+function getDetailImageRect(windowWidth, headerTop) {
   const top = headerTop;
   const width = windowWidth;
-  const height = getDetailSlotHeight(windowWidth, aspectRatioHW);
+  const height = getDetailMaxSlotHeight(windowWidth);
   return { left: 0, top, width, height };
 }
 
@@ -66,5 +72,6 @@ module.exports = {
   flyTransformStyle,
   rectToSlotLocal,
   getDetailSlotHeight,
+  getDetailMaxSlotHeight,
   getDetailImageRect,
 };

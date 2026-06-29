@@ -202,7 +202,7 @@ async function handleRegister(username, password, nickname, openId) {
   }
 }
 
-// 登录（用户名密码：同步绑定当前微信 OPENID）
+// 登录（用户名密码：仅首次绑定当前微信 OPENID）
 async function handleLogin(username, password, openId) {
   if (!username || !password) {
     return { success: false, message: '参数不完整' };
@@ -228,7 +228,11 @@ async function handleLogin(username, password, openId) {
       user.password = passwordHash;
     }
 
-    if (openId && user._openid !== openId) {
+    if (openId && user._openid && user._openid !== openId) {
+      return { success: false, message: '该账号已绑定其他微信，无法在此登录' };
+    }
+
+    if (openId && !user._openid) {
       await usersCollection.doc(user._id).update({
         data: { _openid: openId, updatedAt: db.serverDate() }
       });

@@ -212,7 +212,6 @@
     previewTouchCapture="{{previewTouchCapture}}"
     bottomBarVisible="{{bottomBarVisible}}"
     showLikeAnim="{{showLikeAnim}}"
-    previewProgressStyle="{{previewProgressStyle}}"
     previewProgressVisible="{{previewProgressVisible}}"
     currentPhotoIndex="{{currentPhotoIndex}}"
     indexBadgeVisible="{{indexBadgeVisible}}"

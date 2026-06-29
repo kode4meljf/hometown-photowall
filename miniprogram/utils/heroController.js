@@ -7,7 +7,7 @@ const {
   rectToStyle,
   flyTransformStyle,
   rectToSlotLocal,
-  getDetailSlotHeight,
+  getDetailMaxSlotHeight,
   getDetailImageRect,
 } = require('./heroLayout');
 
@@ -55,7 +55,7 @@ function cardHandoffScaleAtProgress(cardRect, windowWidth, windowHeight, progres
 
 function resolveLayout(windowWidth, nav, imgRect, aspectRatio) {
   const imgAR = aspectRatio > 0 ? aspectRatio : 1;
-  const slotRect = getDetailImageRect(windowWidth, nav.navBarHeight, imgAR);
+  const slotRect = getDetailImageRect(windowWidth, nav.navBarHeight);
   const fitRect = aspectFitCenter(slotRect, imgAR) || slotRect;
   const cardRect =
     (imgRect && (aspectFillCenter(imgRect, imgAR) || imgRect)) ||
@@ -67,7 +67,7 @@ function resolveLayout(windowWidth, nav, imgRect, aspectRatio) {
     fitRect,
     cardRect,
     slotFitStyle: rectToSlotLocal(fitRect, slotRect),
-    imageSlotHeight: getDetailSlotHeight(windowWidth, aspectRatio),
+    imageSlotHeight: getDetailMaxSlotHeight(windowWidth),
   };
 }
 

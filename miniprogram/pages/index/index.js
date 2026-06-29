@@ -642,11 +642,8 @@ Page({
   onLikeTap(e) {
     if (!requireLogin()) return;
 
-    const { id, index: indexStr, column } = e.currentTarget.dataset;
-    const index = parseInt(indexStr, 10);
-    const postsKey = column === 'left' ? 'leftPosts' : 'rightPosts';
-    const posts = this.data[postsKey];
-    const post = posts[index];
+    const { id } = e.currentTarget.dataset;
+    const post = this._findPostById(id);
     if (!post) return;
 
     const wasLiked = !!post.liked;
@@ -654,23 +651,13 @@ Page({
     const nowLiked = !wasLiked;
     const nowLikes = wasLiked ? wasLikes - 1 : wasLikes + 1;
 
-    // 立即更新 UI（乐观翻转）
-    const updatedPosts = posts.map((p) => (
-      p.id === id ? withFeedLikeFields(p, nowLiked, nowLikes) : p
-    ));
-    this.setData({ [postsKey]: updatedPosts });
+    this.patchFeedPostLike(id, nowLiked, nowLikes);
 
     togglePostLike(id).then((res) => {
       if (!res.success) throw new Error('api failed');
-      const finalPosts = this.data[postsKey].map((p) => (
-        p.id === id ? withFeedLikeFields(p, res.liked, res.likes) : p
-      ));
-      this.setData({ [postsKey]: finalPosts });
+      this.patchFeedPostLike(id, res.liked, res.likes);
     }).catch(() => {
-      const rolledBack = this.data[postsKey].map((p) => (
-        p.id === id ? withFeedLikeFields(p, wasLiked, wasLikes) : p
-      ));
-      this.setData({ [postsKey]: rolledBack });
+      this.patchFeedPostLike(id, wasLiked, wasLikes);
       wx.showToast({ title: '操作失败', icon: 'none' });
     });
   }

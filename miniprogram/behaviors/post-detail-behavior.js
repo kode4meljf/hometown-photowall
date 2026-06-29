@@ -1,5 +1,5 @@
 const { postApi, feedbackApi } = require('../utils/api');
-const { getDetailSlotHeight } = require('../utils/heroLayout');
+const { getDetailMaxSlotHeight } = require('../utils/heroLayout');
 const { showLoading, hideLoading, showToast, showSuccess, formatDateTime, formatPostCountTexts } = require('../utils/util');
 const { getDataset } = require('../utils/eventBridge');
 const { requireLogin, isLoggedIn } = require('../utils/session');
@@ -129,21 +129,9 @@ module.exports = Behavior({
       return { ...post, photos };
     },
 
-    _photoAspectRatio(photo, fallback) {
-      if (photo && photo.width && photo.height) {
-        const r = photo.height / photo.width;
-        if (isFinite(r) && r > 0) return r;
-      }
-      const fb = fallback ?? this.properties.aspectRatio;
-      return fb > 0 ? fb : 1;
-    },
-
-    _imageSlotHeightForIndex(index) {
-      const post = this.data.post;
-      const photo = post && post.photos && post.photos[index];
-      const ar = this._photoAspectRatio(photo, this.properties.aspectRatio);
+    _detailMaxSlotHeight() {
       const w = this._windowWidth || wx.getSystemInfoSync().windowWidth;
-      return getDetailSlotHeight(w, ar);
+      return getDetailMaxSlotHeight(w);
     },
 
     async loadPost(silent = false) {
@@ -186,7 +174,7 @@ module.exports = Behavior({
           const hasMoreComments = res.data.hasMore || false;
           const countTexts = formatPostCountTexts(finalPost);
           let currentPhotoIndex = 0;
-          let imageSlotHeight = this._imageSlotHeightForIndex(0);
+          const imageSlotHeight = this._detailMaxSlotHeight();
           const pendingIdx = this._pendingInitialPhotoIndex || 0;
           if (
             pendingIdx > 0 &&
@@ -194,7 +182,6 @@ module.exports = Behavior({
             pendingIdx < finalPost.photos.length
           ) {
             currentPhotoIndex = pendingIdx;
-            imageSlotHeight = this._imageSlotHeightForIndex(pendingIdx);
           }
           this._pendingInitialPhotoIndex = 0;
           this.setData({
@@ -269,10 +256,7 @@ module.exports = Behavior({
 
     onSwiperChange(e) {
       const index = e.detail.current;
-      this.setData({
-        currentPhotoIndex: index,
-        imageSlotHeight: this._imageSlotHeightForIndex(index),
-      });
+      this.setData({ currentPhotoIndex: index });
       this._showIndexBadge();
     },
 

@@ -30,14 +30,30 @@ async function ensureSession(options = {}) {
  * 本地登录检查；未登录时可 toast 或自定义处理（如弹登录窗）
  */
 function requireLogin(options = {}) {
-  const { onUnauthenticated, toast = true, message = '请先登录' } = options;
-  if (isLoggedIn()) return true;
-  if (typeof onUnauthenticated === 'function') {
-    onUnauthenticated();
-  } else if (toast) {
-    showToast(message);
+  const {
+    onUnauthenticated,
+    toast = true,
+    message = '请先登录',
+    unverifiedMessage = '登录状态未验证，请检查网络',
+  } = options;
+  const app = getApp();
+  if (!isLoggedIn()) {
+    if (typeof onUnauthenticated === 'function') {
+      onUnauthenticated();
+    } else if (toast) {
+      showToast(message);
+    }
+    return false;
   }
-  return false;
+  if (app.globalData.sessionVerified === false) {
+    if (typeof onUnauthenticated === 'function') {
+      onUnauthenticated();
+    } else if (toast) {
+      showToast(unverifiedMessage);
+    }
+    return false;
+  }
+  return true;
 }
 
 module.exports = {

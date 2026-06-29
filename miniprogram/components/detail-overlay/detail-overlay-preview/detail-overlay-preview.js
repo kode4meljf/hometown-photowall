@@ -13,7 +13,6 @@ Component({
     previewTouchCapture: { type: Boolean, value: false },
     bottomBarVisible: { type: Boolean, value: false },
     showLikeAnim: { type: Boolean, value: false },
-    previewProgressStyle: { type: String, value: '' },
     previewProgressVisible: { type: Boolean, value: false },
     currentPhotoIndex: { type: Number, value: 0 },
     indexBadgeVisible: { type: Boolean, value: false },

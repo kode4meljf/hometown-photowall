@@ -29,7 +29,6 @@ module.exports = Behavior({
     previewTouchCapture: false,
     bottomBarVisible: false,
     showLikeAnim: false,
-    previewProgressStyle: '',
     previewProgressVisible: false,
   },
 
@@ -51,33 +50,12 @@ module.exports = Behavior({
       return null;
     },
 
-    _updatePreviewProgressPos(index) {
-      if (!this.data.isPreviewMode) return;
-      const photos = this.data.post && this.data.post.photos;
-      if (!photos || photos.length <= 1) return;
-
-      const screenW = this._windowWidth || wx.getSystemInfoSync().windowWidth;
-      const screenH = this._windowHeight || wx.getSystemInfoSync().windowHeight;
-      let imgAR = this._previewPhotoAR(index);
-      if (!imgAR) imgAR = 1;
-
-      const layout = this._aspectFitLayout(screenW, screenH, imgAR);
-      const bottomGap = screenH - layout.offsetY - layout.visH;
-      const pad = 8;
-      this.setData({
-        previewProgressStyle: `bottom:${Math.max(bottomGap, 0) + pad}px;`,
-      });
-    },
-
     onPreviewPhotoLoad(e) {
       const index = Number(getDataset(e).index);
       if (!this._previewPhotoDims) this._previewPhotoDims = {};
       const { width, height } = e.detail || {};
       if (width && height) {
         this._previewPhotoDims[index] = { w: width, h: height };
-      }
-      if (this.data.isPreviewMode && index === this.data.currentPhotoIndex) {
-        this._updatePreviewProgressPos(index);
       }
     },
     _clearPreviewSingleTapTimer() {
@@ -173,7 +151,6 @@ module.exports = Behavior({
         previewBgStyle: '',
         previewDismissDragging: false,
         previewTouchCapture: false,
-        previewProgressStyle: '',
         previewProgressVisible: false,
         indexBadgeVisible: false,
       });
@@ -419,7 +396,6 @@ module.exports = Behavior({
       this._gestureState = null;
       this.setData({ currentPhotoIndex: index, previewTouchCapture: false });
       this._applyPreviewTransform(0, 0, 1, 1);
-      this._updatePreviewProgressPos(index);
       this._showIndexBadge();
     },
 
@@ -443,7 +419,6 @@ module.exports = Behavior({
         overlayOpacity: 0,
         previewBgStyle: 'background:#121212;',
         previewDismissDragging: false,
-        previewProgressStyle: '',
         previewProgressVisible: false,
       });
 
@@ -458,7 +433,6 @@ module.exports = Behavior({
               previewOpacity: 1,
               previewTransform: 'translate(0px, 0px) scale(1, 1)',
             });
-            this._updatePreviewProgressPos(this.data.currentPhotoIndex);
             if (this.data.post.photos.length > 1) {
               this._showIndexBadge();
             }
@@ -479,7 +453,6 @@ module.exports = Behavior({
             endSx: 1,
             endSy: 1,
           };
-          this._updatePreviewProgressPos(this.data.currentPhotoIndex);
 
           this._exitRequested = false;
           this._previewAnimating = true;
@@ -510,7 +483,6 @@ module.exports = Behavior({
                   previewAnimClass: '',
                   previewAnimating: false,
                 });
-                this._updatePreviewProgressPos(this.data.currentPhotoIndex);
                 if (this.data.post.photos.length > 1) {
                   this._showIndexBadge();
                 }

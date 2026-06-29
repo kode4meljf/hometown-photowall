@@ -1,5 +1,5 @@
 {
-  "envId": "cloud1-d2g545zl57f7db2de",
+  "envId": "hometown-photos-d4fm4k2ca299019d",
   "hosting": {
     "public": "dist",
     "ignore": ["node_modules/**", ".git/**"],

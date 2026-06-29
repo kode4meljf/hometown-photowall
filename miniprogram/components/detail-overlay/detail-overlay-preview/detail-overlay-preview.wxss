@@ -92,6 +92,7 @@
   position: absolute;
   left: 0;
   right: 0;
+  bottom: calc(84rpx + env(safe-area-inset-bottom) + 16rpx);
   display: flex;
   gap: 4px;
   padding: 0 24rpx;

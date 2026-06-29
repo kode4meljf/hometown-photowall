@@ -84,7 +84,7 @@ function isLegacyScopedPhotosPath(path) {
   return parts.length === 2 && parts[0] === 'photos' && parts[1] && !parts[1].includes('/');
 }
 
-function assertActorOwnsCloudFile(fileId, actor) {
+function assertActorOwnsCloudFile(fileId, actor, { allowedLegacyFileIds } = {}) {
   const path = cloudStoragePath(fileId);
   if (!path || path.includes('..')) {
     return { ok: false, message: '无效的图片地址' };
@@ -97,15 +97,18 @@ function assertActorOwnsCloudFile(fileId, actor) {
     return { ok: true };
   }
   if (isLegacyScopedPhotosPath(path)) {
-    return { ok: true };
+    if (allowedLegacyFileIds && allowedLegacyFileIds.has(fileId)) {
+      return { ok: true };
+    }
+    return { ok: false, message: '图片地址无效，请重新上传' };
   }
   return { ok: false, message: '图片地址无效，请重新上传' };
 }
 
-function assertActorOwnsCloudFiles(fileIds, actor) {
+function assertActorOwnsCloudFiles(fileIds, actor, options = {}) {
   const list = (fileIds || []).filter(Boolean);
   for (let i = 0; i < list.length; i++) {
-    const check = assertActorOwnsCloudFile(list[i], actor);
+    const check = assertActorOwnsCloudFile(list[i], actor, options);
     if (!check.ok) return check;
   }
   return { ok: true };

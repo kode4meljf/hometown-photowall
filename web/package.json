@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "deploy:hosting": "npm run build && npx tcb hosting deploy dist -e cloud1-d2g545zl57f7db2de"
+    "deploy:adminApi": "npx tcb fn deploy adminApi --dir ../miniprogram/cloudfunctions/adminApi -e hometown-photos-d4fm4k2ca299019d --force --yes --path /adminApi",
+    "deploy:fn": "bash scripts/deploy-fn.sh",
+    "deploy:fns": "bash scripts/deploy-fns.sh",
+    "deploy:hosting": "npm run build && npx tcb hosting deploy dist -e hometown-photos-d4fm4k2ca299019d",
+    "deploy:admin": "npm run deploy:adminApi && npm run deploy:hosting"
   },
   "dependencies": {
     "vue": "^3.5.30"
